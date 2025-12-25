@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level1New
   m_EditorClassIdentifier: 
   plantPrefabs:
-  - prefab: {fileID: 1558919512024049548, guid: 954a8966a94085140a0f9e8ec5c3dde1,
+  - prefab: {fileID: 4645857536683069197, guid: 6cd9a6ed95411704bb027c29e2349208,
       type: 3}
     spawnProbability: 0.436
     minScale: 1.5
@@ -28,7 +28,7 @@ MonoBehaviour:
     allowRegeneration: 1
     regenerationProbabilityMultiplier: 1
     regenerationTargetCount: 100
-  - prefab: {fileID: 1558919512024049548, guid: 954a8966a94085140a0f9e8ec5c3dde1,
+  - prefab: {fileID: 4645857536683069197, guid: 6cd9a6ed95411704bb027c29e2349208,
       type: 3}
     spawnProbability: 0.181
     minScale: 1.5

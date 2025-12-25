@@ -11,8 +11,9 @@ GameObject:
   - component: {fileID: 9220116063426921775}
   - component: {fileID: 93790480679667512}
   - component: {fileID: 8582336664695207489}
-  m_Layer: 0
-  m_Name: P_Watermelon_Dead
+  - component: {fileID: -7529153660644928506}
+  m_Layer: 13
+  m_Name: L_Watermelon_Dead
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -162,14 +163,41 @@ SphereCollider:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 8200
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 1.03
+  m_Radius: 0.31
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!54 &-7529153660644928506
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3632386326470230777}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &117710994424524705
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -255,6 +283,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -927199367670048503, guid: 9e54c255dd86ad74a8b0e342c87d133a,
         type: 3}
+      propertyPath: m_Layer
+      value: 13
+      objectReference: {fileID: 0}
+    - target: {fileID: -927199367670048503, guid: 9e54c255dd86ad74a8b0e342c87d133a,
+        type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
@@ -282,6 +315,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Watermelon_02_Slice
       objectReference: {fileID: 0}
+    - target: {fileID: 593546227655485509, guid: 237d05ded4e88d242bf2027144a90c98,
+        type: 3}
+      propertyPath: m_Layer
+      value: 13
+      objectReference: {fileID: 0}
     - target: {fileID: 1528671494496857926, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_Enabled
@@ -290,32 +328,32 @@ PrefabInstance:
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalScale.x
-      value: 3.899722
+      value: 2.8793604
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalScale.y
-      value: 3.899722
+      value: 2.8793604
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalScale.z
-      value: 3.899722
+      value: 2.8793604
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.389
+      value: -0.124
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.859
+      value: 0.4
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.033
       objectReference: {fileID: 0}
     - target: {fileID: 6323954282879164759, guid: 237d05ded4e88d242bf2027144a90c98,
         type: 3}
@@ -450,7 +488,7 @@ PrefabInstance:
     - target: {fileID: 6611887914908523338, guid: 0a017723aaa2c234bb47497bd67f44da,
         type: 3}
       propertyPath: m_Layer
-      value: 12
+      value: 13
       objectReference: {fileID: 0}
     - target: {fileID: 6611887914908523338, guid: 0a017723aaa2c234bb47497bd67f44da,
         type: 3}

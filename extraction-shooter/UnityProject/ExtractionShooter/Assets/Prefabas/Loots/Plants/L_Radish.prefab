@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 4027650090989557610}
   - component: {fileID: 93790480679667512}
   m_Layer: 0
-  m_Name: P_SweetPepper
+  m_Name: L_Radish
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -140,7 +140,7 @@ MonoBehaviour:
   destroyTimeout: 10
   collectEffectPrefab: {fileID: 0}
   collectSound: {fileID: 0}
-  resourceType: 18
+  resourceType: 17
   resourceAmount: 1
   useCustomResource: 0
   isPlantResource: 1
@@ -373,7 +373,7 @@ PrefabInstance:
     - target: {fileID: 2181447279874582679, guid: 82bdf7f9b717c6343b792f2f244d588d,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2773655746822960980, guid: 82bdf7f9b717c6343b792f2f244d588d,
         type: 3}
@@ -438,6 +438,11 @@ PrefabInstance:
     - target: {fileID: 2773655746822960980, guid: 82bdf7f9b717c6343b792f2f244d588d,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3866216033552231269, guid: 82bdf7f9b717c6343b792f2f244d588d,
+        type: 3}
+      propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -749,7 +754,7 @@ PrefabInstance:
     - target: {fileID: 1058088112992812843, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
@@ -774,51 +779,46 @@ PrefabInstance:
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.015
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.289
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.64491624
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.16871352
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.72113055
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0.18865165
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 3.123
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 95.574
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2544944790135538873, guid: 8577e85bddce725469cf5888d9cbaf3b,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: -29.169
-      objectReference: {fileID: 0}
-    - target: {fileID: 7182024892920825875, guid: 8577e85bddce725469cf5888d9cbaf3b,
-        type: 3}
-      propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

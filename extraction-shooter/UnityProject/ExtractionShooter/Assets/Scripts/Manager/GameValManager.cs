@@ -26,7 +26,8 @@ public enum ResourceType
     LootPineapple,
     LootRadish,
     LootSweetPepper,
-    LootWatermelon
+    LootWatermelon,
+    LootPumkin,
 
 }
 

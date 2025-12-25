@@ -6,6 +6,8 @@ using System.Collections;
 
 public class ShopManager : MonoBehaviour
 {
+    [Header("商店显示和隐藏")]
+    private Vector3 originPosition; // 记录初始位置
     [Header("商店设置")]
     [SerializeField] private Transform gridParent; // Grid Layout Group的父物体
     [SerializeField] private GameObject shopSlotPrefab; // 商店格子预制体
@@ -55,6 +57,7 @@ public class ShopManager : MonoBehaviour
 
     private void Awake()
     {
+        DontDestroyOnLoad(gameObject);
         // 单例设置
         if (Instance == null)
         {
@@ -103,6 +106,7 @@ public class ShopManager : MonoBehaviour
 
     private void Start()
     {
+        originPosition = this.transform.position;
         // 初始检查商店状态
         CheckAndUpdateShopState();
 
@@ -114,7 +118,16 @@ public class ShopManager : MonoBehaviour
         autoUpdateCoroutine = StartCoroutine(AutoUpdateShopState());
         UpdateShopStatsFromManager();
     }
-
+    public void HideShop()
+    {
+        print("隐藏商店");
+        this.transform.position = new Vector3(0, -1000, 0);
+    }
+    public void ShowShop()
+    {
+        print("显示商店:"+originPosition.ToString());
+        this.transform.position = originPosition;
+    }
     // 初始化商店
     private void InitializeShop()
     {
@@ -704,39 +717,130 @@ public class ShopManager : MonoBehaviour
     }
     private void UpdateShopStatsFromManager()
     {
-        //print("商店更新");
         var wsm = WeaponStatsManager.Instance;
         if (wsm == null) return;
 
-        // 更新商店格子数量和容量（基于原始值）
-        shopSlotCount = wsm.shopSlotCount;// 假设WeaponStatsManager有additionalShopSlots字段
-                                          // 或者直接使用wsm的值
-                                          // shopSlotCount = wsm.shopSlotCount;
+        // 1. 保存当前商店的所有物品数据
+        List<ShopSlotUI.ShopSlotData> savedItems = SaveCurrentShopData();
 
-        slotCapacity = wsm.slotCapacity;// 假设WeaponStatsManager有additionalSlotCapacity字段
-        // 或者直接使用wsm的值
-        // slotCapacity = wsm.slotCapacity;
-
-        // 更新售卖时间（基于原始值和倍率）
+        // 2. 更新商店属性
+        shopSlotCount = wsm.shopSlotCount;
+        slotCapacity = wsm.slotCapacity;
         sellTime = originalSellTime / wsm.sellTimeMultiplier;
 
-        // 更新售卖价格（基于原始值和倍率）
+        // 更新售卖价格
         foreach (var price in resourcePrices)
         {
             if (originalPrices.ContainsKey(price.type))
             {
                 price.pricePerUnit = Mathf.RoundToInt(originalPrices[price.type] * wsm.sellPriceMultiplier);
             }
-            else
+        }
+
+        // 3. 重新初始化商店格子
+        InitializeShop();
+
+        // 4. 恢复物品数据
+        RestoreShopData(savedItems);
+
+        if (debugMode) Debug.Log("商店数值已根据 WeaponStatsManager 更新");
+    }
+
+    // 保存当前商店数据
+    private List<ShopSlotUI.ShopSlotData> SaveCurrentShopData()
+    {
+        List<ShopSlotUI.ShopSlotData> savedData = new List<ShopSlotUI.ShopSlotData>();
+
+        for (int i = 0; i < shopSlots.Count; i++)
+        {
+            ShopSlotUI slot = shopSlots[i];
+            if (slot != null && !slot.IsEmpty())
             {
-                Debug.LogWarning($"未找到资源类型 {price.type} 的原始价格");
+                // 保存每个有物品的槽位数据
+                ShopSlotUI.ShopSlotData slotData = slot.GetSlotData();
+                savedData.Add(slotData);
+
+                if (debugMode) Debug.Log($"保存槽位 {i} 数据: {slotData.itemType} x{slotData.currentCount}");
             }
         }
 
-        // 重新初始化商店格子
-        InitializeShop();
+        if (debugMode) Debug.Log($"保存了 {savedData.Count} 个槽位的物品数据");
+        return savedData;
+    }
 
-        if (debugMode) Debug.Log("商店数值已根据 WeaponStatsManager 更新");
+    // 恢复商店数据
+    private void RestoreShopData(List<ShopSlotUI.ShopSlotData> savedData)
+    {
+        if (savedData == null || savedData.Count == 0)
+        {
+            if (debugMode) Debug.Log("没有需要恢复的商店数据");
+            return;
+        }
+
+        int slotsRestored = 0;
+        int dataIndex = 0;
+
+        // 遍历新商店的所有槽位
+        for (int i = 0; i < shopSlots.Count && dataIndex < savedData.Count; i++)
+        {
+            ShopSlotUI slot = shopSlots[i];
+            if (slot == null) continue;
+
+            ShopSlotUI.ShopSlotData savedSlotData = savedData[dataIndex];
+
+            // 计算可恢复的数量（不超过新容量）
+            int restoreAmount = Mathf.Min(savedSlotData.currentCount, slotCapacity);
+
+            if (restoreAmount > 0)
+            {
+                // 恢复数据
+                slot.SetSlotData(
+                    savedSlotData.itemType,
+                    restoreAmount,
+                    savedSlotData.sellTimer,
+                    savedSlotData.isSelling
+                );
+                slotsRestored++;
+
+                if (debugMode) Debug.Log($"恢复槽位 {i}: {savedSlotData.itemType} x{restoreAmount}");
+
+                // 如果原数据有剩余物品，需要处理拆分
+                int remaining = savedSlotData.currentCount - restoreAmount;
+                if (remaining > 0)
+                {
+                    // 更新保存的数据，以便继续填充后续槽位
+                    savedData[dataIndex] = new ShopSlotUI.ShopSlotData
+                    {
+                        itemType = savedSlotData.itemType,
+                        currentCount = remaining,
+                        sellTimer = 0, // 重新开始计时
+                        isSelling = false
+                    };
+                    // 不增加dataIndex，继续处理同一物品
+                }
+                else
+                {
+                    dataIndex++; // 处理下一个物品
+                }
+            }
+        }
+
+        if (debugMode) Debug.Log($"成功恢复了 {slotsRestored} 个槽位的物品");
+
+        // 如果有物品因为槽位减少而丢失
+        if (dataIndex < savedData.Count)
+        {
+            int lostCount = 0;
+            for (int i = dataIndex; i < savedData.Count; i++)
+            {
+                lostCount += savedData[i].currentCount;
+            }
+
+            if (lostCount > 0 && debugMode)
+            {
+                Debug.LogWarning($"商店升级后槽位不足，丢失了 {lostCount} 个物品");
+            }
+        }
     }
     // 清空商店
     public void ClearShop()

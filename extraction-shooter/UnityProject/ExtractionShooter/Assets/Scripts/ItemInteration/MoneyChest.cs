@@ -266,9 +266,9 @@ public class MoneyChest : MonoBehaviour
     {
         if (moneyText != null)
         {
-            moneyText.text = $"$ {currentMoney:N0}";
+            moneyText.text = $"{currentMoney:N0}";
             if (currentMoney == 0)
-                moneyText.color = Color.gray;
+                moneyText.color = Color.white;
             else if (currentMoney < 100)
                 moneyText.color = Color.white;
             else if (currentMoney < 1000)

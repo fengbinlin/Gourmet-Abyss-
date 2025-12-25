@@ -12,15 +12,15 @@ public class TopDownController : MonoBehaviour
     public int dropCount = 3;
 
     [Tooltip("掉落半径")]
-    [Range(0.5f, 5f)]
+    [Range(0f, 5f)]
     public float dropRadius = 2f;
 
     [Tooltip("掉落力量")]
-    [Range(1f, 20f)]
+    [Range(0f, 20f)]
     public float dropForce = 8f;
 
     [Tooltip("向上弹跳的力量")]
-    [Range(0.5f, 10f)]
+    [Range(0f, 10f)]
     public float upwardForce = 3f;
     [Tooltip("随机旋转掉落物品")]
     public bool randomRotation = true;
@@ -235,7 +235,10 @@ public class TopDownController : MonoBehaviour
             {
                 rb = droppedItem.AddComponent<Rigidbody>();
             }
-
+            // rb.isKinematic = true; // 防止物理引擎立即作用导致爆开
+            // rb.useGravity = false; // 防止重力下落
+            // rb.velocity = Vector3.zero;
+            // rb.angularVelocity = Vector3.zero;
             // 添加掉落力
             if (rb != null)
             {
@@ -256,7 +259,7 @@ public class TopDownController : MonoBehaviour
             }
 
 
-            
+
         }
 
         Debug.Log($"死亡掉落了 {itemsToDrop.Count} 个物品");
@@ -303,8 +306,8 @@ public class TopDownController : MonoBehaviour
             {
                 if (primaryWeapon != null)
                     animator.SetBool(primaryWeapon.shootBoolName, false);
-                if (secondaryWeapon != null)
-                    animator.SetBool(secondaryWeapon.shootBoolName, false);
+                //if (secondaryWeapon != null)
+                   // animator.SetBool(secondaryWeapon.shootBoolName, false);
             }
 
             // 通知武器停止射击

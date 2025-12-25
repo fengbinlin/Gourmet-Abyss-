@@ -5,7 +5,10 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(RectTransform))]
 public class UITapBounce : MonoBehaviour, IPointerDownHandler
 {
+    public static UITapBounce Instance;
+    public Animator animator;
     [Header("弹起设置")]
+
     [SerializeField] private float bounceHeight = 50f;      // 弹起高度
     [SerializeField] private float bounceDuration = 0.3f;   // 弹起动画时间
     [SerializeField] private float bounceOvershoot = 1.1f;  // 过冲效果（弹跳感）
@@ -27,6 +30,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
     
     private void Awake()
     {
+        Instance = this;
         rectTransform = GetComponent<RectTransform>();
         originalPosition = rectTransform.anchoredPosition;
     }
@@ -36,6 +40,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
         // 如果启用点击任意位置触发
         if (Input.GetKeyDown(KeyCode.Tab))
         {
+            
             OnTap();
         }
     }
@@ -44,6 +49,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
     {
         if (!clickAnywhere)
         {
+            
             OnTap();
         }
     }
@@ -58,6 +64,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
         
         if (!isBounced)
         {
+            
             // 弹起
             bounceCoroutine = StartCoroutine(BounceUp());
             onBounceUp?.Invoke();
@@ -67,13 +74,15 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
             // 落下
             bounceCoroutine = StartCoroutine(BounceDown());
             onBounceDown?.Invoke();
+            
         }
         
         isBounced = !isBounced;
     }
     
-    private System.Collections.IEnumerator BounceUp()
+    public System.Collections.IEnumerator BounceUp()
     {
+        animator.cullingMode=AnimatorCullingMode.CullCompletely;
         Vector2 startPos = rectTransform.anchoredPosition;
         Vector2 targetPos = originalPosition + Vector2.up * bounceHeight;
         
@@ -106,7 +115,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
         rectTransform.anchoredPosition = targetPos;
     }
     
-    private System.Collections.IEnumerator BounceDown()
+   public System.Collections.IEnumerator BounceDown()
     {
         Vector2 startPos = rectTransform.anchoredPosition;
         Vector2 targetPos = originalPosition;
@@ -138,6 +147,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
         }
         
         rectTransform.anchoredPosition = targetPos;
+        animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;
     }
     
     // 公开方法，可以从其他脚本调用

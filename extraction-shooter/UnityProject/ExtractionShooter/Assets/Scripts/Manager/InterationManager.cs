@@ -29,20 +29,24 @@ public class InterationManager : MonoBehaviour
         }
     }
 
-    //ÇÐ»»»ØÖ÷³¡¾°
+    //ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     public void SwitchToHomeScene()
     {
+        ShopManager.Instance.ShowShop();
         skillTreeObject.SetActive(false);
         mainSceneObject.SetActive(true);
         mainUI.SetActive(true);
+        StartCoroutine(UITapBounce.Instance.BounceDown()); 
     }
 
-    //ÇÐ»»µ½¼¼ÄÜÊ÷³¡¾°
+    //ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     public void SwitchToSkillTree()
     {
+        ShopManager.Instance.HideShop();
         skillTreeObject.SetActive(true);
         mainSceneObject.SetActive(false);
         mainUI.SetActive(false);
         SkillTree.Instance.ReplayRevealAnimation();
+        StartCoroutine(UITapBounce.Instance.BounceDown()); 
     }
 }

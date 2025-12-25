@@ -289,7 +289,7 @@ public class MapUIManager : MonoBehaviour
         foreach (var creature in regionData.creatures)
         {
             GameObject creatureObj = Instantiate(creatureItemPrefab, creatureContent);
-            Image avatarImg = creatureObj.GetComponent<Image>();
+            Image avatarImg = creatureObj.GetComponentInChildren<Image>();
             if (avatarImg != null && creature.avatar != null)
             {
                 avatarImg.sprite = creature.avatar;
@@ -304,7 +304,7 @@ public class MapUIManager : MonoBehaviour
         foreach (var product in regionData.products)
         {
             GameObject productObj = Instantiate(productItemPrefab, productContent);
-            Image avatarImg = productObj.GetComponent<Image>();
+            Image avatarImg = productObj.GetComponentInChildren<Image>();
             if (avatarImg != null && product.avatar != null)
             {
                 avatarImg.sprite = product.avatar;

@@ -88,6 +88,7 @@ public class LevelManager : MonoBehaviour
 
     private IEnumerator FromLevelToHomeProcess(string sceneName = null)
     {
+
         if (TransitionUIAnimator != null)
         {
             TransitionUIAnimator.SetTrigger("EnterLevel");
@@ -108,7 +109,8 @@ public class LevelManager : MonoBehaviour
         {
             yield return null;
         }
-
+        ShopManager.Instance.ShowShop();
+        StartCoroutine(UITapBounce.Instance.BounceDown()); 
         GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
 
     }
@@ -158,6 +160,8 @@ public class LevelManager : MonoBehaviour
 
         // 异步加载场景
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+        ShopManager.Instance.HideShop();
+        StartCoroutine(UITapBounce.Instance.BounceDown()); 
         homeSceneObject.SetActive(false);
         asyncLoad.allowSceneActivation = true;
         BattleValManager.Instance.ResetValues();
@@ -212,7 +216,8 @@ public class LevelManager : MonoBehaviour
 
         // 等待过渡完成
         yield return new WaitForSeconds(transitionDelay);
-
+        ShopManager.Instance.ShowShop();
+        StartCoroutine(UITapBounce.Instance.BounceDown()); 
         // 这里可以加载其他场景，比如主菜单
         // SceneManager.LoadSceneAsync("MainMenu");
 

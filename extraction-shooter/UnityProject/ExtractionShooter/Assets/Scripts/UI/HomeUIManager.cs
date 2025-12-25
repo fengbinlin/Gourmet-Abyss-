@@ -21,7 +21,7 @@ public class HomeUIManager : MonoBehaviour
         if(GameValManager.Instance!=null)
         {
             textMoneyVal.text = GameValManager.Instance.GetResourceCount(ResourceType.Money).ToString();
-            textF1.text = GameValManager.Instance.GetResourceCount(ResourceType.LootWatermelon).ToString();
+            textF1.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPumkin).ToString();
             textF2.text = GameValManager.Instance.GetResourceCount(ResourceType.LootOnion).ToString();
             textF3.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPear).ToString();
         }

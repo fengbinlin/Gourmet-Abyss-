@@ -123,6 +123,7 @@ public class MainMenuController : MonoBehaviour
 
     private void OnEnable()
     {
+        isFirst = true;
         if (isFirst && needClick)
         {
             InitializeTitle();
@@ -291,8 +292,11 @@ public class MainMenuController : MonoBehaviour
         {
             hintText.gameObject.SetActive(false);
         }
-
-        StartEntryAnimation();
+        if (needClick)
+        {
+            StartEntryAnimation();
+        }
+        
     }
 
     private void SetupHintText()
@@ -370,8 +374,11 @@ public class MainMenuController : MonoBehaviour
         {
             StartCoroutine(AnimateTitleMove());
         }
-
-        entryAnimationCoroutine = StartCoroutine(EntryAnimationRoutine());
+        if (isFirst)
+        {
+            entryAnimationCoroutine = StartCoroutine(EntryAnimationRoutine());
+        }
+        
     }
 
     private IEnumerator AnimateTitleMove()

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using System.Collections;
 using TMPro;
+using DG.Tweening; // 添加DoTween命名空间
 
 public class ShopInteraction : MonoBehaviour
 {
@@ -18,10 +19,14 @@ public class ShopInteraction : MonoBehaviour
     [SerializeField] private string noItemsMessage = "背包为空";
     [SerializeField] private string shopFullMessage = "商店已满";
     
-    [Header("视觉效果")]
+    [Header("UI动画设置")]
     [SerializeField] private float fadeSpeed = 5f; // UI淡入淡出速度
-    [SerializeField] private float uiScaleWhenEmpty = 0.8f; // 商店空时的UI缩放
-    [SerializeField] private float uiScaleWhenFull = 1.2f; // 商店有物品时的UI缩放
+    [SerializeField] private float showScaleMultiplier = 1.2f; // 弹出动画的最大缩放倍数
+    [SerializeField] private float hideScaleMultiplier = 1.1f; // 收回动画的初始缩放倍数
+    [SerializeField] private float showAnimationDuration = 0.5f; // 显示动画时长
+    [SerializeField] private float hideAnimationDuration = 0.3f; // 隐藏动画时长
+    [SerializeField] private Ease showEase = Ease.OutBack; // 显示动画缓动类型
+    [SerializeField] private Ease hideEase = Ease.InBack; // 隐藏动画缓动类型
     
     [Header("音频")]
     [SerializeField] private AudioClip transferSound; // 物品转移音效
@@ -40,12 +45,16 @@ public class ShopInteraction : MonoBehaviour
     private Transform playerTransform;
     private CanvasGroup shopCanvasGroup;
     private AudioSource audioSource;
+    private RectTransform shopUIRectTransform; // UI的RectTransform引用
     
     // 状态
     private bool playerInRange = false;
     private bool canInteract = true;
     private bool shopHasItems = false;
     private Coroutine fadeCoroutine;
+    private Tween currentUItween; // 当前UI动画的引用
+    private bool isUIShowing = false; // UI是否正在显示
+    private Vector3 originalUIScale; // 保存UI的原始大小
     
     private void Awake()
     {
@@ -61,6 +70,26 @@ public class ShopInteraction : MonoBehaviour
         
         if (shopUICanvas != null)
         {
+            // 确保UI处于激活状态以便获取原始大小
+            shopUICanvas.SetActive(true);
+            
+            // 获取RectTransform和CanvasGroup组件
+            shopUIRectTransform = shopUICanvas.GetComponent<RectTransform>();
+            shopCanvasGroup = shopUICanvas.GetComponent<CanvasGroup>();
+            
+            if (shopCanvasGroup == null)
+            {
+                shopCanvasGroup = shopUICanvas.AddComponent<CanvasGroup>();
+            }
+            
+            // 保存UI的原始大小
+            originalUIScale = shopUIRectTransform.localScale;
+            
+            // 初始化UI状态（缩小到0，完全透明）
+            shopUIRectTransform.localScale = Vector3.zero;
+            shopCanvasGroup.alpha = 0f;
+            
+            // 立即隐藏
             shopUICanvas.SetActive(false);
         }
         
@@ -149,18 +178,96 @@ public class ShopInteraction : MonoBehaviour
         OnPlayerExitRange?.Invoke();
     }
     
-    // 显示商店UI
+    // 显示商店UI - 使用DoTween动画
     private void ShowShopUI()
     {
-        if (shopUICanvas == null) return;
+        if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
+        
+        // 如果已经在显示，则返回
+        if (isUIShowing) return;
+        
+        isUIShowing = true;
+        
+        // 激活UI
         shopUICanvas.SetActive(true);
+        
+        // 停止任何正在进行的动画
+        if (currentUItween != null && currentUItween.IsActive())
+        {
+            currentUItween.Kill();
+        }
+        
+        // 设置初始状态
+        shopUIRectTransform.localScale = Vector3.zero;
+        shopCanvasGroup.alpha = 0f;
+        
+        // 计算动画目标大小
+        Vector3 targetScale = originalUIScale;
+        Vector3 overshootScale = originalUIScale * showScaleMultiplier;
+        
+        // 创建显示动画序列
+        Sequence showSequence = DOTween.Sequence();
+        
+        // 第一步：快速弹出到稍大于原始大小
+        showSequence.Append(shopUIRectTransform.DOScale(overshootScale, showAnimationDuration * 0.6f)
+            .SetEase(Ease.OutBack));
+        
+        showSequence.Join(shopCanvasGroup.DOFade(1f, showAnimationDuration * 0.4f));
+        
+        // 第二步：回弹到原始大小
+        showSequence.Append(shopUIRectTransform.DOScale(targetScale, showAnimationDuration * 0.4f)
+            .SetEase(Ease.OutBack));
+        
+        // 设置动画完成后的回调
+        showSequence.OnComplete(() => {
+            isUIShowing = true;
+        });
+        
+        currentUItween = showSequence;
     }
     
-    // 隐藏商店UI
+    // 隐藏商店UI - 使用DoTween动画
     private void HideShopUI()
     {
-        if (shopUICanvas == null || shopHasItems) return;
-        shopUICanvas.SetActive(false);
+        if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
+        
+        // 如果没有在显示，则返回
+        if (!isUIShowing && !shopUICanvas.activeSelf) return;
+        
+        isUIShowing = false;
+        
+        // 停止任何正在进行的动画
+        if (currentUItween != null && currentUItween.IsActive())
+        {
+            currentUItween.Kill();
+        }
+        
+        // 计算初始隐藏缩放
+        Vector3 initialHideScale = originalUIScale * hideScaleMultiplier;
+        Vector3 currentScale = shopUIRectTransform.localScale;
+        
+        // 创建隐藏动画序列
+        Sequence hideSequence = DOTween.Sequence();
+        
+        // 第一步：先稍微放大一点（如果当前不是原始大小，则从当前大小开始）
+        hideSequence.Append(shopUIRectTransform.DOScale(initialHideScale, hideAnimationDuration * 0.2f)
+            .From(currentScale)
+            .SetEase(Ease.InBack));
+        
+        hideSequence.Join(shopCanvasGroup.DOFade(0.8f, hideAnimationDuration * 0.2f));
+        
+        // 第二步：缩小到0
+        hideSequence.Append(shopUIRectTransform.DOScale(Vector3.zero, hideAnimationDuration * 0.8f)
+            .SetEase(Ease.InBack));
+        
+        hideSequence.Join(shopCanvasGroup.DOFade(0f, hideAnimationDuration * 0.6f));
+        
+        // 设置动画完成后的回调
+        hideSequence.OnComplete(() => {
+            shopUICanvas.SetActive(false);
+        });
+        
+        currentUItween = hideSequence;
     }
     
     // 尝试转移物品
@@ -222,6 +329,17 @@ public class ShopInteraction : MonoBehaviour
             // 重新整理背包
             playerInventory.ReorganizeInventory();
             
+            // 添加UI缩放反馈动画
+            if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
+            {
+                // 计算缩放值
+                Vector3 feedbackScale = originalUIScale * 1.1f;
+                
+                Sequence feedbackSequence = DOTween.Sequence();
+                feedbackSequence.Append(shopUIRectTransform.DOScale(feedbackScale, 0.1f));
+                feedbackSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.2f).SetEase(Ease.OutBack));
+            }
+            
             // 触发事件
             OnItemTransferred?.Invoke();
             
@@ -234,6 +352,13 @@ public class ShopInteraction : MonoBehaviour
             playerInventory.AddItem(itemType, removedCount);
             ShowMessage("出售失败", Color.red);
             PlaySound(errorSound);
+            
+            // 添加错误反馈动画
+            if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
+            {
+                Sequence errorSequence = DOTween.Sequence();
+                errorSequence.Append(shopUIRectTransform.DOShakePosition(0.3f, 5f, 10, 90f, false, true));
+            }
         }
     }
     
@@ -287,6 +412,19 @@ public class ShopInteraction : MonoBehaviour
                 {
                     ShowShopUI();
                 }
+                else
+                {
+                    // 如果UI已经显示，添加物品进入时的UI缩放动画
+                    if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
+                    {
+                        // 计算缩放值
+                        Vector3 fullScale = originalUIScale * 1.2f;
+                        
+                        Sequence itemsAddedSequence = DOTween.Sequence();
+                        itemsAddedSequence.Append(shopUIRectTransform.DOScale(fullScale, 0.2f));
+                        itemsAddedSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.3f).SetEase(Ease.OutBack));
+                    }
+                }
                 
                 // 触发事件
                 OnShopNotEmpty?.Invoke();
@@ -297,6 +435,17 @@ public class ShopInteraction : MonoBehaviour
                 if (!playerInRange)
                 {
                     HideShopUI();
+                }
+                else
+                {
+                    // 如果玩家还在范围内，但商店为空，播放空状态动画
+                    if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
+                    {
+                        // 计算空状态缩放
+                        Vector3 emptyScale = originalUIScale * 0.8f;
+                        Sequence emptySequence = DOTween.Sequence();
+                        emptySequence.Append(shopUIRectTransform.DOScale(emptyScale, 0.3f).SetEase(Ease.OutBack));
+                    }
                 }
                 
                 // 触发事件
@@ -392,6 +541,12 @@ public class ShopInteraction : MonoBehaviour
         if (shopManager != null)
         {
             shopManager.OnShopStateChanged.RemoveListener(HandleShopStateChanged);
+        }
+        
+        // 清理所有动画
+        if (currentUItween != null && currentUItween.IsActive())
+        {
+            currentUItween.Kill();
         }
     }
 }
