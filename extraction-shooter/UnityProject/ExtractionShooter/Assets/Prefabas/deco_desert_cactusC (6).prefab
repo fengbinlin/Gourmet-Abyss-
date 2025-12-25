@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &6909453842530454611
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_RootOrder
+      value: 140
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 28.923
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -23.087
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.00000295043
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -6.306067e-14
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.000000021855705
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -180.00002
+      objectReference: {fileID: 0}
+    - target: {fileID: -4216859302048453862, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -1504981713932161579, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 01e5740e843d2a74abf9eba500b23ace, type: 2}
+    - target: {fileID: -927199367670048503, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      propertyPath: m_Name
+      value: deco_desert_cactusC (6)
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -927199367670048503, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4488005799024025307}
+  m_SourcePrefab: {fileID: 100100000, guid: eae360d5bafdcb24d90bfa89cfd2a7c2, type: 3}
+--- !u!1 &3225319224875619674 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -927199367670048503, guid: eae360d5bafdcb24d90bfa89cfd2a7c2,
+    type: 3}
+  m_PrefabInstance: {fileID: 6909453842530454611}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &4488005799024025307
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3225319224875619674}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2.2185245, y: 2.2142088, z: 2.081178}
+  m_Center: {x: 0.000005185604, y: 1.1070985, z: 0.00000011920929}
