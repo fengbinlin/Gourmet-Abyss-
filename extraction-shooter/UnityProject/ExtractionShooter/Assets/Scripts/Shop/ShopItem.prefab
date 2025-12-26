@@ -447,13 +447,13 @@ MonoBehaviour:
   timerText: {fileID: 8807757231653811122}
   resourceIcons:
   - type: 7
-    icon: {fileID: 21300000, guid: 18bc5ac3335845041b55aaf80e6ed29f, type: 3}
+    icon: {fileID: 21300000, guid: e029587d5707d954e8434b89356c4f43, type: 3}
   - type: 8
-    icon: {fileID: 21300000, guid: 20f35bf13c804e541b2a1b3e1de733a4, type: 3}
+    icon: {fileID: 21300000, guid: e029587d5707d954e8434b89356c4f43, type: 3}
   - type: 5
-    icon: {fileID: 21300000, guid: a2a7ed386b2008b4c9d37cab4ac16b79, type: 3}
+    icon: {fileID: 21300000, guid: 2127c2a0db800404b952ca4e42ccc1ad, type: 3}
   - type: 20
-    icon: {fileID: 21300000, guid: eddecabd1acde0b48838f34d01348092, type: 3}
+    icon: {fileID: 21300000, guid: 3c4cd928e437dad45a928cd1677dc079, type: 3}
   emptySlotColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.5}
   fullSlotColor: {r: 1, g: 1, b: 1, a: 1}
   progressFillColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}

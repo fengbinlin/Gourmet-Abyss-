@@ -160,13 +160,13 @@ MonoBehaviour:
   countText: {fileID: 3702928546070781120}
   resourceIcons:
   - type: 7
-    icon: {fileID: 21300000, guid: 18bc5ac3335845041b55aaf80e6ed29f, type: 3}
+    icon: {fileID: 21300000, guid: e029587d5707d954e8434b89356c4f43, type: 3}
   - type: 8
-    icon: {fileID: 21300000, guid: 20f35bf13c804e541b2a1b3e1de733a4, type: 3}
+    icon: {fileID: 21300000, guid: e029587d5707d954e8434b89356c4f43, type: 3}
   - type: 5
-    icon: {fileID: 21300000, guid: a2a7ed386b2008b4c9d37cab4ac16b79, type: 3}
+    icon: {fileID: 21300000, guid: 2127c2a0db800404b952ca4e42ccc1ad, type: 3}
   - type: 20
-    icon: {fileID: 21300000, guid: eddecabd1acde0b48838f34d01348092, type: 3}
+    icon: {fileID: 21300000, guid: 3c4cd928e437dad45a928cd1677dc079, type: 3}
 --- !u!1 &6837150894747597180
 GameObject:
   m_ObjectHideFlags: 0
