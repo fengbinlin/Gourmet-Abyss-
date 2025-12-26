@@ -169,6 +169,16 @@ public class ExcelConfigReader : MonoBehaviour
     {
         return skillConfigs;
     }
+    
+    public float GetInitialStatValue(int statID)
+    {
+        foreach (var stat in initialStats)
+        {
+            if (stat.statID == statID)
+                return stat.initialValue;
+        }
+        return 0f;
+    }
 
     private string[] ParseCSVLine(string line)
     {

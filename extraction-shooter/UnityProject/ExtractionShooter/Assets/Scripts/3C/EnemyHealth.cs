@@ -144,6 +144,7 @@ public class EnemyHealth : MonoBehaviour
     // 设置进度条宽度
     private void SetBarWidth(RectTransform bar, float width)
     {
+        if(width>maxBarWidth) width = maxBarWidth;
         bar.sizeDelta = new Vector2(width, bar.sizeDelta.y);
     }
     

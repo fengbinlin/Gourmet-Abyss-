@@ -536,7 +536,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: Pumpkin_02_Half
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5327449984830001536, guid: e24ee8b01dacce9418171c92b9760da1, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

@@ -22,7 +22,8 @@ public class ShopManager : MonoBehaviour
     public class ResourcePrice
     {
         public ResourceType type;
-        public int pricePerUnit; // 每个物品的价格
+        public int pricePerUnit;   // 每个物品的价格
+        public float sellTimePerUnit = 5f; // 每个物品售卖时间
     }
 
     [Header("UI引用")]
@@ -125,7 +126,7 @@ public class ShopManager : MonoBehaviour
     }
     public void ShowShop()
     {
-        print("显示商店:"+originPosition.ToString());
+        print("显示商店:" + originPosition.ToString());
         this.transform.position = originPosition;
     }
     // 初始化商店
@@ -258,14 +259,23 @@ public class ShopManager : MonoBehaviour
             int canAdd = slot.GetRemainingCapacity();
             if (canAdd > 0)
             {
-                slot.AddItem(itemType, remaining, out int added);
+                float sellTimeForType = GetResourceSellTime(itemType) * WeaponStatsManager.Instance.sellTimeMultiplier;
+
+                slot.AddItem(itemType, remaining, sellTimeForType, out int added);
                 remaining -= added;
             }
         }
 
         return remaining;
     }
+    public float GetResourceSellTime(ResourceType itemType)
+    {
+        ResourcePrice priceInfo = resourcePrices.Find(p => p.type == itemType);
+        if (priceInfo != null)
+            return priceInfo.sellTimePerUnit;
 
+        return originalSellTime; // 默认值
+    }
     // 添加到空格子
     private int AddToEmptySlots(ResourceType itemType, int amount)
     {
@@ -279,7 +289,9 @@ public class ShopManager : MonoBehaviour
         {
             if (remaining <= 0) break;
 
-            slot.AddItem(itemType, remaining, out int added);
+            float sellTimeForType = GetResourceSellTime(itemType) * WeaponStatsManager.Instance.sellTimeMultiplier;
+
+            slot.AddItem(itemType, remaining, sellTimeForType, out int added);
             remaining -= added;
         }
 
@@ -726,7 +738,7 @@ public class ShopManager : MonoBehaviour
         // 2. 更新商店属性
         shopSlotCount = wsm.shopSlotCount;
         slotCapacity = wsm.slotCapacity;
-        sellTime = originalSellTime / wsm.sellTimeMultiplier;
+        sellTime = originalSellTime * wsm.sellTimeMultiplier;
 
         // 更新售卖价格
         foreach (var price in resourcePrices)

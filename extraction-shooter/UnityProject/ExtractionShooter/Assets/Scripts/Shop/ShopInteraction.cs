@@ -131,6 +131,7 @@ public class ShopInteraction : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
+            GetComponent<InteractiveFeedback>()?.PlayFeedback();
             PlayerEnterRange(other.transform);
         }
     }

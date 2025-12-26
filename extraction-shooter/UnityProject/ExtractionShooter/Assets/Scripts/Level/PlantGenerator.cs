@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
+using UnityEngine.AI;
 
 public class PlantGenerator : MonoBehaviour
 {
@@ -374,7 +375,15 @@ public class PlantGenerator : MonoBehaviour
     private void SpawnPlant(GameObject prefab, PlantGenerationSettings.PlantPrefabData data, Vector3 position, Quaternion rotation, bool isRegeneration = false)
     {
         GameObject plant = Instantiate(prefab, plantsParent);
-        plant.transform.position = position;
+        if (plant.GetComponent<NavMeshAgent>())
+        {
+            plant.GetComponent<NavMeshAgent>().Warp(position);
+        }
+        else
+        {
+            plant.transform.position = position;
+        }
+        
         plant.transform.rotation = rotation;
 
         // 随机缩放

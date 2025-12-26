@@ -215,7 +215,7 @@ public class TopDownController : MonoBehaviour
 
             // 在玩家位置实例化物品
             Vector3 dropPosition = transform.position;
-            GameObject droppedItem = Instantiate(itemPrefab, dropPosition, Quaternion.identity);
+            GameObject droppedItem = Instantiate(itemPrefab, dropPosition, Quaternion.identity,gameObject.transform);
 
             // 添加悬浮旋转脚本
             ItemFloatAndRotate floatScript = droppedItem.AddComponent<ItemFloatAndRotate>();

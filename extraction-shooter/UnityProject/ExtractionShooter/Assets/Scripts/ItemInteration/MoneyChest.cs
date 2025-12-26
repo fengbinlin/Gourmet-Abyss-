@@ -90,6 +90,7 @@ public class MoneyChest : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
+            GetComponent<InteractiveFeedback>()?.PlayFeedback();
             isPlayerInRange = true;
             OnPlayerEnterRange();
         }

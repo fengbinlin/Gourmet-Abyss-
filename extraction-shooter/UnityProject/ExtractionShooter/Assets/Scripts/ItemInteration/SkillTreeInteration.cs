@@ -26,6 +26,7 @@ public class SkillTreeInteration : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
+            GetComponent<InteractiveFeedback>()?.PlayFeedback();
             playerInRange = true;
             //Debug.Log("��ҽ��뽻����Χ");
 

@@ -97,6 +97,7 @@ public class HomeCavecar : MonoBehaviour
         {
             if (canUse)
             {
+                GetComponent<InteractiveFeedback>()?.PlayFeedback();
                 isPlayerEnter = true;
                 // 这里可以添加进入范围的提示效果
             }

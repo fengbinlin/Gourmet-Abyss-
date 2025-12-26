@@ -245,7 +245,7 @@ public class Hovl_Laser : MonoBehaviour
     {
         if (Time.time - lastDamageTickTime >= damageTickInterval)
         {
-            float baseDamage = damagePerSecond * damageTickInterval;
+            float baseDamage = damagePerSecond;
 
             for (int i = 0; i < hitPoints.Count; i++)
             {

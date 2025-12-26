@@ -28,7 +28,7 @@ public class SkillTreeInitializer : MonoBehaviour
 
         // 初始化地图密度绑定
         InitializeMapDensityBindings();
-        
+
         // 从配置生成技能树
         GenerateSkillTreeFromConfig();
     }
@@ -81,23 +81,23 @@ public class SkillTreeInitializer : MonoBehaviour
             // 加载图标并设置到SkillNodeData
             Sprite icon = LoadSkillIcon(config.iconPath);
             skillData.icon = icon;
-            
+
             // 如果SkillNode有iconImage组件，也直接设置
             if (newNode.iconImage != null)
             {
                 newNode.iconImage.sprite = icon;
             }
-            
+
             // 设置技能效果回调
             skillData.onSkillLearned = new UnityEngine.Events.UnityEvent();
             skillData.onSkillLearned.AddListener(() => ApplySkillEffects(config));
 
             newNode.skillData = skillData;
-            
+
             // 设置位置
             Vector2 position = ParsePosition(config.position);
             newNode.GetComponent<RectTransform>().anchoredPosition = new Vector2(
-                position.x * horizontalSpacing, 
+                position.x * horizontalSpacing,
                 -position.y * verticalSpacing
             );
 
@@ -136,28 +136,72 @@ public class SkillTreeInitializer : MonoBehaviour
             return defaultIcon;
         }
 
-        // 从Resources文件夹加载图标
+        // 清理图标路径
+        string cleanIconPath = iconPath.Trim();  // 移除首尾空格
+        cleanIconPath = cleanIconPath.Replace("\r", "").Replace("\n", "");  // 移除换行符
+
         // 移除可能的文件扩展名
-        string pathWithoutExtension = iconPath;
+        string pathWithoutExtension = cleanIconPath;
         if (pathWithoutExtension.EndsWith(".png") || pathWithoutExtension.EndsWith(".jpg"))
         {
             pathWithoutExtension = pathWithoutExtension.Substring(0, pathWithoutExtension.LastIndexOf('.'));
         }
 
-        // 加载Sprite
-        Sprite icon = Resources.Load<Sprite>(pathWithoutExtension);
-        if (icon != null)
+        // 检查路径是否为空
+        if (string.IsNullOrWhiteSpace(pathWithoutExtension))
         {
-            Debug.Log($"成功加载图标: {iconPath}");
-            return icon;
+            Debug.LogWarning($"图标路径为空，使用默认图标");
+            return defaultIcon;
         }
-        else
+
+        // 调试信息
+        Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
+        Debug.Log($"路径长度: {pathWithoutExtension.Length}");
+        Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
+        Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
+
+        // 直接尝试加载，不使用 Path.Combine
+        try
         {
-            Debug.LogWarning($"无法加载图标: {iconPath}，使用默认图标");
+            Sprite icon = Resources.Load<Sprite>(pathWithoutExtension);
+            if (icon != null)
+            {
+                Debug.Log($"成功加载图标: {iconPath} -> {icon.name}");
+                return icon;
+            }
+            else
+            {
+                // 尝试不同的加载方式
+                Debug.LogWarning($"Resources.Load<Sprite>(\"{pathWithoutExtension}\") 返回null");
+
+                // 尝试加载Texture2D然后创建Sprite
+                Texture2D texture = Resources.Load<Texture2D>(pathWithoutExtension);
+                if (texture != null)
+                {
+                    Debug.Log($"找到Texture2D: {texture.name}");
+                    icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f);
+                    return icon;
+                }
+
+                // 列出所有可用的资源
+                UnityEngine.Object[] allResources = Resources.LoadAll("");
+                Debug.Log($"Resources根目录共有 {allResources.Length} 个资源:");
+                foreach (UnityEngine.Object obj in allResources)
+                {
+                    Debug.Log($"  - {obj.name} ({obj.GetType().Name})");
+                }
+
+                Debug.LogWarning($"无法加载图标: {iconPath}，使用默认图标");
+                return defaultIcon;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"加载图标时发生错误: {e.Message}");
+            Debug.LogError($"StackTrace: {e.StackTrace}");
             return defaultIcon;
         }
     }
-
     private Vector2 ParsePosition(string positionStr)
     {
         if (string.IsNullOrEmpty(positionStr))
@@ -166,7 +210,7 @@ public class SkillTreeInitializer : MonoBehaviour
         string[] parts = positionStr.Split(',');
         if (parts.Length == 2)
         {
-            if (float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) && 
+            if (float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
                 float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
                 return new Vector2(x, y);
         }
@@ -221,7 +265,7 @@ public class SkillTreeInitializer : MonoBehaviour
             if (binding.settings != null)
             {
                 // 应用密度乘数
-                binding.densityMultiplier *= multiplier;
+                binding.densityMultiplier = 1 * (1 + multiplier);
                 wsm.RebuildDensityDictionary();
             }
         }
@@ -233,44 +277,110 @@ public class SkillTreeInitializer : MonoBehaviour
 
     private void ApplyStatEffect(int statID, float value, WeaponStatsManager wsm)
     {
+        // 获取初始值
+        float initialValue = GetInitialStatValue(statID, wsm);
+
         switch (statID)
         {
-            case 0: wsm.primaryFireRate *= value; break; // 开火速率：值越小射速越快
-            case 1: wsm.primaryPelletCount += (int)value; break;
-            case 2: wsm.primaryPenetrationCount += (int)value; break;
-            case 3: wsm.primaryBulletSpeed += value; break;
-            case 4: wsm.primaryBulletSize += value; break;
-            case 5: wsm.primaryBaseDamage += value; break;
-            case 6: wsm.primaryCriticalChance += value; break;
-            case 7: wsm.primaryCriticalMultiplier += value; break;
-            case 8: wsm.primaryMaxTravelDistance += value; break;
-            case 9: wsm.secondaryDamageValue += value; break;
-            case 10: wsm.secondaryFireRate *= value; break; // 副武器开火速率
-            case 11: wsm.secondaryLaserLength += value; break;
-            case 12: wsm.secondaryLaserCount += (int)value; break;
-            case 13: wsm.secondaryLaserWidth += value; break;
-            case 14: wsm.secondaryCritChance += value; break;
-            case 15: wsm.secondaryCritMultiplier += value; break;
-            case 16: wsm.secondaryMaxChainCount += (int)value; break;
-            case 17: wsm.secondaryChainSearchRadius += value; break;
-            case 18: wsm.sellPriceMultiplier += value; break;
-            case 19: wsm.sellTimeMultiplier *= value; break; // 时间乘数：值越小时间越短
-            case 20: wsm.shopSlotCount += (int)value; break;
-            case 21: wsm.slotCapacity += (int)value; break;
-            case 22: wsm.inventorySlotCount += (int)value; break;
-            case 23: wsm.inventorySlotCapacity += (int)value; break;
-            case 24: wsm.oxygenMax *= value; break;
-            case 25: wsm.oxygenConsumeRate *= value; break; // 消耗速率：值越小消耗越慢
-            case 26: wsm.primaryAmmoMax = (int)(wsm.primaryAmmoMax * value); break;
-            case 27: wsm.primaryAmmoConsumePerShot = Mathf.Max(1, (int)(wsm.primaryAmmoConsumePerShot * value)); break;
-            case 28: wsm.secondaryAmmoMax = (int)(wsm.secondaryAmmoMax * value); break;
-            case 29: wsm.secondaryAmmoConsumePerShot = Mathf.Max(1, (int)(wsm.secondaryAmmoConsumePerShot * value)); break;
+            // 主武器
+            case 0: wsm.primaryFireRate = initialValue * (1 + value); break; // 开火速率
+            case 1: wsm.primaryPelletCount += (int)value; break; // 个数，保持加法
+            case 2: wsm.primaryPenetrationCount += (int)value; break; // 个数，保持加法
+            case 3: wsm.primaryBulletSpeed = initialValue * (1 + value); break; // 子弹速度
+            case 4: wsm.primaryBulletSize = initialValue * (1 + value); break; // 子弹大小
+            case 5: wsm.primaryBaseDamage = initialValue * (1 + value); break; // 基础伤害
+            case 6: wsm.primaryCriticalChance = initialValue * (1 + value); break; // 暴击几率
+            case 7: wsm.primaryCriticalMultiplier = initialValue * (1 + value); break; // 暴击倍率
+            case 8: wsm.primaryMaxTravelDistance = initialValue * (1 + value); break; // 最大射程
+
+            // 副武器
+            case 9: wsm.secondaryDamageValue = initialValue * (1 + value); break; // 副武器伤害
+            case 10: wsm.secondaryFireRate = initialValue * (1 + value); break; // 副武器开火速率
+            case 11: wsm.secondaryLaserLength = initialValue * (1 + value); break; // 激光长度
+            case 12: wsm.secondaryLaserCount += (int)value; break; // 个数，保持加法
+            case 13: wsm.secondaryLaserWidth = initialValue * (1 + value); break; // 激光宽度
+            case 14: wsm.secondaryCritChance = initialValue * (1 + value); break; // 副武器暴击几率
+            case 15: wsm.secondaryCritMultiplier = initialValue * (1 + value); break; // 副武器暴击倍率
+            case 16: wsm.secondaryMaxChainCount += (int)value; break; // 个数，保持加法
+            case 17: wsm.secondaryChainSearchRadius = initialValue * (1 + value); break; // 连锁搜索半径
+
+            // 商店相关
+            case 18: wsm.sellPriceMultiplier = initialValue * (1 + value); break; // 售价乘数
+            case 19: wsm.sellTimeMultiplier = initialValue * (1 + value); break; // 时间乘数
+            case 20: wsm.shopSlotCount += (int)value; break; // 个数，保持加法
+            case 21: wsm.slotCapacity += (int)value; break; // 个数，保持加法
+            case 22: wsm.inventorySlotCount += (int)value; break; // 个数，保持加法
+            case 23: wsm.inventorySlotCapacity += (int)value; break; // 个数，保持加法
+
+            // 氧气系统
+            case 24: wsm.oxygenMax = initialValue * (1 + value); break; // 氧气最大值
+            case 25: wsm.oxygenConsumeRate = initialValue * (1 + value); break; // 氧气消耗速率
+
+            // 弹药系统
+            case 26: wsm.primaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 主武器弹药最大值
+            case 27: wsm.primaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 主武器每发弹药消耗
+            case 28: wsm.secondaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 副武器弹药最大值
+            case 29: wsm.secondaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 副武器每发弹药消耗
+        }
+    }
+
+    // 获取初始数值
+    private float GetInitialStatValue(int statID, WeaponStatsManager wsm)
+    {
+        var configReader = ExcelConfigReader.Instance;
+        if (configReader != null)
+        {
+            return configReader.GetInitialStatValue(statID);
+        }
+
+        // 如果无法从配置读取，则从当前值推断
+        return GetCurrentStatValue(statID, wsm);
+    }
+
+    // 获取当前值（用于回退）
+    private float GetCurrentStatValue(int statID, WeaponStatsManager wsm)
+    {
+        if (wsm == null) return 0f;
+
+        switch (statID)
+        {
+            case 0: return wsm.primaryFireRate;
+            case 1: return wsm.primaryPelletCount;
+            case 2: return wsm.primaryPenetrationCount;
+            case 3: return wsm.primaryBulletSpeed;
+            case 4: return wsm.primaryBulletSize;
+            case 5: return wsm.primaryBaseDamage;
+            case 6: return wsm.primaryCriticalChance;
+            case 7: return wsm.primaryCriticalMultiplier;
+            case 8: return wsm.primaryMaxTravelDistance;
+            case 9: return wsm.secondaryDamageValue;
+            case 10: return wsm.secondaryFireRate;
+            case 11: return wsm.secondaryLaserLength;
+            case 12: return wsm.secondaryLaserCount;
+            case 13: return wsm.secondaryLaserWidth;
+            case 14: return wsm.secondaryCritChance;
+            case 15: return wsm.secondaryCritMultiplier;
+            case 16: return wsm.secondaryMaxChainCount;
+            case 17: return wsm.secondaryChainSearchRadius;
+            case 18: return wsm.sellPriceMultiplier;
+            case 19: return wsm.sellTimeMultiplier;
+            case 20: return wsm.shopSlotCount;
+            case 21: return wsm.slotCapacity;
+            case 22: return wsm.inventorySlotCount;
+            case 23: return wsm.inventorySlotCapacity;
+            case 24: return wsm.oxygenMax;
+            case 25: return wsm.oxygenConsumeRate;
+            case 26: return wsm.primaryAmmoMax;
+            case 27: return wsm.primaryAmmoConsumePerShot;
+            case 28: return wsm.secondaryAmmoMax;
+            case 29: return wsm.secondaryAmmoConsumePerShot;
+            default: return 0f;
         }
     }
 
     private void TriggerStatChangeEvents(string buffEffects, WeaponStatsManager wsm)
     {
-        if (buffEffects.Contains("(18,") || buffEffects.Contains("(19,") || 
+        if (buffEffects.Contains("(18,") || buffEffects.Contains("(19,") ||
             buffEffects.Contains("(20,") || buffEffects.Contains("(21,"))
         {
             wsm.OnShopStatsChangedInvoke();
