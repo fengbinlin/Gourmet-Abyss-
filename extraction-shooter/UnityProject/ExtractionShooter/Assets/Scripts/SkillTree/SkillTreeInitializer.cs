@@ -113,14 +113,29 @@ public class SkillTreeInitializer : MonoBehaviour
                 SkillNode currentNode = skillNodeMap[config.skillID];
                 string[] prereqIDs = config.prerequisiteIDs.Split(';');
 
-                foreach (string prereqID in prereqIDs)
+                foreach (string entry in prereqIDs)
                 {
-                    if (int.TryParse(prereqID.Trim(), out int id) && skillNodeMap.ContainsKey(id))
+                    if (string.IsNullOrWhiteSpace(entry)) continue;
+
+                    string[] parts = entry.Split(':');
+                    int prereqId = 0;
+                    int requiredLevel = 1;
+
+                    if (parts.Length > 0 && int.TryParse(parts[0].Trim(), out int id))
+                    {
+                        prereqId = id;
+                    }
+                    if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int level))
+                    {
+                        requiredLevel = level;
+                    }
+
+                    if (skillNodeMap.ContainsKey(prereqId))
                     {
                         currentNode.prerequisites.Add(new PrerequisiteData
                         {
-                            node = skillNodeMap[id],
-                            requiredLevel = 1
+                            node = skillNodeMap[prereqId],
+                            requiredLevel = requiredLevel
                         });
                     }
                 }

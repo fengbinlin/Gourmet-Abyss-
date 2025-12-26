@@ -17,15 +17,18 @@ public class SkillConfigData
 {
     public int skillID;
     public string skillName;
-    public string prerequisiteIDs;
+    public string prerequisiteIDs; // 原来的，兼容旧数据
     public string position;
     public int maxLevel;
-    public int isRare; // 0=否, 1=是
+    public int isRare;
     public string description;
     public string buffEffects;
-    public int costType; // 对应ResourceType枚举
+    public int costType;
     public int costAmount;
     public string iconPath;
+
+    // ✅ 新增：前置技能等级需求字符串（例如 "1:2;2:3"）
+    public string prerequisiteLevels;
 }
 
 public class ExcelConfigReader : MonoBehaviour
@@ -107,6 +110,7 @@ public class ExcelConfigReader : MonoBehaviour
                 if (int.TryParse(values[0], out int id)) data.skillID = id;
                 data.skillName = values[1];
                 data.prerequisiteIDs = values[2];
+                data.prerequisiteLevels = values[2];
                 data.position = values[3];
                 if (int.TryParse(values[4], out int maxLevel)) data.maxLevel = maxLevel;
                 if (int.TryParse(values[5], out int isRare)) data.isRare = isRare;
@@ -169,7 +173,7 @@ public class ExcelConfigReader : MonoBehaviour
     {
         return skillConfigs;
     }
-    
+
     public float GetInitialStatValue(int statID)
     {
         foreach (var stat in initialStats)

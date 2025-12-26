@@ -208,7 +208,7 @@ public class SkillTree : MonoBehaviour
             Vector3 endPos = connection.toPoint.position;
 
             float progress = lineRevealProgress.ContainsKey(lineRenderer) ? lineRevealProgress[lineRenderer] : 0f;
-            
+
             if (immediate)
             {
                 lineRenderer.SetPosition(0, startPos);
@@ -221,15 +221,20 @@ public class SkillTree : MonoBehaviour
                 lineRenderer.SetPosition(1, currentEndPos);
             }
 
-            bool allPrereqMet = connection.toNode.ArePrerequisitesMet();
-            bool thisPrereqMet = connection.fromNode.State == SkillNodeState.Learned;
+            // 找出当前连线的前置定义
+            var prereqData = connection.toNode.prerequisites
+                .FirstOrDefault(p => p.node == connection.fromNode);
+
+            bool levelEnough = prereqData != null &&
+                               prereqData.node.skillData.currentLevel >= prereqData.requiredLevel;
 
             Color lineColor = hiddenLineColor;
             float alpha = 0f;
 
-            if (allPrereqMet && thisPrereqMet)
+            if (levelEnough)
             {
                 alpha = 1f;
+
                 bool resourceEnough = true;
                 if (GameValManager.Instance != null)
                 {
@@ -238,23 +243,35 @@ public class SkillTree : MonoBehaviour
                         connection.toNode.skillData.costAmount);
                 }
 
-                if (connection.fromNode.State == SkillNodeState.Learned && connection.toNode.State == SkillNodeState.Learned)
+                // 按目标节点状态决定颜色
+                if (connection.fromNode.State == SkillNodeState.Learned &&
+                    connection.toNode.State == SkillNodeState.Learned)
                 {
-                    lineColor = unlockedLineColor;
+                    lineColor = unlockedLineColor; // 两端都学完 → 绿色
                 }
-                else if (connection.fromNode.State == SkillNodeState.Learned && connection.toNode.State == SkillNodeState.Unlocked)
+                else if (connection.toNode.State == SkillNodeState.Unlocked)
                 {
-                    lineColor = resourceEnough ? learnableLineColor : notEnoughResourceColor;
+                    lineColor = resourceEnough ? learnableLineColor : notEnoughResourceColor; // 可学 / 缺资源
                 }
-                else
+                else if (connection.toNode.State == SkillNodeState.Locked)
                 {
-                    lineColor = lockedLineColor;
-                    alpha = 0.3f;
+                    // 节点锁定分两种：
+                    if (connection.toNode.ArePrerequisitesMet())
+                    {
+                        // 前置全部满足 → 用可学 / 缺资源颜色
+                        lineColor = resourceEnough ? learnableLineColor : notEnoughResourceColor;
+                    }
+                    else
+                    {
+                        // 部分前置没满足 → 灰色半透明
+                        lineColor = lockedLineColor;
+                        alpha = 0.3f;
+                    }
                 }
             }
             else
             {
-                alpha = 0f;
+                alpha = 0f; // 等级未满足 → 不显示
             }
 
             lineColor.a = alpha;
@@ -311,6 +328,41 @@ public class SkillTree : MonoBehaviour
 
         UpdateAllLines();
         isUpdatingNodes = false;
+        foreach (var node in allSkillNodes)
+        {
+            // 条件：前置满足 & 节点未学习 & 节点可见但还没揭示（或者刚被揭示）
+            if (node.ArePrerequisitesMet() && !node.skillData.isLearned)
+            {
+                // 确保节点显示
+                if (!revealedNodes.Contains(node))
+                {
+                    revealedNodes.Add(node);
+                    node.gameObject.SetActive(true);
+                    node.RevealWithAnimation(); // 显示节点动画
+                    node.UpdateAvailability(true);
+                }
+
+                // 绘制所有指向这个节点的连线
+                var incomingConnections = connections.Where(c => c.toNode == node).ToList();
+                foreach (var connection in incomingConnections)
+                {
+                    if (connection.lineRenderer != null)
+                    {
+                        // 如果希望直接完成绘制（无动画），用下面三行：
+                        // lineRevealProgress[connection.lineRenderer] = 1f;
+                        // connection.lineRenderer.SetPosition(0, connection.fromPoint.position);
+                        // connection.lineRenderer.SetPosition(1, connection.toPoint.position);
+
+                        // 如果需要动画：
+                        if (!lineRevealProgress.ContainsKey(connection.lineRenderer) ||
+                            lineRevealProgress[connection.lineRenderer] < 0.99f)
+                        {
+                            StartCoroutine(AnimateLineReveal(connection.lineRenderer, connection, false));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void UpdateConnectedNodes(SkillNode learnedNode)
@@ -348,43 +400,43 @@ public class SkillTree : MonoBehaviour
     private void OnSkillLearned(SkillNode learnedNode)
     {
         Debug.Log($"技能已学习: {learnedNode.skillData.skillName}");
-        
+
         // 立即更新节点状态
         learnedNode.UpdateAvailability(true);
-        
+
         // 立即显示所有指向这个已学习节点的连线
         RevealAllLinesToNodeImmediately(learnedNode);
-        
+
         // 更新所有连线
         UpdateAllLines();
-        
+
         onSkillLearned?.Invoke(learnedNode);
         ApplySkillEffects(learnedNode);
-        
+
         // 然后显示从该节点出发的连线和后续节点
         StartCoroutine(RevealLinesFromNode(learnedNode));
     }
-    
+
     private void RevealAllLinesToNodeImmediately(SkillNode node)
     {
         // 查找所有指向这个节点的连线（前置节点的连线）
         var incomingLines = connections.Where(c => c.toNode == node).ToList();
-        
+
         Debug.Log($"找到 {incomingLines.Count} 条指向节点 {node.skillData.skillName} 的连线");
-        
+
         foreach (var connection in incomingLines)
         {
             if (connection.lineRenderer != null && connection.fromNode.State == SkillNodeState.Learned)
             {
                 // 立即将连线进度设置为完成
                 lineRevealProgress[connection.lineRenderer] = 1f;
-                
+
                 // 立即更新连线位置
                 Vector3 startPos = connection.fromPoint.position;
                 Vector3 endPos = connection.toPoint.position;
                 connection.lineRenderer.SetPosition(0, startPos);
                 connection.lineRenderer.SetPosition(1, endPos);
-                
+
                 Debug.Log($"立即显示连线: {connection.fromNode.skillData.skillName} -> {connection.toNode.skillData.skillName}");
             }
         }
@@ -394,12 +446,12 @@ public class SkillTree : MonoBehaviour
     {
         // 查找所有从这个节点出发的连线（到后续节点的连线）
         var outgoingLines = connections.Where(c => c.fromNode == node).ToList();
-        
+
         var linesToAnimate = new List<SkillConnection>();
         var nodesToReveal = new List<SkillNode>();
-        
+
         Debug.Log($"找到 {outgoingLines.Count} 条从节点 {node.skillData.skillName} 出发的连线");
-        
+
         foreach (var connection in outgoingLines)
         {
             if (connection.lineRenderer != null)
@@ -407,7 +459,7 @@ public class SkillTree : MonoBehaviour
                 if (connection.toNode.ArePrerequisitesMet())
                 {
                     linesToAnimate.Add(connection);
-                    
+
                     // 如果目标节点还没有显示，添加到显示列表
                     if (!revealedNodes.Contains(connection.toNode))
                     {
@@ -417,23 +469,23 @@ public class SkillTree : MonoBehaviour
                 }
             }
         }
-        
+
         // 播放所有从当前节点出发的连线动画
         var lineAnimations = new List<IEnumerator>();
         foreach (var connection in linesToAnimate)
         {
             // 如果连线已经显示过，跳过动画
-            if (lineRevealProgress.ContainsKey(connection.lineRenderer) && 
+            if (lineRevealProgress.ContainsKey(connection.lineRenderer) &&
                 lineRevealProgress[connection.lineRenderer] >= 0.99f)
             {
                 continue;
             }
-            
+
             lineAnimations.Add(AnimateLineReveal(connection.lineRenderer, connection));
         }
-        
+
         yield return StartCoroutine(RunAnimationsInParallel(lineAnimations));
-        
+
         // 显示所有符合条件的节点
         foreach (var nodeToReveal in nodesToReveal)
         {
@@ -465,10 +517,10 @@ public class SkillTree : MonoBehaviour
     {
         if (lineRenderer == null || connection.fromPoint == null || connection.toPoint == null)
             yield break;
-            
+
         // 检查是否应该显示这条连线
         if (connection.toNode == null) yield break;
-        
+
         float startProgress = 0f;
         if (lineRevealProgress.ContainsKey(lineRenderer))
         {
@@ -515,7 +567,7 @@ public class SkillTree : MonoBehaviour
                         connection.toNode.skillData.costType,
                         connection.toNode.skillData.costAmount);
                 }
-                
+
                 if (connection.fromNode.State == SkillNodeState.Learned && connection.toNode.State == SkillNodeState.Learned)
                 {
                     lineColor = unlockedLineColor;
@@ -529,7 +581,7 @@ public class SkillTree : MonoBehaviour
                     lineColor = lockedLineColor;
                 }
             }
-            
+
             lineColor.a = progress;
             lineRenderer.startColor = lineColor;
             lineRenderer.endColor = lineColor;
@@ -539,7 +591,7 @@ public class SkillTree : MonoBehaviour
 
         lineRevealProgress[lineRenderer] = 1f;
         lineRenderer.SetPosition(1, endPos);
-        
+
         // 最终更新连线颜色
         UpdateAllLines();
     }
