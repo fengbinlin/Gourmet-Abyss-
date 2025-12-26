@@ -1,8 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
+// HomeCavecar.cs
 using UnityEngine;
-using UnityEngine.Video;
-using DG.Tweening; // 添加DoTween命名空间
+using DG.Tweening;
 
 public class HomeCavecar : MonoBehaviour
 {
@@ -12,243 +10,158 @@ public class HomeCavecar : MonoBehaviour
     public bool isPlayerEnter = false;
     
     [Header("UI动画设置")]
-    [SerializeField] private float showAnimationDuration = 0.5f; // 显示动画时长
-    [SerializeField] private float hideAnimationDuration = 0.3f; // 隐藏动画时长
-    [SerializeField] private float showScaleMultiplier = 1.2f; // 显示动画的缩放倍数
-    [SerializeField] private float hideScaleMultiplier = 1.1f; // 隐藏动画的缩放倍数
-    [SerializeField] private Ease showEase = Ease.OutBack; // 显示动画缓动类型
-    [SerializeField] private Ease hideEase = Ease.InBack; // 隐藏动画缓动类型
+    [SerializeField] private float showAnimationDuration = 0.5f;
+    [SerializeField] private float hideAnimationDuration = 0.3f;
+    [SerializeField] private float showScaleMultiplier = 1.2f;
     
-    [Header("按键设置")]
-    [SerializeField] private KeyCode openKey = KeyCode.E; // 打开面板按键
-    [SerializeField] private KeyCode closeKey = KeyCode.Escape; // 关闭面板按键
+    // 颜色过渡组件引用
+    private VehicleColorTransition colorTransition;
     
-    // 私有变量
-    private RectTransform mapUIRectTransform; // UI的RectTransform
-    private CanvasGroup mapUICanvasGroup; // UI的CanvasGroup
-    private Vector3 originalUIScale; // UI原始大小
-    private Tween currentUITween; // 当前UI动画
-    private bool isUIActive = false; // UI是否激活
-    private bool isAnimating = false; // 是否正在播放动画
+    private RectTransform mapUIRectTransform;
+    private CanvasGroup mapUICanvasGroup;
+    private Vector3 originalUIScale;
+    private Tween currentUITween;
+    private bool isUIActive = false;
+    private bool isAnimating = false;
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
         homeCavecar = this;
         
-        // 初始化UI动画
-        if (MapUI != null)
-        {
-            // 确保UI处于激活状态以便获取组件
-            MapUI.SetActive(true);
-            
-            // 获取RectTransform组件
-            mapUIRectTransform = MapUI.GetComponent<RectTransform>();
-            if (mapUIRectTransform == null)
-            {
-                Debug.LogWarning("MapUI没有RectTransform组件，无法播放动画！");
-            }
-            
-            // 获取或添加CanvasGroup组件
-            mapUICanvasGroup = MapUI.GetComponent<CanvasGroup>();
-            if (mapUICanvasGroup == null)
-            {
-                mapUICanvasGroup = MapUI.AddComponent<CanvasGroup>();
-            }
-            
-            // 保存原始大小
-            originalUIScale = mapUIRectTransform.localScale;
-            
-            // 初始化UI状态
-            mapUIRectTransform.localScale = Vector3.zero;
-            mapUICanvasGroup.alpha = 0f;
-            
-            // 关闭UI
-            MapUI.SetActive(false);
-        }
+        // 获取颜色过渡组件
+        colorTransition = GetComponent<VehicleColorTransition>();
+        
+        InitializeMapUI();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        // 如果玩家进入范围，可以按E键打开/关闭面板
-        if (isPlayerEnter && Input.GetKeyDown(openKey) && !isAnimating)
+        if (isPlayerEnter && Input.GetKeyDown(KeyCode.E) && !isAnimating && canUse)
         {
-            if (!isUIActive)
-            {
-                ShowMapUI();
-            }
-            else
-            {
-                HideMapUI();
-            }
+            ToggleMapUI();
         }
         
-        // 无论玩家是否在范围内，按下ESC键都可以关闭面板
-        if (Input.GetKeyDown(closeKey) && isUIActive && !isAnimating)
+        if (Input.GetKeyDown(KeyCode.Escape) && isUIActive && !isAnimating)
         {
             HideMapUI();
         }
     }
     
-    void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Player"))
+        if (other.CompareTag("Player") && canUse)
         {
-            if (canUse)
-            {
-                GetComponent<InteractiveFeedback>()?.PlayFeedback();
-                isPlayerEnter = true;
-                // 这里可以添加进入范围的提示效果
-            }
+            GetComponent<InteractiveFeedback>()?.PlayFeedback();
+            isPlayerEnter = true;
         }
     }
     
-    void OnTriggerExit(Collider other)
+    private void OnTriggerExit(Collider other)
     {
-        if (other.gameObject.CompareTag("Player"))
+        if (other.CompareTag("Player"))
         {
             isPlayerEnter = false;
             HideMapUI();
         }
     }
     
-    // 显示地图UI - 使用DoTween动画
+    private void InitializeMapUI()
+    {
+        if (MapUI == null) return;
+        
+        MapUI.SetActive(true);
+        
+        mapUIRectTransform = MapUI.GetComponent<RectTransform>();
+        mapUICanvasGroup = MapUI.GetComponent<CanvasGroup>() ?? MapUI.AddComponent<CanvasGroup>();
+        
+        originalUIScale = mapUIRectTransform.localScale;
+        mapUIRectTransform.localScale = Vector3.zero;
+        mapUICanvasGroup.alpha = 0f;
+        MapUI.SetActive(false);
+    }
+    
+    private void ToggleMapUI()
+    {
+        if (isUIActive)
+        {
+            HideMapUI();
+        }
+        else
+        {
+            ShowMapUI();
+        }
+    }
+    
     private void ShowMapUI()
     {
-        if (MapUI == null || mapUIRectTransform == null || mapUICanvasGroup == null) return;
-        if (isUIActive || isAnimating) return;
+        if (MapUI == null || isUIActive || isAnimating) return;
         
         isAnimating = true;
         isUIActive = true;
-        
-        // 激活UI
         MapUI.SetActive(true);
         
-        // 停止任何正在进行的动画
         if (currentUITween != null && currentUITween.IsActive())
         {
             currentUITween.Kill();
         }
         
-        // 设置初始状态
-        mapUIRectTransform.localScale = Vector3.zero;
-        mapUICanvasGroup.alpha = 0f;
-        
-        // 计算动画目标大小
-        Vector3 targetScale = originalUIScale;
         Vector3 overshootScale = originalUIScale * showScaleMultiplier;
         
-        // 创建显示动画序列
-        Sequence showSequence = DOTween.Sequence();
-        
-        // 第一步：弹出到稍大的尺寸
-        showSequence.Append(mapUIRectTransform.DOScale(overshootScale, showAnimationDuration * 0.6f)
-            .SetEase(showEase));
-        
-        showSequence.Join(mapUICanvasGroup.DOFade(1f, showAnimationDuration * 0.4f));
-        
-        // 第二步：回弹到原始大小
-        showSequence.Append(mapUIRectTransform.DOScale(targetScale, showAnimationDuration * 0.4f)
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(mapUIRectTransform.DOScale(overshootScale, showAnimationDuration * 0.6f)
             .SetEase(Ease.OutBack));
+        sequence.Join(mapUICanvasGroup.DOFade(1f, showAnimationDuration * 0.4f));
+        sequence.Append(mapUIRectTransform.DOScale(originalUIScale, showAnimationDuration * 0.4f)
+            .SetEase(Ease.OutBack));
+        sequence.OnComplete(() => isAnimating = false);
         
-        // 设置动画完成回调
-        showSequence.OnComplete(() => {
-            isAnimating = false;
-        });
-        
-        currentUITween = showSequence;
+        currentUITween = sequence;
     }
     
-    // 隐藏地图UI - 使用DoTween动画
     private void HideMapUI()
     {
-        if (MapUI == null || mapUIRectTransform == null || mapUICanvasGroup == null) return;
-        if (!isUIActive || isAnimating) return;
+        if (MapUI == null || !isUIActive || isAnimating) return;
         
         isAnimating = true;
         isUIActive = false;
         
-        // 停止任何正在进行的动画
         if (currentUITween != null && currentUITween.IsActive())
         {
             currentUITween.Kill();
         }
         
-        // 获取当前大小
-        Vector3 currentScale = mapUIRectTransform.localScale;
+        Vector3 initialScale = mapUIRectTransform.localScale * 1.1f;
         
-        // 计算初始隐藏缩放
-        Vector3 initialHideScale = currentScale * hideScaleMultiplier;
-        
-        // 创建隐藏动画序列
-        Sequence hideSequence = DOTween.Sequence();
-        
-        // 第一步：先稍微放大一点
-        hideSequence.Append(mapUIRectTransform.DOScale(initialHideScale, hideAnimationDuration * 0.2f)
-            .SetEase(hideEase));
-        
-        hideSequence.Join(mapUICanvasGroup.DOFade(0.8f, hideAnimationDuration * 0.2f));
-        
-        // 第二步：缩小到0
-        hideSequence.Append(mapUIRectTransform.DOScale(Vector3.zero, hideAnimationDuration * 0.8f)
-            .SetEase(hideEase));
-        
-        hideSequence.Join(mapUICanvasGroup.DOFade(0f, hideAnimationDuration * 0.6f));
-        
-        // 设置动画完成回调
-        hideSequence.OnComplete(() => {
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(mapUIRectTransform.DOScale(initialScale, hideAnimationDuration * 0.2f)
+            .SetEase(Ease.InBack));
+        sequence.Join(mapUICanvasGroup.DOFade(0.8f, hideAnimationDuration * 0.2f));
+        sequence.Append(mapUIRectTransform.DOScale(Vector3.zero, hideAnimationDuration * 0.8f)
+            .SetEase(Ease.InBack));
+        sequence.Join(mapUICanvasGroup.DOFade(0f, hideAnimationDuration * 0.6f));
+        sequence.OnComplete(() => {
             MapUI.SetActive(false);
             isAnimating = false;
         });
         
-        currentUITween = hideSequence;
+        currentUITween = sequence;
     }
     
-    // 强制立即隐藏UI（不播放动画）
-    public void ForceHideUI()
-    {
-        if (currentUITween != null && currentUITween.IsActive())
-        {
-            currentUITween.Kill();
-        }
-        
-        if (MapUI != null)
-        {
-            if (mapUIRectTransform != null)
-            {
-                mapUIRectTransform.localScale = Vector3.zero;
-            }
-            if (mapUICanvasGroup != null)
-            {
-                mapUICanvasGroup.alpha = 0f;
-            }
-            MapUI.SetActive(false);
-        }
-        
-        isUIActive = false;
-        isAnimating = false;
-    }
-    
-    // 公开方法：外部调用关闭面板
     public void CloseMapUI()
     {
         HideMapUI();
     }
     
-    // 公开方法：外部调用打开面板
     public void OpenMapUI()
     {
         ShowMapUI();
     }
     
-    // 检查UI是否处于激活状态
     public bool IsMapUIActive()
     {
         return isUIActive;
     }
     
-    // 在销毁对象时清理动画
     private void OnDestroy()
     {
         if (currentUITween != null && currentUITween.IsActive())

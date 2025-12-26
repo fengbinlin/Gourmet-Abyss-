@@ -131,7 +131,7 @@ public class MainMenuController : MonoBehaviour
 
             // 初始化按钮的初始状态
             InitializeButtonPositions();
-            isFirst = false;
+            //isFirst = false;
         }
         else if (needClick)
         {
@@ -142,7 +142,7 @@ public class MainMenuController : MonoBehaviour
         {
             InitializeButtonPositions();
             StartEntryAnimation();
-            isFirst = false;
+            //isFirst = false;
         }
     }
 
@@ -378,6 +378,7 @@ public class MainMenuController : MonoBehaviour
         {
             entryAnimationCoroutine = StartCoroutine(EntryAnimationRoutine());
         }
+        isFirst=false;
         
     }
 

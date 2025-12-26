@@ -2,346 +2,492 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class LevelManager : MonoBehaviour
 {
+    public GameObject mainUI;
+    public Text TitleText;
     public static LevelManager instance;
 
+    [Header("场景对象")]
     public GameObject homeSceneObject;
 
+    [Header("过渡系统")]
     public EmissionTransition emissionTransition;
     public SaturationTransition saturationTransition;
-    public Animator TransitionUIAnimator;
+    public Animator transitionUIAnimator;
 
     [Header("过渡设置")]
-    [Tooltip("是否在进入关卡时自动触发过渡效果")]
-    [SerializeField] private bool autoEnterLevel = false;
-
-    [Tooltip("触发过渡效果的延迟时间（秒）")]
-    [SerializeField] private float transitionDelay = 0.5f;
-
-    [Tooltip("是否在过渡完成后自动切换状态")]
-    [SerializeField] private bool autoToggleAfterTransition = true;
-
-    [Tooltip("自动切换状态的延迟时间（秒）")]
-    [SerializeField] private float toggleDelay = 3.0f;
+    [SerializeField] private float transitionDuration = 1.0f;
+    [SerializeField] private float uiAnimationDelay = 0.5f;
 
     [Header("场景设置")]
-    [Tooltip("要加载的关卡场景名称")]
     [SerializeField] private string levelSceneName = "Layer1";
 
     // 私有变量
-    private bool isInLevel = false;
+    private bool isTransitioning = false;
+    private List<string> loadedLevels = new List<string>();
 
-    // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
-        instance = this;
-
-        // 如果启用自动进入关卡
-        if (autoEnterLevel)
+        if (instance != null && instance != this)
         {
-            // 延迟后自动进入关卡
-            StartCoroutine(DelayedEnterLevel(transitionDelay));
+            Destroy(gameObject);
+            return;
+        }
+
+        instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void Start()
+    {
+        TitleText.text = SceneTitle.instance.SceneName;
+        // TransitionUIAnimator启用时自动播放第一个动画
+        if (transitionUIAnimator != null && transitionUIAnimator.enabled)
+        {
+            transitionUIAnimator.Play("DefaultState", 0, 0f);
         }
     }
 
     /// <summary>
     /// 进入关卡
-    /// 逻辑：从发光变成不发光，目标层级是0
     /// </summary>
     public void EnterLevel(string sceneName = null)
     {
-        //if (isInLevel) return;
+        if (isTransitioning) return;
 
-        //Debug.Log("进入关卡...");
-
-        // 触发过渡效果
-        StartCoroutine(EnterLevelTransition(sceneName));
-
-        //isInLevel = true;
+        string targetScene = sceneName ?? levelSceneName;
+        StartCoroutine(EnterLevelProcess(targetScene));
     }
 
     /// <summary>
-    /// 离开关卡
-    /// 逻辑：从发光变成不发光，目标层级是10
+    /// 离开关卡返回主场景
     /// </summary>
     public void ExitLevel()
     {
-        if (!isInLevel) return;
+        if (isTransitioning || loadedLevels.Count == 0) return;
 
-        //Debug.Log("离开关卡...");
-
-        // 触发离开过渡效果
-        StartCoroutine(ExitLevelTransition());
-
-        isInLevel = false;
+        string currentLevel = loadedLevels[loadedLevels.Count - 1];
+        StartCoroutine(ExitLevelProcess(currentLevel));
     }
 
-
+    /// <summary>
+    /// 从关卡返回主场景
+    /// </summary>
     public void FromLevelToHome(string sceneName = null)
     {
-        StartCoroutine(FromLevelToHomeProcess(sceneName));
+        if (isTransitioning) return;
 
-
-    }
-
-    private IEnumerator FromLevelToHomeProcess(string sceneName = null)
-    {
-
-        if (TransitionUIAnimator != null)
+        string targetScene = sceneName;
+        if (string.IsNullOrEmpty(targetScene) && loadedLevels.Count > 0)
         {
-            TransitionUIAnimator.SetTrigger("EnterLevel");
-            //Debug.Log("触发UI动画: EnterLevel");
+            targetScene = loadedLevels[loadedLevels.Count - 1];
         }
 
-        yield return new WaitForSeconds(1f);
-
-        // 异步加载场景
-        AsyncOperation asyncLoad = SceneManager.UnloadSceneAsync(sceneName);
-        saturationTransition.TransitionToSaturated();
-        homeSceneObject.SetActive(true);
-        asyncLoad.allowSceneActivation = true;
-        BattleValManager.Instance.ResetValues();
-        BattleValManager.Instance.StopConsuming();
-        // 等待场景加载完成
-        while (!asyncLoad.isDone)
-        {
-            yield return null;
-        }
-        ShopManager.Instance.ShowShop();
-        StartCoroutine(UITapBounce.Instance.BounceDown()); 
-        GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
-
-    }
-
-
-    /// <summary>
-    /// 进入关卡的过渡效果
-    /// 从发光变成不发光，目标层级是0
-    /// </summary>
-    private IEnumerator EnterLevelTransition(string sceneName = null)
-    {
-        //Debug.Log("开始进入关卡过渡：发光->不发光，层级设为0");
-
-        // 1. 首先触发UI动画
-        if (TransitionUIAnimator != null)
-        {
-            TransitionUIAnimator.SetTrigger("EnterLevel");
-            //Debug.Log("触发UI动画: EnterLevel");
-        }
-
-        // 2. 触发饱和度过渡（从饱和变为不饱和）
-        if (saturationTransition != null)
-        {
-            // 从当前饱和度过渡到不饱和(0)
-            saturationTransition.TransitionToUnsaturated(); // 过渡到不饱和
-            //Debug.Log("开始饱和度过渡: 从饱和到不饱和");
-        }
-        else
-        {
-            //Debug.LogWarning("SaturationTransition 未赋值！");
-        }
-
-        // 3. 触发自发光过渡（从发光变为不发光，层级设为0）
-        if (emissionTransition != null)
-        {
-            // 调用专门的进入关卡过渡方法
-            emissionTransition.ExitLevelTransition();
-            //Debug.Log("开始自发光过渡: 从发光到不发光，层级设为0");
-        }
-        else
-        {
-            //Debug.LogWarning("EmissionTransition 未赋值！");
-        }
-
-        // 等待过渡完成
-        yield return new WaitForSeconds(1f);
-
-        // 异步加载场景
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-        ShopManager.Instance.HideShop();
-        StartCoroutine(UITapBounce.Instance.BounceDown()); 
-        homeSceneObject.SetActive(false);
-        asyncLoad.allowSceneActivation = true;
-        BattleValManager.Instance.ResetValues();
-        BattleValManager.Instance.StartConsuming();
-        // 等待场景加载完成
-        while (!asyncLoad.isDone)
-        {
-            yield return null;
-        }
-
-        //Debug.Log($"加载场景完成: {levelSceneName}");
+        StartCoroutine(FromLevelToHomeProcess(targetScene));
     }
 
     /// <summary>
-    /// 离开关卡的过渡效果
-    /// 从发光变成不发光，目标层级是10
+    /// 切换关卡
     /// </summary>
-    private IEnumerator ExitLevelTransition()
+    public void SwitchLevel(string fromLevel, string toLevel)
     {
-        //Debug.Log("开始离开关卡过渡：发光->不发光，层级设为10");
+        if (isTransitioning) return;
+
+        StartCoroutine(SwitchLevelProcess(fromLevel, toLevel));
+    }
+
+    private IEnumerator EnterLevelProcess(string levelName)
+    {
+        isTransitioning = true;
 
         // 1. 触发UI动画
-        if (TransitionUIAnimator != null)
+        if (transitionUIAnimator != null)
         {
-            TransitionUIAnimator.SetTrigger("ExitLevel");
-            //Debug.Log("触发UI动画: ExitLevel");
+            transitionUIAnimator.SetTrigger("EnterLevel");
         }
 
-        // 2. 触发饱和度过渡（从不饱和变为饱和）
+        yield return new WaitForSeconds(uiAnimationDelay);
+
+        // 2. 首先将主场景车辆从原色过渡到白色
+        VehicleColorTransition homeVehicle = FindVehicleInScene("UpGround");
+        if (homeVehicle != null)
+        {
+            Debug.Log("主场景车辆开始过渡到白色");
+
+            // 修改：在开始过渡前设置层级为10
+            homeVehicle.SetLayer(10);
+            homeVehicle.TransitionToWhite(transitionDuration);
+        }
+
+        // 3. 其他过渡效果
         if (saturationTransition != null)
         {
-            // 从不饱和到饱和
-            saturationTransition.ReverseTransition();
-            //Debug.Log("开始饱和度过渡: 从不饱和到饱和");
-        }
-        else
-        {
-            //Debug.LogWarning("SaturationTransition 未赋值！");
+            saturationTransition.TransitionToUnsaturated();
         }
 
-        // 3. 触发自发光过渡（从发光变为不发光，层级设为10）
         if (emissionTransition != null)
         {
-            // 调用专门的离开关卡过渡方法
-            emissionTransition.ExitLevelTransition();
-            //Debug.Log("开始自发光过渡: 从发光到不发光，层级设为10");
+            emissionTransition.EnterLevelTransition();
         }
-        else
+
+        // 等待车辆过渡完成
+        yield return new WaitForSeconds(transitionDuration);
+
+        // 4. 确保主场景车辆完全变成白色
+        if (homeVehicle != null)
         {
-            //Debug.LogWarning("EmissionTransition 未赋值！");
+            // 立即设置为白色，确保在加载新场景前完成
+            homeVehicle.SetToWhiteImmediate();
         }
 
-        // 等待过渡完成
-        yield return new WaitForSeconds(transitionDelay);
-        ShopManager.Instance.ShowShop();
-        StartCoroutine(UITapBounce.Instance.BounceDown()); 
-        // 这里可以加载其他场景，比如主菜单
-        // SceneManager.LoadSceneAsync("MainMenu");
+        Debug.Log($"车辆已变成白色，开始加载场景: {levelName}");
 
-        //Debug.Log("离开关卡完成");
-    }
-
-    /// <summary>
-    /// 切换关卡状态
-    /// </summary>
-    public void ToggleLevelState()
-    {
-        if (isInLevel)
-        {
-            ExitLevel();
-        }
-        else
-        {
-            EnterLevel();
-        }
-    }
-
-    /// <summary>
-    /// 手动触发进入关卡
-    /// </summary>
-    public void TriggerEnterLevel()
-    {
-        if (!isInLevel)
-        {
-            EnterLevel();
-        }
-    }
-
-    /// <summary>
-    /// 手动触发离开关卡
-    /// </summary>
-    public void TriggerExitLevel()
-    {
-        if (isInLevel)
-        {
-            ExitLevel();
-        }
-    }
-
-    /// <summary>
-    /// 设置要加载的关卡场景
-    /// </summary>
-    public void SetLevelScene(string sceneName)
-    {
-        levelSceneName = sceneName;
-        //Debug.Log($"设置关卡场景为: {sceneName}");
-    }
-
-    /// <summary>
-    /// 加载指定场景
-    /// </summary>
-    public void LoadScene(string sceneName)
-    {
-        if (!string.IsNullOrEmpty(sceneName))
-        {
-            StartCoroutine(LoadSceneWithTransition(sceneName));
-        }
-        else
-        {
-            //Debug.LogError("场景名称为空！");
-        }
-    }
-
-    /// <summary>
-    /// 带过渡效果的场景加载
-    /// </summary>
-    private IEnumerator LoadSceneWithTransition(string sceneName)
-    {
-        //Debug.Log($"开始加载场景: {sceneName}");
-
-        // 1. 先执行离开过渡效果
-        yield return StartCoroutine(ExitLevelTransition());
-
-        // 2. 异步加载场景
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-        homeSceneObject.SetActive(false);
+        // 5. 加载关卡场景
+        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(levelName, LoadSceneMode.Additive);
         asyncLoad.allowSceneActivation = true;
 
-        // 等待场景加载完成
         while (!asyncLoad.isDone)
         {
             yield return null;
         }
+        UITapBounce.Instance.ResetPosition();
+        TitleText.text = SceneTitle.instance.SceneName;
+        mainUI.SetActive(false);
+        mainUI.SetActive(true);
+        // 6. 隐藏主场景物体
+        if (homeSceneObject != null)
+        {
+            homeSceneObject.SetActive(false);
+        }
+        KeepMainCamera.instance.tKeepMainCamera();
 
-        //Debug.Log($"场景加载完成: {sceneName}");
+        // 7. 新场景车辆从白色过渡到原色
+        // 注意：这里需要等待一帧确保新场景完全加载
+        yield return null;
+
+        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
+
+        if (levelVehicle != null)
+        {
+            Debug.Log("新场景车辆开始从白色过渡到原色");
+
+            // 修改：开始时设置层级为10
+            levelVehicle.SetLayer(10);
+
+            // 确保车辆脚本启用
+            levelVehicle.enabled = true;
+
+            // 立即设置为白色
+            levelVehicle.SetToWhiteImmediate();
+
+            // 从白色过渡到原色
+            levelVehicle.TransitionToOriginal(transitionDuration);
+
+            // 修改：从不发光变成发光后，层级变为11
+            StartCoroutine(SetVehicleLayerAfterDelay(levelVehicle, 11, transitionDuration));
+        }
+        else
+        {
+            Debug.LogWarning($"在场景 {levelName} 中未找到VehicleColorTransition组件");
+        }
+
+        loadedLevels.Add(levelName);
+        isTransitioning = false;
+    }
+
+    private IEnumerator ExitLevelProcess(string levelName)
+    {
+        isTransitioning = true;
+
+        // 1. 触发UI动画
+        if (transitionUIAnimator != null)
+        {
+            transitionUIAnimator.SetTrigger("ExitLevel");
+        }
+
+        yield return new WaitForSeconds(uiAnimationDelay);
+
+        // 2. 当前关卡车辆从原色过渡到白色
+        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
+        if (levelVehicle != null)
+        {
+            Debug.Log("关卡车辆开始过渡到白色");
+
+            // 修改：离开场景前，设置层级为10
+            levelVehicle.SetLayer(10);
+            levelVehicle.TransitionToWhite(transitionDuration);
+        }
+
+        // 3. 其他过渡效果
+        if (saturationTransition != null)
+        {
+            saturationTransition.TransitionToSaturated();
+        }
+
+        if (emissionTransition != null)
+        {
+            emissionTransition.ExitLevelTransition();
+        }
+
+        // 等待车辆过渡完成
+        yield return new WaitForSeconds(transitionDuration);
+
+        // 4. 确保关卡车辆完全变成白色
+        if (levelVehicle != null)
+        {
+            levelVehicle.SetToWhiteImmediate();
+        }
+
+        Debug.Log("关卡车辆已变成白色，开始卸载场景");
+
+        // 5. 卸载关卡场景
+        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(levelName);
+        asyncUnload.allowSceneActivation = true;
+        UITapBounce.Instance.ResetPosition();
+        mainUI.SetActive(false);
+        mainUI.SetActive(true);
+        while (!asyncUnload.isDone)
+        {
+            yield return null;
+        }
+
+        // 6. 显示主场景物体
+        if (homeSceneObject != null)
+        {
+            homeSceneObject.SetActive(true);
+        }
+
+        // 7. 主场景车辆从白色过渡到原色
+        VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
+        if (homeVehicle != null)
+        {
+            Debug.Log("主场景车辆开始从白色过渡到原色");
+
+            // 修改：开始时设置层级为10
+            homeVehicle.SetLayer(10);
+
+            // 确保车辆脚本启用
+            homeVehicle.enabled = true;
+
+            // 立即设置为白色
+            homeVehicle.SetToWhiteImmediate();
+
+            // 从白色过渡到原色
+            homeVehicle.TransitionToOriginal(transitionDuration);
+
+            // 修改：从不发光变成发光后，层级变为11
+            StartCoroutine(SetVehicleLayerAfterDelay(homeVehicle, 11, transitionDuration));
+        }
+
+        loadedLevels.Remove(levelName);
+        isTransitioning = false;
+    }
+
+    private IEnumerator FromLevelToHomeProcess(string levelName)
+    {
+        isTransitioning = true;
+
+        // 1. 触发UI动画
+        if (transitionUIAnimator != null)
+        {
+            transitionUIAnimator.SetTrigger("EnterLevel");
+        }
+
+        yield return new WaitForSeconds(uiAnimationDelay);
+
+        // 2. 当前关卡车辆从原色过渡到白色
+        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
+        if (levelVehicle != null)
+        {
+            // 修改：离开场景前，设置层级为10
+            levelVehicle.SetLayer(10);
+            levelVehicle.TransitionToWhite(transitionDuration);
+        }
+
+        // 3. 其他过渡效果
+        if (saturationTransition != null)
+        {
+            saturationTransition.TransitionToSaturated();
+        }
+
+        // 等待车辆过渡完成
+        yield return new WaitForSeconds(transitionDuration);
+
+        // 4. 确保关卡车辆完全变成白色
+        if (levelVehicle != null)
+        {
+            levelVehicle.SetToWhiteImmediate();
+        }
+
+        // 5. 卸载关卡场景
+        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(levelName);
+        asyncUnload.allowSceneActivation = true;
+
+        while (!asyncUnload.isDone)
+        {
+            yield return null;
+        }
+
+        // 6. 显示主场景物体
+        if (homeSceneObject != null)
+        {
+            homeSceneObject.SetActive(true);
+        }
+        KeepMainCamera.instance.tKeepMainCamera();
+        // 7. 主场景车辆从白色过渡到原色
+        VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
+        if (homeVehicle != null)
+        {
+            // 修改：开始时设置层级为10
+            homeVehicle.SetLayer(10);
+
+            homeVehicle.enabled = true;
+            homeVehicle.SetToWhiteImmediate();
+            homeVehicle.TransitionToOriginal(transitionDuration);
+
+            // 修改：从不发光变成发光后，层级变为11
+            StartCoroutine(SetVehicleLayerAfterDelay(homeVehicle, 11, transitionDuration));
+        }
+        UITapBounce.Instance.ResetPosition();
+        mainUI.SetActive(false);
+        mainUI.SetActive(true);
+        // 8. 重置游戏状态
+        BattleValManager.Instance?.ResetValues();
+        BattleValManager.Instance?.StopConsuming();
+        GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
+
+        loadedLevels.Remove(levelName);
+        isTransitioning = false;
+    }
+
+    private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
+    {
+        isTransitioning = true;
+
+        // 1. 触发UI动画
+        if (transitionUIAnimator != null)
+        {
+            transitionUIAnimator.SetTrigger("SwitchLevel");
+        }
+
+        yield return new WaitForSeconds(uiAnimationDelay);
+
+        // 2. 当前关卡车辆从原色过渡到白色
+        VehicleColorTransition fromVehicle = FindVehicleInScene(fromLevel);
+        if (fromVehicle != null)
+        {
+            // 修改：离开场景前，设置层级为10
+            fromVehicle.SetLayer(10);
+            fromVehicle.TransitionToWhite(transitionDuration);
+        }
+
+        // 3. 其他过渡效果
+        if (saturationTransition != null)
+        {
+            saturationTransition.TransitionToUnsaturated();
+        }
+
+        if (emissionTransition != null)
+        {
+            emissionTransition.ExitLevelTransition();
+        }
+
+        // 等待车辆过渡完成
+        yield return new WaitForSeconds(transitionDuration);
+
+        // 4. 确保当前关卡车辆完全变成白色
+        if (fromVehicle != null)
+        {
+            fromVehicle.SetToWhiteImmediate();
+        }
+
+        Debug.Log("当前关卡车辆已变成白色，开始切换场景");
+
+        // 5. 卸载当前关卡
+        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(fromLevel);
+        asyncUnload.allowSceneActivation = true;
+
+        // 6. 加载新关卡
+        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(toLevel, LoadSceneMode.Additive);
+        asyncLoad.allowSceneActivation = true;
+
+        while (!asyncUnload.isDone || !asyncLoad.isDone)
+        {
+            yield return null;
+        }
+        KeepMainCamera.instance.tKeepMainCamera();
+        // 7. 新关卡车辆从白色过渡到原色
+        VehicleColorTransition toVehicle = FindVehicleInScene(toLevel);
+        if (toVehicle != null)
+        {
+            Debug.Log("新关卡车辆开始从白色过渡到原色");
+
+            // 修改：开始时设置层级为10
+            toVehicle.SetLayer(10);
+
+            toVehicle.enabled = true;
+            toVehicle.SetToWhiteImmediate();
+            toVehicle.TransitionToOriginal(transitionDuration);
+
+            // 修改：从不发光变成发光后，层级变为11
+            StartCoroutine(SetVehicleLayerAfterDelay(toVehicle, 11, transitionDuration));
+        }
+        UITapBounce.Instance.ResetPosition();
+        mainUI.SetActive(false);
+        mainUI.SetActive(true);
+        // 更新关卡列表
+        loadedLevels.Remove(fromLevel);
+        loadedLevels.Add(toLevel);
+
+        isTransitioning = false;
     }
 
     /// <summary>
-    /// 延迟进入关卡
+    /// 延迟设置车辆层级
     /// </summary>
-    private IEnumerator DelayedEnterLevel(float delay)
+    private IEnumerator SetVehicleLayerAfterDelay(VehicleColorTransition vehicle, int layer, float delay)
     {
         yield return new WaitForSeconds(delay);
-        EnterLevel();
+        vehicle.SetLayer(layer);
     }
 
     /// <summary>
-    /// 测试功能：在编辑器中触发进入关卡
+    /// 在指定场景中查找车辆
     /// </summary>
-    [ContextMenu("测试进入关卡")]
-    public void TestEnterLevel()
+    private VehicleColorTransition FindVehicleInScene(string sceneName)
     {
-        EnterLevel();
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (!scene.IsValid())
+        {
+            // 尝试在主活动场景中查找
+            scene = SceneManager.GetActiveScene();
+            if (scene.name != sceneName)
+            {
+                return null;
+            }
+        }
+
+        GameObject[] rootObjects = scene.GetRootGameObjects();
+        foreach (GameObject obj in rootObjects)
+        {
+            VehicleColorTransition vehicle = obj.GetComponentInChildren<VehicleColorTransition>(true);
+            if (vehicle != null)
+            {
+                return vehicle;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
-    /// 测试功能：在编辑器中触发离开关卡
+    /// 检查是否正在过渡
     /// </summary>
-    [ContextMenu("测试离开关卡")]
-    public void TestExitLevel()
+    public bool IsTransitioning()
     {
-        ExitLevel();
-    }
-
-    /// <summary>
-    /// 测试功能：切换关卡状态
-    /// </summary>
-    [ContextMenu("测试切换状态")]
-    public void TestToggleLevelState()
-    {
-        ToggleLevelState();
+        return isTransitioning;
     }
 }

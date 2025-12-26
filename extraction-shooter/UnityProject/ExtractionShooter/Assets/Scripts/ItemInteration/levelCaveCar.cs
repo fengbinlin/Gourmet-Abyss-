@@ -1,61 +1,71 @@
-using System.Collections;
-using System.Collections.Generic;
+// levelCaveCar.cs
 using UnityEngine;
 
 public class levelCaveCar : MonoBehaviour
 {
     public static levelCaveCar instance;
     public bool canUse = true;
-    private bool isPlayerInTrigger = false; // 标记玩家是否在触发区域内
-    private GameObject player; // 存储玩家引用
     public string levelName = "Layer1";
-    // Start is called before the first frame update
-    void Awake()
+    
+    private bool isPlayerInTrigger = false;
+    private GameObject player;
+    
+    // 颜色过渡组件引用
+    private VehicleColorTransition colorTransition;
+    
+    private void Awake()
     {
-        instance=this;
+        instance = this;
     }
-    void Start()
+    
+    private void Start()
     {
-        
+        // 获取颜色过渡组件
+        colorTransition = GetComponent<VehicleColorTransition>();
     }
-
-    // Update is called once per frame
-    void Update()
+    
+    private void Update()
     {
-        // 如果玩家在触发区域内，且按下E键，且canUse为true
         if (isPlayerInTrigger && canUse && Input.GetKeyDown(KeyCode.E))
         {
             ToHome();
         }
     }
+    
     public void ToHome()
     {
-        // 执行场景切换
-            LevelManager.instance.FromLevelToHome(levelName);
-            canUse = false;
-            HomeCavecar.homeCavecar.canUse = true;
+        if (LevelManager.instance == null || LevelManager.instance.IsTransitioning())
+            return;
             
-            // 禁用玩家移动
-            if (player != null)
-            {
-                player.GetComponent<TopDownController>().enabled = false;
-            }
+        LevelManager.instance.FromLevelToHome(levelName);
+        
+        canUse = false;
+        if (HomeCavecar.homeCavecar != null)
+        {
+            HomeCavecar.homeCavecar.canUse = true;
+        }
+        
+        if (player != null)
+        {
+            player.GetComponent<TopDownController>().enabled = false;
+        }
     }
-    void OnTriggerEnter(Collider other)
+    
+    private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
             isPlayerInTrigger = true;
-            player = other.gameObject; // 保存玩家引用
+            player = other.gameObject;
         }
     }
-
-    void OnTriggerExit(Collider other)
+    
+    private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
         {
             isPlayerInTrigger = false;
-            player = null; // 清空玩家引用
+            player = null;
         }
     }
 }

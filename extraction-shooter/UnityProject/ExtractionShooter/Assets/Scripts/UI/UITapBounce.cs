@@ -160,7 +160,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
     {
         isBounced = false;
         rectTransform.anchoredPosition = originalPosition;
-        
+        animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;
         if (bounceCoroutine != null)
         {
             StopCoroutine(bounceCoroutine);
