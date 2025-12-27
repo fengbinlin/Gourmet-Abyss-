@@ -28,7 +28,7 @@ public enum ResourceType
     LootSweetPepper,
     LootWatermelon,
     LootPumkin,
-
+    None
 }
 
 [System.Serializable]

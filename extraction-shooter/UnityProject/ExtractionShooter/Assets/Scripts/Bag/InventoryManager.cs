@@ -54,7 +54,7 @@ public class InventoryManager : MonoBehaviour
         WeaponStatsManager.Instance.OnInventoryStatsChanged += OnInventoryStatsUpdated;
 
         // 测试代码
-        // AddItem(ResourceType.LootEggSmall, 4);
+        AddItem(ResourceType.LootEggSmall, 4);
         // AddItem(ResourceType.LootEggBig, 4);
         // AddItem(ResourceType.LootMushroom, 4);
         // AddItem(ResourceType.LootPumkin, 4);

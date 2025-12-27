@@ -10,10 +10,10 @@ public class MoneyChest : MonoBehaviour
     [SerializeField] private float bounceDuration = 0.3f;
 
     [Header("取钱设置")]
-    [SerializeField] private float baseWithdrawTime = 2.0f; // 固定总取钱时间
+    [SerializeField] private float baseWithdrawTime = 2.0f;
     [SerializeField] private float minWithdrawTime = 1.0f;
     [SerializeField] private float maxWithdrawTime = 5.0f;
-    [SerializeField] private float smoothEndDuration = 0.5f; // 平滑结束时间
+    [SerializeField] private float smoothEndDuration = 0.5f;
 
     [Header("UI设置")]
     [SerializeField] private GameObject moneyTextPrefab;
@@ -29,6 +29,10 @@ public class MoneyChest : MonoBehaviour
     [Header("视觉效果")]
     [SerializeField] private ParticleSystem moneyParticles;
     [SerializeField] private Light moneyLight;
+
+    [Header("发射器引用")]
+    [SerializeField] private ProjectileLauncher projectileLauncher;
+    [SerializeField] private Transform playerTransform;
 
     [Header("调试")]
     [SerializeField] private bool debugMode = false;
@@ -66,7 +70,6 @@ public class MoneyChest : MonoBehaviour
     private void Start()
     {
         UpdateMoneyText();
-
         Collider collider = GetComponent<Collider>();
         if (collider == null) collider = gameObject.AddComponent<BoxCollider>();
         collider.isTrigger = true;
@@ -92,6 +95,7 @@ public class MoneyChest : MonoBehaviour
         {
             GetComponent<InteractiveFeedback>()?.PlayFeedback();
             isPlayerInRange = true;
+            playerTransform = other.transform;
             OnPlayerEnterRange();
         }
     }
@@ -116,7 +120,6 @@ public class MoneyChest : MonoBehaviour
             audioSource.PlayOneShot(depositSound);
 
         PlayDepositEffects();
-
         OnMoneyChanged?.Invoke(currentMoney, amount);
     }
 
@@ -126,17 +129,27 @@ public class MoneyChest : MonoBehaviour
 
         int actualAmount = Mathf.Min(amount, currentMoney);
         currentMoney -= actualAmount;
-
-        if (GameValManager.Instance != null)
-            GameValManager.Instance.AddResource(ResourceType.Money, actualAmount);
-
         UpdateMoneyText();
         StartBounce();
 
         if (withdrawSound != null)
             audioSource.PlayOneShot(withdrawSound, 0.7f);
 
-        OnMoneyChanged?.Invoke(currentMoney, -actualAmount);
+        if (projectileLauncher != null && playerTransform != null)
+        {
+            projectileLauncher.SpawnProjectile(
+                transform,
+                playerTransform,
+                ResourceType.Money,
+                actualAmount,
+                () =>
+                {
+                    if (GameValManager.Instance != null)
+                        GameValManager.Instance.AddResource(ResourceType.Money, actualAmount);
+                    OnMoneyChanged?.Invoke(currentMoney, -actualAmount);
+                }
+            );
+        }
         return actualAmount;
     }
 
@@ -147,8 +160,6 @@ public class MoneyChest : MonoBehaviour
         isWithdrawing = true;
         alreadyWithdrawn = 0;
         totalWithdrawAmount = currentMoney;
-
-        // 固定时间，不随金额变化
         baseWithdrawTime = Mathf.Clamp(baseWithdrawTime, minWithdrawTime, maxWithdrawTime);
 
         if (withdrawCoroutine != null)
@@ -162,7 +173,6 @@ public class MoneyChest : MonoBehaviour
         if (!isWithdrawing) return;
 
         isWithdrawing = false;
-
         if (withdrawCoroutine != null)
         {
             StopCoroutine(withdrawCoroutine);
@@ -170,58 +180,44 @@ public class MoneyChest : MonoBehaviour
         }
     }
 
-    // 优化后的平滑取钱协程
     private IEnumerator WithdrawMoneySmoothly()
     {
         float elapsedTime = 0f;
-
-        float mainWithdrawTime = baseWithdrawTime - smoothEndDuration; // 主阶段时间
+        float mainWithdrawTime = baseWithdrawTime - smoothEndDuration;
         float smoothStartTime = mainWithdrawTime;
 
+        // ✅ 按下的第一帧就会执行这个 while，所以第一次取钱和后面相差一帧，没有前摇
         while (isWithdrawing && elapsedTime < baseWithdrawTime && currentMoney > 0)
         {
-            elapsedTime += Time.deltaTime;
-
+            // **注意**：第一次 elapsedTime = 0，这里就会取到第一笔钱
             if (elapsedTime <= mainWithdrawTime)
             {
-                // 主阶段：按时间进度线性取出大部分钱（80%-90%）
                 float t = Mathf.Clamp01(elapsedTime / mainWithdrawTime);
-                float eased = t * t * (3f - 2f * t); // SmoothStep
+                float eased = t * t * (3f - 2f * t);
                 int targetAmount = Mathf.RoundToInt(totalWithdrawAmount * Mathf.Lerp(0f, 0.9f, eased));
                 int amountToWithdraw = targetAmount - alreadyWithdrawn;
-
                 if (amountToWithdraw > 0)
-                {
-                    int withdrawn = WithdrawMoney(amountToWithdraw);
-                    alreadyWithdrawn += withdrawn;
-                }
+                    alreadyWithdrawn += WithdrawMoney(amountToWithdraw);
             }
             else
             {
-                // 平滑结束阶段：减速取完剩余的钱
                 float smoothElapsed = elapsedTime - smoothStartTime;
                 float smoothT = Mathf.Clamp01(smoothElapsed / smoothEndDuration);
-
-                // 用 EaseOutCubic 减速
                 float eased = 1f - Mathf.Pow(1f - smoothT, 3f);
                 int targetAmount = Mathf.RoundToInt(totalWithdrawAmount * Mathf.Lerp(0.9f, 1f, eased));
                 int amountToWithdraw = targetAmount - alreadyWithdrawn;
-
                 if (amountToWithdraw > 0)
-                {
-                    int withdrawn = WithdrawMoney(amountToWithdraw);
-                    alreadyWithdrawn += withdrawn;
-                }
+                    alreadyWithdrawn += WithdrawMoney(amountToWithdraw);
             }
 
+            elapsedTime += Time.deltaTime;
             yield return null;
         }
 
-        // 如果时间到但还有钱，最后一点平滑取出
+        // 最后清掉剩下的钱
         while (isWithdrawing && currentMoney > 0)
         {
-            int withdrawn = WithdrawMoney(Mathf.CeilToInt(currentMoney * Time.deltaTime * 5f)); // 剩余按小批取
-            alreadyWithdrawn += withdrawn;
+            alreadyWithdrawn += WithdrawMoney(Mathf.CeilToInt(currentMoney * Time.deltaTime * 5f));
             yield return null;
         }
 
@@ -243,7 +239,12 @@ public class MoneyChest : MonoBehaviour
 
         if (Input.GetKeyDown(interactKey))
         {
-            StartWithdrawing();
+            // 按下当帧立即取一次钱，比如一次取 10% 或最少 1 块
+            int firstWithdraw = WithdrawMoney(Mathf.Max(1, Mathf.CeilToInt(currentMoney * 0.1f)));
+
+            // 如果仍有钱，进入持续取钱状态
+            if (currentMoney > 0)
+                StartWithdrawing();
         }
 
         if (Input.GetKeyUp(interactKey))
@@ -283,7 +284,7 @@ public class MoneyChest : MonoBehaviour
     {
         if (moneyParticles != null)
         {
-            ParticleSystem.MainModule main = moneyParticles.main;
+            var main = moneyParticles.main;
             main.maxParticles = Mathf.Min(currentMoney / 10, 100);
             moneyParticles.Play();
         }
