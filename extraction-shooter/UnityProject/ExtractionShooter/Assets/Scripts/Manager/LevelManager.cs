@@ -193,7 +193,8 @@ public class LevelManager : MonoBehaviour
         {
             Debug.LogWarning($"在场景 {levelName} 中未找到VehicleColorTransition组件");
         }
-
+        
+        BattleValManager.Instance.StartConsuming();
         loadedLevels.Add(levelName);
         isTransitioning = false;
     }
@@ -358,7 +359,6 @@ public class LevelManager : MonoBehaviour
         BattleValManager.Instance?.ResetValues();
         BattleValManager.Instance?.StopConsuming();
         GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
-
         loadedLevels.Remove(levelName);
         isTransitioning = false;
     }

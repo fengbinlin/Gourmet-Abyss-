@@ -220,6 +220,7 @@ public class BattleValManager : MonoBehaviour
     /// </summary>
     public void StartConsuming()
     {
+        ResetValues();
         isActive = true;
     }
 
