@@ -105,6 +105,7 @@ public class UnlockStatus
 
 public class MapUIManager : MonoBehaviour
 {
+    public static MapUIManager Instance;
     [Header("UI References")]
     [SerializeField] private Transform mapContent; // 地图Item的父对象
     [SerializeField] private Transform regionContent; // 区域Item的父对象
@@ -132,7 +133,10 @@ public class MapUIManager : MonoBehaviour
     // 当前选中的Item
     private MapItemUI currentSelectedMapItem;
     private RegionItemUI currentHoveredRegionItem;
-
+    void Awake()
+    {
+        Instance = this;
+    }
     private void Start()
     {
         InitializeMapUI();
@@ -141,14 +145,19 @@ public class MapUIManager : MonoBehaviour
     // 初始化地图UI
     private void InitializeMapUI()
     {
-        // 清空现有内容
+        // 清空现有地图UI
         ClearMapItems();
+
+        // 清空字典，避免重复键
+        mapItems.Clear();
+
         ClearRegionItems();
+        regionItems.Clear();
 
         // 获取所有地图数据
         List<MapData> allMaps = MapDataManager.Instance.GetAllMaps();
 
-        // 更新解锁状态数据结构
+        // 更新解锁状态
         UpdateUnlockStatus();
 
         // 生成地图Item
@@ -159,12 +168,20 @@ public class MapUIManager : MonoBehaviour
 
             if (mapItemUI != null)
             {
-                mapItemUI.Initialize(mapData, this);
-                mapItems.Add(mapData.mapID, mapItemUI);
+                // 添加前先检查是否已存在相同 key
+                if (!mapItems.ContainsKey(mapData.mapID))
+                {
+                    mapItemUI.Initialize(mapData, this);
+                    mapItems.Add(mapData.mapID, mapItemUI);
+                }
+                else
+                {
+                    Debug.LogWarning($"地图ID重复: {mapData.mapID}");
+                }
             }
         }
 
-        // 如果没有选中的地图，选中第一个地图
+        // 选中第一个地图
         if (allMaps.Count > 0)
         {
             SelectMap(allMaps[0]);
@@ -274,7 +291,7 @@ public class MapUIManager : MonoBehaviour
         if (!string.IsNullOrEmpty(regionData.sceneName))
         {
             LevelManager.instance.EnterLevel(regionData.sceneName);
-            GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled=false;
+            GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = false;
             //UnityEngine.SceneManagement.SceneManager.LoadScene(regionData.sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
             gameObject.SetActive(false);
         }

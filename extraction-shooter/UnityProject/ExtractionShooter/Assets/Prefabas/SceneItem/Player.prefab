@@ -25227,12 +25227,12 @@ MonoBehaviour:
   secondaryFireRate: 0.5
   secondarySpreadAngle: 0
   secondaryLaserRange: 10
-  damageValue: 20
+  damageValue: 100
   damageTickInterval: 0.1
   laserLength: 30
   laserCount: 1
-  critChance: 0.1
-  critMultiplier: 2
+  critChance: 1
+  critMultiplier: 100
   laserWidth: 1
   maxChainCount: 3
   chainSearchRadius: 5

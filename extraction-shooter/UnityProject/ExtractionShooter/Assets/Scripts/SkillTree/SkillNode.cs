@@ -514,7 +514,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             {
                 skillTree.UpdateAllNodes();
             }
-
+            SkillTree.Instance.learnedSkillNum++;
             // 学习后隐藏信息面板
             HideInfoPanel();
         }

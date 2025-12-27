@@ -27,7 +27,7 @@ public class MainMenuController : MonoBehaviour
         [HideInInspector] public Coroutine hoverCoroutine;
         [HideInInspector] public Quaternion targetRotation = Quaternion.identity;
         [HideInInspector] public Coroutine imageFadeCoroutine; // 图片淡入淡出协程
-        
+
         // 新增：保存初始状态
         [HideInInspector] public Vector2 initialPosition;
         [HideInInspector] public Vector3 initialScale = Vector3.one;
@@ -35,6 +35,7 @@ public class MainMenuController : MonoBehaviour
         [HideInInspector] public Color initialTextColor = Color.white;
         [HideInInspector] public Color initialNormalColor = Color.white;
         [HideInInspector] public Color initialImageColor = Color.white;
+        public Vector2 fixedTargetPosition;
     }
 
     [Header("标题设置")]
@@ -101,15 +102,36 @@ public class MainMenuController : MonoBehaviour
     private bool animationStarted = false;
     public bool isFirst = true;
     public bool needClick = true;
-    
     // 新增：标题初始状态
     private Vector2 titleInitialPosition;
     private Color titleInitialColor = Color.white;
-    
+    private void OnDisable()
+    {
+        if (entryAnimationCoroutine != null)
+        {
+            StopCoroutine(entryAnimationCoroutine);
+            entryAnimationCoroutine = null;
+        }
+
+        foreach (var data in buttonDataList)
+        {
+            if (data.hoverCoroutine != null)
+            {
+                StopCoroutine(data.hoverCoroutine);
+                data.hoverCoroutine = null;
+            }
+            if (data.imageFadeCoroutine != null)
+            {
+                StopCoroutine(data.imageFadeCoroutine);
+                data.imageFadeCoroutine = null;
+            }
+        }
+    }
     private void Awake()
     {
+        isFirst=true;
         layoutGroup = GetComponent<VerticalLayoutGroup>();
-        
+
         // 保存标题初始状态
         if (titleRectTransform != null)
         {
@@ -123,7 +145,7 @@ public class MainMenuController : MonoBehaviour
 
     private void OnEnable()
     {
-        isFirst = true;
+        //isFirst = true;
         if (isFirst && needClick)
         {
             InitializeTitle();
@@ -152,79 +174,57 @@ public class MainMenuController : MonoBehaviour
         {
             if (data.button != null && data.rectTransform != null)
             {
-                // 停止所有正在运行的协程
+                // 停止协程
                 if (data.hoverCoroutine != null)
                 {
                     StopCoroutine(data.hoverCoroutine);
                     data.hoverCoroutine = null;
                 }
-                
                 if (data.imageFadeCoroutine != null)
                 {
                     StopCoroutine(data.imageFadeCoroutine);
                     data.imageFadeCoroutine = null;
                 }
-                
-                // 重置状态
+
                 data.isHovering = false;
                 data.targetRotation = Quaternion.identity;
-                
-                Vector2 originalPos;
-                
-                // 保存初始状态（如果是第一次）
+
+                // 第一次时保存初始位置
                 if (isFirst)
                 {
-                    originalPos = data.rectTransform.anchoredPosition;
-                    originalPositions[data.button] = originalPos;
-                    data.targetPosition = originalPos;
-                    
-                    // 保存按钮的初始状态
-                    data.initialPosition = originalPos;
+                    Vector2 initPos = data.rectTransform.anchoredPosition;
+                    data.initialPosition = initPos;
+                    data.fixedTargetPosition = initPos;
                     data.initialScale = data.rectTransform.localScale;
                     data.initialRotation = data.rectTransform.localRotation;
-                    
-                    if (data.text != null)
-                    {
-                        data.initialTextColor = data.text.color;
-                    }
-                    
-                    // 保存初始颜色
+                    if (data.text != null) data.initialTextColor = data.text.color;
                     data.initialNormalColor = data.normalColor;
+                    if (data.hoverImage != null) data.initialImageColor = data.hoverImage.color;
                     
-                    // 保存图片初始颜色
-                    if (data.hoverImage != null)
-                    {
-                        data.initialImageColor = data.hoverImage.color;
-                    }
-                }
-                else
-                {
-                    originalPos = originalPositions[data.button];
                 }
 
-                // 重置按钮到初始状态
+                // 每次初始化都用第一次的目标
+                data.targetPosition = data.fixedTargetPosition;
+
+                // 重置外观状态
                 ResetButtonToInitialState(data);
-                
-                // 初始化按钮位置（在屏幕左侧，不可见）
-                data.rectTransform.anchoredPosition = new Vector2(-entryOffset, originalPos.y);
+
+                // 从屏幕外左侧开始
+                data.rectTransform.anchoredPosition = new Vector2(-entryOffset, data.fixedTargetPosition.y);
                 data.rectTransform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-                
-                // 初始时禁用按钮交互
                 data.button.interactable = false;
 
-                // 初始化图片
                 if (data.hoverImage != null)
                 {
                     data.hoverImage.gameObject.SetActive(false);
-                    data.hoverImage.color = data.initialImageColor; // 重置图片颜色
+                    data.hoverImage.color = data.initialImageColor;
                 }
 
-                // 添加悬停事件
                 AddHoverEvents(data.button, data);
             }
         }
     }
-    
+
     /// <summary>
     /// 重置按钮到初始状态
     /// </summary>
@@ -233,28 +233,28 @@ public class MainMenuController : MonoBehaviour
         if (data.rectTransform != null)
         {
             // 重置位置、缩放、旋转
-            data.rectTransform.anchoredPosition = data.initialPosition;
+            data.rectTransform.anchoredPosition = data.initialPosition; // 这里保留初始视觉位置
             data.rectTransform.localScale = data.initialScale;
             data.rectTransform.localRotation = data.initialRotation;
-            
+
             // 重置颜色
             if (data.text != null)
             {
                 data.text.color = data.initialTextColor;
             }
-            
+
             // 重置按钮颜色
             data.normalColor = data.initialNormalColor;
-            
-            // 重置目标位置
-            data.targetPosition = data.initialPosition;
-            
+
+            // 🚀 改成用固定的目标位置，而不是 initialPosition
+            data.targetPosition = data.fixedTargetPosition;
+
             // 重置交互状态
             if (data.button != null)
             {
                 data.button.interactable = false;
             }
-            
+
             // 重置图片
             if (data.hoverImage != null)
             {
@@ -296,7 +296,7 @@ public class MainMenuController : MonoBehaviour
         {
             StartEntryAnimation();
         }
-        
+
     }
 
     private void SetupHintText()
@@ -374,12 +374,9 @@ public class MainMenuController : MonoBehaviour
         {
             StartCoroutine(AnimateTitleMove());
         }
-        if (isFirst)
-        {
-            entryAnimationCoroutine = StartCoroutine(EntryAnimationRoutine());
-        }
-        isFirst=false;
-        
+        entryAnimationCoroutine = StartCoroutine(EntryAnimationRoutine());
+        isFirst = false;
+
     }
 
     private IEnumerator AnimateTitleMove()
@@ -485,10 +482,10 @@ public class MainMenuController : MonoBehaviour
         }
         rt.localScale = baseScale;
 
-        if (originalPositions.ContainsKey(data.button))
-        {
-            originalPositions[data.button] = targetPos;
-        }
+        // if (originalPositions.ContainsKey(data.button))
+        // {
+        //     originalPositions[data.button] = targetPos;
+        // }
 
         if (data.button != null)
         {
@@ -733,7 +730,7 @@ public class MainMenuController : MonoBehaviour
         {
             titleRectTransform.anchoredPosition = titleInitialPosition;
         }
-        
+
         if (titleImage != null)
         {
             titleImage.color = titleInitialColor;
@@ -763,28 +760,28 @@ public class MainMenuController : MonoBehaviour
                     StopCoroutine(data.hoverCoroutine);
                     data.hoverCoroutine = null;
                 }
-                
+
                 if (data.imageFadeCoroutine != null)
                 {
                     StopCoroutine(data.imageFadeCoroutine);
                     data.imageFadeCoroutine = null;
                 }
-                
+
                 // 重置状态
                 data.isHovering = false;
                 data.targetRotation = Quaternion.identity;
-                
+
                 // 重置按钮到初始状态
                 ResetButtonToInitialState(data);
-                
-                if (data.button != null) 
+
+                if (data.button != null)
                 {
                     data.button.interactable = true;
                 }
             }
         }
     }
-    
+
     /// <summary>
     /// 完全重置所有按钮到初始状态
     /// </summary>
@@ -795,38 +792,38 @@ public class MainMenuController : MonoBehaviour
         isFirst = true;
         animationStarted = false;
         inputEnabled = true;
-        
+
         // 清除协程
         if (hintBlinkCoroutine != null)
         {
             StopCoroutine(hintBlinkCoroutine);
             hintBlinkCoroutine = null;
         }
-        
+
         if (entryAnimationCoroutine != null)
         {
             StopCoroutine(entryAnimationCoroutine);
             entryAnimationCoroutine = null;
         }
-        
+
         // 重置标题
         if (titleRectTransform != null)
         {
             titleRectTransform.anchoredPosition = titleInitialPosition;
         }
-        
+
         if (titleImage != null)
         {
             titleImage.color = titleInitialColor;
         }
-        
+
         // 重置提示文本
         if (hintText != null)
         {
             hintText.gameObject.SetActive(true);
             hintText.color = hintNormalColor;
         }
-        
+
         // 重置所有按钮
         foreach (ButtonData data in buttonDataList)
         {
@@ -838,33 +835,33 @@ public class MainMenuController : MonoBehaviour
                     StopCoroutine(data.hoverCoroutine);
                     data.hoverCoroutine = null;
                 }
-                
+
                 if (data.imageFadeCoroutine != null)
                 {
                     StopCoroutine(data.imageFadeCoroutine);
                     data.imageFadeCoroutine = null;
                 }
-                
+
                 // 重置状态
                 data.isHovering = false;
                 data.targetRotation = Quaternion.identity;
-                
+
                 // 重置到初始状态
                 data.rectTransform.anchoredPosition = data.initialPosition;
                 data.rectTransform.localScale = data.initialScale;
                 data.rectTransform.localRotation = data.initialRotation;
-                
+
                 if (data.text != null)
                 {
                     data.text.color = data.initialTextColor;
                 }
-                
+
                 if (data.hoverImage != null)
                 {
                     data.hoverImage.color = data.initialImageColor;
                     data.hoverImage.gameObject.SetActive(false);
                 }
-                
+
                 if (data.button != null)
                 {
                     data.button.interactable = false;

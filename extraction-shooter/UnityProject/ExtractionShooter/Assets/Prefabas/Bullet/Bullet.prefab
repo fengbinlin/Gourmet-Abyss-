@@ -195,7 +195,7 @@ MonoBehaviour:
   hitLayers:
     serializedVersion: 2
     m_Bits: 256
-  invulnerableTime: 0.1
+  invulnerableTime: 0
   destroyOnAnyHit: 1
   impactForce: 10
   useDamageFalloff: 0

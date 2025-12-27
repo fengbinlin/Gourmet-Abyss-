@@ -9,6 +9,8 @@ public class HomeUIManager : MonoBehaviour
     public Text textF1; 
     public Text textF2;
     public Text textF3;
+    public Text STextMoneyVal;
+    public Text STextPKVal;
     // Start is called before the first frame update
     void Start()
     {
@@ -24,6 +26,8 @@ public class HomeUIManager : MonoBehaviour
             textF1.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPumkin).ToString();
             textF2.text = GameValManager.Instance.GetResourceCount(ResourceType.LootOnion).ToString();
             textF3.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPear).ToString();
+            STextMoneyVal.text = GameValManager.Instance.GetResourceCount(ResourceType.Money).ToString();
+            STextPKVal.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPumkin).ToString();
         }
     }
 }

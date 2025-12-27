@@ -104,7 +104,7 @@ public class TopDownController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         if (animator == null) animator = GetComponent<Animator>();
-        if (mainCamera == null) mainCamera = Camera.main;
+
 
         // 初始化武器
         if (primaryWeapon != null)
@@ -132,6 +132,10 @@ public class TopDownController : MonoBehaviour
         }
         // 初始化足迹粒子系统
         InitializeFootstepParticles();
+    }
+    void Start()
+    {
+        if (mainCamera == null) mainCamera = Camera.main;
     }
     private void HandleOxygenDepleted()
     {
@@ -215,7 +219,7 @@ public class TopDownController : MonoBehaviour
 
             // 在玩家位置实例化物品
             Vector3 dropPosition = transform.position;
-            GameObject droppedItem = Instantiate(itemPrefab, dropPosition, Quaternion.identity,gameObject.transform);
+            GameObject droppedItem = Instantiate(itemPrefab, dropPosition, Quaternion.identity, gameObject.transform);
 
             // 添加悬浮旋转脚本
             ItemFloatAndRotate floatScript = droppedItem.AddComponent<ItemFloatAndRotate>();
@@ -307,7 +311,7 @@ public class TopDownController : MonoBehaviour
                 if (primaryWeapon != null)
                     animator.SetBool(primaryWeapon.shootBoolName, false);
                 //if (secondaryWeapon != null)
-                   // animator.SetBool(secondaryWeapon.shootBoolName, false);
+                // animator.SetBool(secondaryWeapon.shootBoolName, false);
             }
 
             // 通知武器停止射击

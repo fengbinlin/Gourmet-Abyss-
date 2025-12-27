@@ -56,7 +56,7 @@ public class MapItemUI : MonoBehaviour, IPointerClickHandler
         
         if (normalImage != null)
         {
-            normalImage.gameObject.SetActive(!locked);
+            //ormalImage.gameObject.SetActive(!locked);
         }
     }
     

@@ -54,6 +54,8 @@ public class SkillTree : MonoBehaviour
         public LineRenderer lineRenderer;
     }
 
+    public int learnedSkillNum = 0;
+
     private void Awake()
     {
         Instance = this;
@@ -73,8 +75,33 @@ public class SkillTree : MonoBehaviour
         {
             GameValManager.Instance.OnResourceChanged.AddListener(OnResourceChanged);
         }
+        RecalculateVisibleNodes();
     }
+    private void RecalculateVisibleNodes()
+    {
+        revealedNodes.Clear();
 
+        foreach (var node in allSkillNodes)
+        {
+            // 根节点 或 前置满足 或 已学习 —— 应该可见
+            if (node.prerequisites.Count == 0 || node.ArePrerequisitesMet() || node.skillData.isLearned)
+            {
+                if (!revealedNodes.Contains(node))
+                    revealedNodes.Add(node);
+
+                node.gameObject.SetActive(true);
+                node.SetVisibility(true, true);
+                node.UpdateAvailability(true);
+            }
+            else
+            {
+                node.gameObject.SetActive(false);
+                node.SetVisibility(false, true);
+            }
+        }
+
+        UpdateAllLines();
+    }
     private void OnDisable()
     {
         if (GameValManager.Instance != null)
@@ -264,8 +291,8 @@ public class SkillTree : MonoBehaviour
                     else
                     {
                         // 部分前置没满足 → 灰色半透明
-                        lineColor = lockedLineColor;
-                        alpha = 0.3f;
+                        lineColor = unlockedLineColor;
+                        alpha = 1f;
                     }
                 }
             }
