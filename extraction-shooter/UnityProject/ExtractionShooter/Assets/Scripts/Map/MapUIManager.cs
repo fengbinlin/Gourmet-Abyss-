@@ -281,11 +281,11 @@ public class MapUIManager : MonoBehaviour
     {
         if (!regionData.isUnlocked)
         {
-            Debug.Log("区域未解锁！");
+           // Debug.Log("区域未解锁！");
             return;
         }
 
-        Debug.Log($"进入区域: {regionData.regionName}");
+        //Debug.Log($"进入区域: {regionData.regionName}");
 
         // 在这里加载场景
         if (!string.IsNullOrEmpty(regionData.sceneName))
@@ -373,7 +373,7 @@ public class MapUIManager : MonoBehaviour
 
         if (showDebugLog)
         {
-            Debug.Log(currentUnlockStatus.ToString());
+            //Debug.Log(currentUnlockStatus.ToString());
         }
     }
 

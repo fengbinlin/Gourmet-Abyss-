@@ -34,12 +34,12 @@ public class LandingSpotController:MonoBehaviour{
     	if(_thisT == null) _thisT = transform;
     	if(_flock == null){
     	 _flock = (FlockController)GameObject.FindObjectOfType(typeof(FlockController));
-    	 Debug.Log(this + " has no assigned FlockController, a random FlockController has been assigned");
+    	 //Debug.Log(this + " has no assigned FlockController, a random FlockController has been assigned");
     	 }
     	 
     	#if UNITY_EDITOR
     	if(_autoCatchDelay.x >0 &&(_autoCatchDelay.x < 5||_autoCatchDelay.y < 5)){
-    		Debug.Log(this.name + ": autoCatchDelay values set low, this might result in strange behaviours");
+    		//Debug.Log(this.name + ": autoCatchDelay values set low, this might result in strange behaviours");
     	}
     	#endif
     	

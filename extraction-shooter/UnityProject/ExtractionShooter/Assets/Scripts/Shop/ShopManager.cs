@@ -168,7 +168,7 @@ public class ShopManager : MonoBehaviour
         {
             if (!resourcePrices.Exists(p => p.type == type))
             {
-                Debug.LogWarning($"资源 {type} 没有设置售卖价格，将使用默认价格");
+                //Debug.LogWarning($"资源 {type} 没有设置售卖价格，将使用默认价格");
             }
         }
     }

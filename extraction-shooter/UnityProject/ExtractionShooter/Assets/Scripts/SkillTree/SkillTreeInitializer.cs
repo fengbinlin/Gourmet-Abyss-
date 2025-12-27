@@ -170,10 +170,10 @@ public class SkillTreeInitializer : MonoBehaviour
         }
 
         // 调试信息
-        Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
-        Debug.Log($"路径长度: {pathWithoutExtension.Length}");
-        Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
-        Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
+        //Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
+        //Debug.Log($"路径长度: {pathWithoutExtension.Length}");
+        //Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
+        //Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
 
         // 直接尝试加载，不使用 Path.Combine
         try
@@ -181,39 +181,39 @@ public class SkillTreeInitializer : MonoBehaviour
             Sprite icon = Resources.Load<Sprite>(pathWithoutExtension);
             if (icon != null)
             {
-                Debug.Log($"成功加载图标: {iconPath} -> {icon.name}");
+                //Debug.Log($"成功加载图标: {iconPath} -> {icon.name}");
                 return icon;
             }
             else
             {
                 // 尝试不同的加载方式
-                Debug.LogWarning($"Resources.Load<Sprite>(\"{pathWithoutExtension}\") 返回null");
+                //Debug.LogWarning($"Resources.Load<Sprite>(\"{pathWithoutExtension}\") 返回null");
 
                 // 尝试加载Texture2D然后创建Sprite
                 Texture2D texture = Resources.Load<Texture2D>(pathWithoutExtension);
                 if (texture != null)
                 {
-                    Debug.Log($"找到Texture2D: {texture.name}");
+                   // Debug.Log($"找到Texture2D: {texture.name}");
                     icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f);
                     return icon;
                 }
 
                 // 列出所有可用的资源
                 UnityEngine.Object[] allResources = Resources.LoadAll("");
-                Debug.Log($"Resources根目录共有 {allResources.Length} 个资源:");
+               // Debug.Log($"Resources根目录共有 {allResources.Length} 个资源:");
                 foreach (UnityEngine.Object obj in allResources)
                 {
-                    Debug.Log($"  - {obj.name} ({obj.GetType().Name})");
+                   // Debug.Log($"  - {obj.name} ({obj.GetType().Name})");
                 }
 
-                Debug.LogWarning($"无法加载图标: {iconPath}，使用默认图标");
+                //Debug.LogWarning($"无法加载图标: {iconPath}，使用默认图标");
                 return defaultIcon;
             }
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"加载图标时发生错误: {e.Message}");
-            Debug.LogError($"StackTrace: {e.StackTrace}");
+            //Debug.LogError($"加载图标时发生错误: {e.Message}");
+            //Debug.LogError($"StackTrace: {e.StackTrace}");
             return defaultIcon;
         }
     }

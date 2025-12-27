@@ -48,7 +48,7 @@ public class VehicleColorTransition : MonoBehaviour
         // 启用时自动从白色过渡到原色
         if (meshRenderer != null)
         {
-            print("VehicleColorTransition OnEnable - 初始化为白色并开始过渡");
+            //print("VehicleColorTransition OnEnable - 初始化为白色并开始过渡");
             isInitialized = true;
             SetToWhiteImmediate();
             TransitionToOriginal();
@@ -118,14 +118,14 @@ public class VehicleColorTransition : MonoBehaviour
     /// </summary>
     public void TransitionToOriginal(float duration = -1)
     {
-        print("D3");
+        //print("D3");
         if (!isInitialized) InitializeMaterials();
         if (duration < 0) duration = transitionDuration;
 
         if (transitionCoroutine != null)
             StopCoroutine(transitionCoroutine);
 
-        print("D2");
+        //print("D2");
         transitionCoroutine = StartCoroutine(TransitionRoutine(true, duration));
     }
 
@@ -218,7 +218,7 @@ public class VehicleColorTransition : MonoBehaviour
     public void SetLayer(int layer)
     {
         gameObject.layer = layer;
-        Debug.Log($"车辆 {gameObject.name} 层级已设置为: {layer}");
+        //Debug.Log($"车辆 {gameObject.name} 层级已设置为: {layer}");
     }
     
     /// <summary>
@@ -239,7 +239,7 @@ public class VehicleColorTransition : MonoBehaviour
 
     private IEnumerator TransitionRoutine(bool toOriginal, float duration)
     {
-        print("D1");
+        //print("D1");
         if (materials == null || materialSettings == null) yield break;
 
         float elapsedTime = 0f;
@@ -260,10 +260,10 @@ public class VehicleColorTransition : MonoBehaviour
             var mat = materials[setting.materialIndex];
 
             // 获取当前颜色
-            print("起始颜色");
+            //print("起始颜色");
             startColors[i] = mat.color;
 
-            print(startEmissionColors[i]);
+            //print(startEmissionColors[i]);
             if (mat.HasProperty("_EmissionColor"))
             {
                 startEmissionColors[i] = mat.GetColor("_EmissionColor");
