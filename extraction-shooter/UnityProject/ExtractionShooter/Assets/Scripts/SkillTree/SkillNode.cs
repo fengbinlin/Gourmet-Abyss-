@@ -493,29 +493,34 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     public void TryLearn()
     {
-        if (!isVisible)
-        {
-            Debug.LogWarning($"技能节点 {skillData.skillName} 不可见，无法学习");
-            return;
-        }
-
+        transform.DOKill(true);
+        transform.localRotation = Quaternion.identity;
+        if (!isVisible) return;
         if (CanLearn() && GameValManager.Instance.TryConsumeResource(skillData.costType, skillData.costAmount))
         {
             skillData.Learn();
             SetState(SkillNodeState.Learned, true);
             onNodeLearned?.Invoke(this);
 
+            // ✅ 先杀掉现有动画并重置
+            transform.DOKill(true);
+            transform.localRotation = Quaternion.identity;
+            print("恢复旋转");
+            transform.localScale = Vector3.one;
+
             Sequence learnSequence = DOTween.Sequence();
             learnSequence.Append(transform.DOScale(1.2f, 0.1f).SetEase(Ease.OutCubic));
             learnSequence.Append(transform.DOShakeRotation(0.2f, new Vector3(0, 0, 15f), 3, 45f, false, ShakeRandomnessMode.Harmonic));
             learnSequence.Append(transform.DOScale(1f, 0.1f).SetEase(Ease.InCubic));
+            learnSequence.OnComplete(() =>
+{
+    transform.localRotation = Quaternion.identity; // 强制归位
+});
 
             if (skillTree != null)
-            {
                 skillTree.UpdateAllNodes();
-            }
+
             SkillTree.Instance.learnedSkillNum++;
-            // 学习后隐藏信息面板
             HideInfoPanel();
         }
     }
