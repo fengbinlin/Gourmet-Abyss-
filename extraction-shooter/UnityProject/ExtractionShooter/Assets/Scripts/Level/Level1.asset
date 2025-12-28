@@ -26,8 +26,8 @@ MonoBehaviour:
     clusterMin: 1
     clusterMax: 1
     allowRegeneration: 1
-    regenerationProbabilityMultiplier: 1
-    regenerationTargetCount: 100
+    regenerationProbabilityMultiplier: 2
+    regenerationTargetCount: 40
   - prefab: {fileID: 3495583008734287618, guid: 06f977b5583d4c44791bd3891e9a2999,
       type: 3}
     spawnProbability: 0.75
