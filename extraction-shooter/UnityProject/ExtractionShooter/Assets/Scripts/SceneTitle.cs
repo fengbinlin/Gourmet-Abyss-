@@ -5,7 +5,7 @@ using UnityEngine;
 public class SceneTitle : MonoBehaviour
 {
     public static SceneTitle instance;
-    public int SceneOxygenCostSpeedMultiplier=1;
+    public float SceneOxygenCostSpeedMultiplier=1;
     public string SceneName;
     void Awake()
     {
