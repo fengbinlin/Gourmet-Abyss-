@@ -28,21 +28,6 @@ MonoBehaviour:
     allowRegeneration: 1
     regenerationProbabilityMultiplier: 1
     regenerationTargetCount: 100
-  - prefab: {fileID: 4645857536683069197, guid: 6cd9a6ed95411704bb027c29e2349208,
-      type: 3}
-    spawnProbability: 0.181
-    minScale: 1.5
-    maxScale: 1.5
-    heightRange: {x: -10, y: 2}
-    maxGroundAngle: 45.8
-    preferredNoiseMin: 0.432
-    preferredNoiseMax: 0.684
-    allowClustering: 1
-    clusterMin: 3
-    clusterMax: 10
-    allowRegeneration: 1
-    regenerationProbabilityMultiplier: 1
-    regenerationTargetCount: 100
   - prefab: {fileID: 3495583008734287618, guid: 06f977b5583d4c44791bd3891e9a2999,
       type: 3}
     spawnProbability: 0.75
