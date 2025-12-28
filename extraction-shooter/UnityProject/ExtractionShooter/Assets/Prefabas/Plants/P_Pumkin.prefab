@@ -102,7 +102,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd5bbd0999350754f95b5b209aeb2c7c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 80
+  maxHealth: 350
   currentHealth: 0
   whiteBar: {fileID: 106295230711376185}
   redBar: {fileID: 7044841150195392706}
@@ -156,8 +156,8 @@ MonoBehaviour:
   - itemPrefab: {fileID: 4441225567087619069, guid: 628103ed5a0aab84f9cf7adaae11970b,
       type: 3}
     dropChance: 1
-    minAmount: 1
-    maxAmount: 1
+    minAmount: 80
+    maxAmount: 120
     scatterForce: 3
     resourceType: 20
     resourceMinAmount: 1
