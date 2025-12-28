@@ -259,14 +259,14 @@ MonoBehaviour:
   sellTime: 5
   resourcePrices:
   - type: 5
-    pricePerUnit: 3
-    sellTimePerUnit: 5
+    pricePerUnit: 10
+    sellTimePerUnit: 3
   - type: 7
-    pricePerUnit: 6
-    sellTimePerUnit: 15
+    pricePerUnit: 30
+    sellTimePerUnit: 6
   - type: 8
-    pricePerUnit: 9
-    sellTimePerUnit: 20
+    pricePerUnit: 100
+    sellTimePerUnit: 12
   - type: 20
     pricePerUnit: 12
     sellTimePerUnit: 35
