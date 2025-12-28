@@ -79,8 +79,7 @@ public class SkillNodeData
     }
     public SkillLevelCost GetCurrentUpgradeCost()
     {
-        
-        if (currentLevel >= maxLevel) return null;
+        if (currentLevel > maxLevel) return null;
         if (levelCosts == null || levelCosts.Count == 0) return null;
 
         // 当前等级升级到下一等级所需消耗
@@ -431,9 +430,9 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 bool resourceEnough = true;
                 if (GameValManager.Instance != null)
                 {
-                    print(skillData.levelCosts.Count);
+                    //print(skillData.levelCosts.Count);
                     var cost = skillData.GetCurrentUpgradeCost();
-                    print(cost.costType + " : " + cost.costAmount);
+                    //print(cost.costType + " : " + cost.costAmount);
                     resourceEnough = GameValManager.Instance.HasEnoughResource(
                         cost.costType,
                         cost.costAmount
@@ -538,9 +537,20 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 skillTree.UpdateAllNodes();
 
             SkillTree.Instance.learnedSkillNum++;
-            infoPanel.UpdateInfo(skillData);
-            HideInfoPanel();
-            ShowInfoPanel();
+            print("当期等级"+skillData.currentLevel);
+            print("最大等级"+skillData.maxLevel);
+            if (skillData.currentLevel >= skillData.maxLevel)
+            {
+                print("触发隐藏面板");
+                HideInfoPanel();  // 满级时隐藏面板
+            }
+            else
+            {
+                // 不要先隐藏！直接更新并显示
+                // HideInfoPanel();  // ❌ 删除这行！
+                ShowInfoPanel();  // ✅ 直接显示
+            }
+
             //HideInfoPanel();
         }
     }
@@ -635,10 +645,13 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         if (infoPanel == null || skillData == null) return;
 
+        // 加这行：让面板显示在最前面
+        infoPanel.transform.SetAsLastSibling();
+
         // 更新面板信息
         infoPanel.UpdateInfo(skillData);
 
-        // 计算面板位置（基于屏幕空间或UI空间）
+        // 计算面板位置
         Vector2 panelPosition = CalculateInfoPanelPosition();
         infoPanel.SetPosition(panelPosition);
 

@@ -422,12 +422,12 @@ public class SkillTree : MonoBehaviour
 
     private void OnSkillNodeClicked(SkillNode clickedNode)
     {
-        Debug.Log($"点击技能节点: {clickedNode.skillData.skillName}");
+        //Debug.Log($"点击技能节点: {clickedNode.skillData.skillName}");
     }
 
     private void OnSkillLearned(SkillNode learnedNode)
     {
-        Debug.Log($"技能已学习: {learnedNode.skillData.skillName}");
+        //Debug.Log($"技能已学习: {learnedNode.skillData.skillName}");
 
         // 立即更新节点状态
         learnedNode.UpdateAvailability(true);
@@ -450,7 +450,7 @@ public class SkillTree : MonoBehaviour
         // 查找所有指向这个节点的连线（前置节点的连线）
         var incomingLines = connections.Where(c => c.toNode == node).ToList();
 
-        Debug.Log($"找到 {incomingLines.Count} 条指向节点 {node.skillData.skillName} 的连线");
+        //Debug.Log($"找到 {incomingLines.Count} 条指向节点 {node.skillData.skillName} 的连线");
 
         foreach (var connection in incomingLines)
         {
@@ -465,7 +465,7 @@ public class SkillTree : MonoBehaviour
                 connection.lineRenderer.SetPosition(0, startPos);
                 connection.lineRenderer.SetPosition(1, endPos);
 
-                Debug.Log($"立即显示连线: {connection.fromNode.skillData.skillName} -> {connection.toNode.skillData.skillName}");
+                //Debug.Log($"立即显示连线: {connection.fromNode.skillData.skillName} -> {connection.toNode.skillData.skillName}");
             }
         }
     }
