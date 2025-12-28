@@ -643,10 +643,10 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     private void ShowInfoPanel()
     {
+        infoPanel.transform.SetParent(transform, true);
         if (infoPanel == null || skillData == null) return;
 
-        // 加这行：让面板显示在最前面
-        infoPanel.transform.SetAsLastSibling();
+
 
         // 更新面板信息
         infoPanel.UpdateInfo(skillData);
@@ -654,7 +654,9 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         // 计算面板位置
         Vector2 panelPosition = CalculateInfoPanelPosition();
         infoPanel.SetPosition(panelPosition);
-
+        infoPanel.transform.SetParent(transform.parent, true);
+        // 加这行：让面板显示在最前面
+        infoPanel.transform.SetAsLastSibling();
         // 显示面板
         infoPanel.Show();
     }
