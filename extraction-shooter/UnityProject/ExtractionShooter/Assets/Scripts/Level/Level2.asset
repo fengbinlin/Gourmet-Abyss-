@@ -22,12 +22,12 @@ MonoBehaviour:
     maxGroundAngle: 60
     preferredNoiseMin: 0.316
     preferredNoiseMax: 1
-    allowClustering: 1
-    clusterMin: 3
-    clusterMax: 10
+    allowClustering: 0
+    clusterMin: 1
+    clusterMax: 1
     allowRegeneration: 1
-    regenerationProbabilityMultiplier: 1
-    regenerationTargetCount: 100
+    regenerationProbabilityMultiplier: 2
+    regenerationTargetCount: 50
   - prefab: {fileID: 3495583008734287618, guid: 06f977b5583d4c44791bd3891e9a2999,
       type: 3}
     spawnProbability: 0.75
@@ -105,21 +105,6 @@ MonoBehaviour:
     regenerationTargetCount: 0
   - prefab: {fileID: 4497517304451048851, guid: b6e6d2e53e061374e83eb7b2ac825400,
       type: 3}
-    spawnProbability: 0.5
-    minScale: 1
-    maxScale: 1
-    heightRange: {x: -10, y: 2}
-    maxGroundAngle: 60
-    preferredNoiseMin: 0.316
-    preferredNoiseMax: 1
-    allowClustering: 1
-    clusterMin: 1
-    clusterMax: 2
-    allowRegeneration: 1
-    regenerationProbabilityMultiplier: 2
-    regenerationTargetCount: 40
-  - prefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
-      type: 3}
     spawnProbability: 0.22
     minScale: 1
     maxScale: 1
@@ -130,6 +115,21 @@ MonoBehaviour:
     allowClustering: 0
     clusterMin: 3
     clusterMax: 10
+    allowRegeneration: 1
+    regenerationProbabilityMultiplier: 1
+    regenerationTargetCount: 20
+  - prefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+      type: 3}
+    spawnProbability: 0.5
+    minScale: 1
+    maxScale: 1
+    heightRange: {x: -10, y: 0.5}
+    maxGroundAngle: 60
+    preferredNoiseMin: 0.316
+    preferredNoiseMax: 1
+    allowClustering: 1
+    clusterMin: 1
+    clusterMax: 2
     allowRegeneration: 1
     regenerationProbabilityMultiplier: 1
     regenerationTargetCount: 20
