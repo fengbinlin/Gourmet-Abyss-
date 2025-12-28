@@ -112,7 +112,7 @@ public class SkillNodeInfoPanel : MonoBehaviour
             descriptionText.text = skillData.description;
 
         if (costText != null)
-            costText.text = skillData.costAmount.ToString();
+            costText.text = skillData.GetCurrentUpgradeCost().costAmount.ToString();
 
         // 可以根据costType设置不同的图标
         if (costIconImage != null)

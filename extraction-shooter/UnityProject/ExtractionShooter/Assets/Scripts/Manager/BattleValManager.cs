@@ -92,8 +92,8 @@ public class BattleValManager : MonoBehaviour
     private void ConsumeOxygen()
     {
         if (oxygenCurrent <= 0) return;
-
-        float consumeAmount = oxygenConsumeRate * Time.deltaTime;
+        if(SceneTitle.instance==null)return;
+        float consumeAmount = oxygenConsumeRate * SceneTitle.instance.SceneOxygenCostSpeedMultiplier * Time.deltaTime;
         oxygenCurrent = Mathf.Max(0, oxygenCurrent - consumeAmount);
 
         OnOxygenChanged?.Invoke();

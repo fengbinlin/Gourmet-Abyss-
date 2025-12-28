@@ -26,6 +26,8 @@ public class SkillConfigData
     public int costType;
     public int costAmount;
     public string iconPath;
+    public string levelCostStr;
+    public List<SkillLevelCost> levelCosts;
 
     // ✅ 新增：前置技能等级需求字符串（例如 "1:2;2:3"）
     public string prerequisiteLevels;
@@ -89,7 +91,70 @@ public class ExcelConfigReader : MonoBehaviour
             }
         }
     }
+    private List<SkillLevelCost> ParseLevelCosts(string str)
+    {
+        var costs = new List<SkillLevelCost>();
 
+        // 打印原始字符串
+        //Debug.Log($"[ParseLevelCosts] 原始字符串: '{str}'");
+
+        if (string.IsNullOrEmpty(str))
+        {
+            //Debug.LogWarning("[ParseLevelCosts] 传入的字符串为空，直接返回空列表");
+            return costs;
+        }
+
+        // 用 '|' 拆分每个等级的消耗
+        var levels = str.Split('|');
+        //Debug.Log($"[ParseLevelCosts] 按等级拆分，共 {levels.Length} 项");
+
+        foreach (var level in levels)
+        {
+            //Debug.Log($"[ParseLevelCosts] 当前等级消耗字符串: '{level}'");
+
+            var parts = level.Split(':');
+            if (parts.Length != 2)
+            {
+                //Debug.LogWarning($"[ParseLevelCosts] '{level}' 拆分后 parts.Length={parts.Length}，格式不正确，应为 '类型:数量'");
+                continue;
+            }
+
+            //Debug.Log($"[ParseLevelCosts] 类型字符串: '{parts[0]}', 数量字符串: '{parts[1]}'");
+
+            if (int.TryParse(parts[0], out int typeInt))
+            {
+                //Debug.Log($"[ParseLevelCosts] 解析类型成功: {typeInt} ({(ResourceType)typeInt})");
+            }
+            else
+            {
+                //Debug.LogWarning($"[ParseLevelCosts] 类型解析失败: '{parts[0]}'");
+                continue;
+            }
+
+            if (int.TryParse(parts[1], out int costInt))
+            {
+                //Debug.Log($"[ParseLevelCosts] 解析数量成功: {costInt}");
+            }
+            else
+            {
+                //Debug.LogWarning($"[ParseLevelCosts] 数量解析失败: '{parts[1]}'");
+                continue;
+            }
+
+            // 添加到结果列表
+            costs.Add(new SkillLevelCost
+            {
+                costType = (ResourceType)typeInt,
+                costAmount = costInt
+            });
+
+            //Debug.Log($"[ParseLevelCosts] 成功添加: 类型={typeInt}({(ResourceType)typeInt}), 数量={costInt}");
+        }
+
+        //Debug.Log($"[ParseLevelCosts] 返回列表，共 {costs.Count} 项");
+
+        return costs;
+    }
     private void LoadSkillConfigs()
     {
         if (skillConfigCSV == null)
@@ -101,6 +166,7 @@ public class ExcelConfigReader : MonoBehaviour
         string[] lines = skillConfigCSV.text.Split('\n');
         for (int i = 1; i < lines.Length; i++)
         {
+            print("解析行");
             if (string.IsNullOrEmpty(lines[i].Trim())) continue;
 
             string[] values = ParseCSVLine(lines[i]);
@@ -116,9 +182,12 @@ public class ExcelConfigReader : MonoBehaviour
                 if (int.TryParse(values[5], out int isRare)) data.isRare = isRare;
                 data.description = values[6];
                 data.buffEffects = values[7];
-                if (int.TryParse(values[8], out int costType)) data.costType = costType;
-                if (int.TryParse(values[9], out int cost)) data.costAmount = cost;
-                if (values.Length > 10) data.iconPath = values[10];
+                print("解析资源");
+                data.levelCosts = ParseLevelCosts(values[8]);
+                // if (int.TryParse(values[8], out int costType)) data.costType = costType;
+                // if (int.TryParse(values[9], out int cost)) data.costAmount = cost;
+                print("路径"+values[9]);
+                data.iconPath = values[9];
 
                 skillConfigs.Add(data);
             }
@@ -186,14 +255,13 @@ public class ExcelConfigReader : MonoBehaviour
 
     private string[] ParseCSVLine(string line)
     {
-        List<string> result = new List<string>();
-        StringReader reader = new StringReader(line);
+        var result = new List<string>();
         bool inQuotes = false;
-        string field = "";
+        var field = new System.Text.StringBuilder();
 
-        while (reader.Peek() != -1)
+        for (int i = 0; i < line.Length; i++)
         {
-            char c = (char)reader.Read();
+            char c = line[i];
 
             if (c == '"')
             {
@@ -201,16 +269,15 @@ public class ExcelConfigReader : MonoBehaviour
             }
             else if (c == ',' && !inQuotes)
             {
-                result.Add(field);
-                field = "";
+                result.Add(field.ToString());
+                field.Length = 0;
             }
             else
             {
-                field += c;
+                field.Append(c);
             }
         }
-
-        result.Add(field);
+        result.Add(field.ToString());
         return result.ToArray();
     }
 }
