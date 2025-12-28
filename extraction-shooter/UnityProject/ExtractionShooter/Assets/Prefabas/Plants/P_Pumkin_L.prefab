@@ -157,8 +157,8 @@ MonoBehaviour:
   - itemPrefab: {fileID: 4441225567087619069, guid: 628103ed5a0aab84f9cf7adaae11970b,
       type: 3}
     dropChance: 1
-    minAmount: 1
-    maxAmount: 1
+    minAmount: 7
+    maxAmount: 13
     scatterForce: 3
     resourceType: 20
     resourceMinAmount: 1
