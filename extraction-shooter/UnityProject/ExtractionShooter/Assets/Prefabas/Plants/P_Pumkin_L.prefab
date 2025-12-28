@@ -73,7 +73,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 993ee10c2a6f3ad47a84da05d0203c20, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetMesh: {fileID: 238228655744792900}
+  targetMesh: {fileID: 6667749990468958806}
   touchParticles: {fileID: 1074511805727487670}
   particleOffset: {x: 0, y: 1.45, z: 0}
   windStrength: 10
@@ -5009,17 +5009,17 @@ PrefabInstance:
     - target: {fileID: 6934041129646362152, guid: 911ee8f7b79852c40806917199fa12c1,
         type: 3}
       propertyPath: m_LocalScale.x
-      value: 1.3300443
+      value: 1.8598448
       objectReference: {fileID: 0}
     - target: {fileID: 6934041129646362152, guid: 911ee8f7b79852c40806917199fa12c1,
         type: 3}
       propertyPath: m_LocalScale.y
-      value: 1.3300443
+      value: 1.8598448
       objectReference: {fileID: 0}
     - target: {fileID: 6934041129646362152, guid: 911ee8f7b79852c40806917199fa12c1,
         type: 3}
       propertyPath: m_LocalScale.z
-      value: 1.3300443
+      value: 1.8598448
       objectReference: {fileID: 0}
     - target: {fileID: 6934041129646362152, guid: 911ee8f7b79852c40806917199fa12c1,
         type: 3}
@@ -5076,6 +5076,12 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 911ee8f7b79852c40806917199fa12c1, type: 3}
+--- !u!1 &6667749990468958806 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6341395673880736761, guid: 911ee8f7b79852c40806917199fa12c1,
+    type: 3}
+  m_PrefabInstance: {fileID: 326988772675160495}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &7256173271398025095 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6934041129646362152, guid: 911ee8f7b79852c40806917199fa12c1,
@@ -5439,12 +5445,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c88d60ed3b6eb07428c3c177d9ce7092, type: 3}
---- !u!1 &238228655744792900 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6307251635909624763, guid: c88d60ed3b6eb07428c3c177d9ce7092,
-    type: 3}
-  m_PrefabInstance: {fileID: 6109555387568601855}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &5080509057632297124 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1317329625730931291, guid: c88d60ed3b6eb07428c3c177d9ce7092,

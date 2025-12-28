@@ -91,8 +91,8 @@ MonoBehaviour:
   - prefab: {fileID: 3225319224875619674, guid: 4575f6f853fa0e94baa08ce4042c12c7,
       type: 3}
     spawnProbability: 0.265
-    minScale: 1
-    maxScale: 1
+    minScale: 0.2
+    maxScale: 0.2
     heightRange: {x: -10, y: 5}
     maxGroundAngle: 60
     preferredNoiseMin: 0

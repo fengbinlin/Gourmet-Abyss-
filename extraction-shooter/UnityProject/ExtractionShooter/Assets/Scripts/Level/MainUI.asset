@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 09a6471690d45214ebab0dd5812ed836, type: 3}
-  m_Name: Level3
+  m_Name: MainUI
   m_EditorClassIdentifier: 
   plantPrefabs:
-  - prefab: {fileID: 4645857536683069197, guid: 6cd9a6ed95411704bb027c29e2349208,
+  - prefab: {fileID: 4645857536683069197, guid: afac1b56e1e33b04380f97bb2eb1ac35,
       type: 3}
     spawnProbability: 0.436
     minScale: 1.5
     maxScale: 1.5
-    heightRange: {x: -10, y: 2}
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
-    preferredNoiseMin: 0.316
+    preferredNoiseMin: 0.229
     preferredNoiseMax: 1
     allowClustering: 0
     clusterMin: 1
@@ -33,7 +33,7 @@ MonoBehaviour:
     spawnProbability: 0.75
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 5}
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
     preferredNoiseMin: 0
     preferredNoiseMax: 1
@@ -48,7 +48,7 @@ MonoBehaviour:
     spawnProbability: 0.852
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 5}
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
     preferredNoiseMin: 0
     preferredNoiseMax: 1
@@ -63,7 +63,7 @@ MonoBehaviour:
     spawnProbability: 0.246
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 5}
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
     preferredNoiseMin: 0
     preferredNoiseMax: 1
@@ -78,7 +78,7 @@ MonoBehaviour:
     spawnProbability: 0.279
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 5}
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
     preferredNoiseMin: 0
     preferredNoiseMax: 1
@@ -91,9 +91,9 @@ MonoBehaviour:
   - prefab: {fileID: 3225319224875619674, guid: 4575f6f853fa0e94baa08ce4042c12c7,
       type: 3}
     spawnProbability: 0.265
-    minScale: 0.2
-    maxScale: 0.2
-    heightRange: {x: -10, y: 5}
+    minScale: 1
+    maxScale: 1
+    heightRange: {x: -10, y: 10}
     maxGroundAngle: 60
     preferredNoiseMin: 0
     preferredNoiseMax: 0.527
@@ -103,37 +103,22 @@ MonoBehaviour:
     allowRegeneration: 0
     regenerationProbabilityMultiplier: 1
     regenerationTargetCount: 0
-  - prefab: {fileID: 4757145410341498845, guid: f04f52bf276795f4ba0779691ddd5944,
-      type: 3}
-    spawnProbability: 0.5
-    minScale: 1
-    maxScale: 1
-    heightRange: {x: -10, y: 2}
-    maxGroundAngle: 60
-    preferredNoiseMin: 0.316
-    preferredNoiseMax: 1
-    allowClustering: 1
-    clusterMin: 1
-    clusterMax: 2
-    allowRegeneration: 1
-    regenerationProbabilityMultiplier: 2
-    regenerationTargetCount: 40
   - prefab: {fileID: 4497517304451048851, guid: b6e6d2e53e061374e83eb7b2ac825400,
       type: 3}
-    spawnProbability: 0.22
+    spawnProbability: 0.265
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 2}
+    heightRange: {x: -10, y: 15}
     maxGroundAngle: 60
-    preferredNoiseMin: 0.316
-    preferredNoiseMax: 1
+    preferredNoiseMin: 0
+    preferredNoiseMax: 0.527
     allowClustering: 0
     clusterMin: 3
     clusterMax: 10
-    allowRegeneration: 1
+    allowRegeneration: 0
     regenerationProbabilityMultiplier: 1
-    regenerationTargetCount: 20
-  generationAreaCenter: {x: 35, y: 0, z: -10}
+    regenerationTargetCount: 0
+  generationAreaCenter: {x: -5, y: 0, z: -10}
   generationAreaSize: {x: 80, y: 0, z: 80}
   noiseScale: 0.5
   noiseOffset: {x: 0, y: 0}
@@ -141,7 +126,7 @@ MonoBehaviour:
   persistence: 0.572
   lacunarity: 2.31
   regenerationNoiseOffset: {x: 1000, y: 1000}
-  baseDensity: 0.882
+  baseDensity: 1
   densityCurve:
     serializedVersion: 2
     m_Curve:
@@ -167,8 +152,8 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   noiseInfluence: 1
-  minNoiseThreshold: 0.44
-  maxNoiseThreshold: 0.551
+  minNoiseThreshold: 0.283
+  maxNoiseThreshold: 0.804
   generationMode: 0
   gridSpacing: 1
   gridJitter: 0.5

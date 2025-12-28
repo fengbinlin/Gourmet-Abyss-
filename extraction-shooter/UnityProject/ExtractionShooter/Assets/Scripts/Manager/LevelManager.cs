@@ -197,6 +197,7 @@ public class LevelManager : MonoBehaviour
         BattleValManager.Instance.StartConsuming();
         loadedLevels.Add(levelName);
         isTransitioning = false;
+        PlayerStateManager.instance.currentState=PlayerState.Battle;
     }
 
     private IEnumerator ExitLevelProcess(string levelName)
@@ -262,7 +263,7 @@ public class LevelManager : MonoBehaviour
         }
 
         // 7. 主场景车辆从白色过渡到原色
-        VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
+        VehicleColorTransition homeVehicle = FindVehicleInScene("UpGround");
         if (homeVehicle != null)
         {
             Debug.Log("主场景车辆开始从白色过渡到原色");
@@ -285,6 +286,7 @@ public class LevelManager : MonoBehaviour
 
         loadedLevels.Remove(levelName);
         isTransitioning = false;
+        PlayerStateManager.instance.currentState=PlayerState.UpGround;
     }
 
     private IEnumerator FromLevelToHomeProcess(string levelName)
@@ -361,6 +363,7 @@ public class LevelManager : MonoBehaviour
         GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
         loadedLevels.Remove(levelName);
         isTransitioning = false;
+        PlayerStateManager.instance.currentState=PlayerState.UpGround;
     }
 
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
@@ -443,6 +446,7 @@ public class LevelManager : MonoBehaviour
         loadedLevels.Add(toLevel);
 
         isTransitioning = false;
+        PlayerStateManager.instance.currentState=PlayerState.Battle;
     }
 
     /// <summary>

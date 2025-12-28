@@ -37,7 +37,14 @@ public class MainMenuController : MonoBehaviour
         [HideInInspector] public Color initialImageColor = Color.white;
         public Vector2 fixedTargetPosition;
     }
-
+    [Header("相机设置")]
+    public float TitleStart;
+    public float TitleEnd;
+    public Camera mainCamera;  // 你的主相机
+    public Transform cameraTarget;  // 相机的目标位置（可以是某个特定的目标Transform）
+    public float cameraMoveDuration = 1.0f;  // 相机平滑移动的时间
+    private Vector3 cameraInitialPosition;
+    public GameObject PlantGeneration;
     [Header("标题设置")]
     [SerializeField] private RectTransform titleRectTransform;
     [SerializeField] private Image titleImage;
@@ -129,7 +136,7 @@ public class MainMenuController : MonoBehaviour
     }
     private void Awake()
     {
-        isFirst=true;
+        isFirst = true;
         layoutGroup = GetComponent<VerticalLayoutGroup>();
 
         // 保存标题初始状态
@@ -200,7 +207,7 @@ public class MainMenuController : MonoBehaviour
                     if (data.text != null) data.initialTextColor = data.text.color;
                     data.initialNormalColor = data.normalColor;
                     if (data.hoverImage != null) data.initialImageColor = data.hoverImage.color;
-                    
+
                 }
 
                 // 每次初始化都用第一次的目标
@@ -292,13 +299,49 @@ public class MainMenuController : MonoBehaviour
         {
             hintText.gameObject.SetActive(false);
         }
+
+        // 启动标题移动动画
+        StartCoroutine(AnimateTitleMove());
+
+        // 启动相机移动
+        StartCoroutine(MoveCameraToTargetPosition());
+    }
+    public AnimationCurve cameraMoveCurve = new AnimationCurve(
+    new Keyframe(0f, 0f),    // 开始时相机位置为起始位置
+    new Keyframe(0.2f, 0.3f),  // 加速
+    new Keyframe(0.5f, 0.7f),  // 继续加速
+    new Keyframe(0.8f, 1.2f),  // 最大速度
+    new Keyframe(1f, 1f)     // 最终达到目标位置
+);
+    private IEnumerator MoveCameraToTargetPosition()
+    {
+        if (mainCamera == null || cameraTarget == null) yield break;
+
+        Vector3 startPos = mainCamera.transform.position;
+        Vector3 endPos = cameraTarget.position;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < cameraMoveDuration)
+        {
+            elapsedTime += Time.deltaTime;
+            // 获取缓动曲线的插值
+            float t = Mathf.Clamp01(elapsedTime / cameraMoveDuration);
+            float smoothT = cameraMoveCurve.Evaluate(t);  // 应用缓动曲线
+
+            // 使用缓动的 t 值来平滑移动
+            mainCamera.transform.position = Vector3.Lerp(startPos, endPos, smoothT);
+            yield return null;
+        }
+
+        // 确保相机最终达到目标位置
+        mainCamera.transform.position = endPos;
+        mainCamera.GetComponent<SmoothCameraMovement>().enabled = true;
+        PlantGeneration.SetActive(true);
         if (needClick)
         {
             StartEntryAnimation();
         }
-
     }
-
     private void SetupHintText()
     {
         if (hintText != null)
@@ -378,35 +421,32 @@ public class MainMenuController : MonoBehaviour
         isFirst = false;
 
     }
-
+    
     private IEnumerator AnimateTitleMove()
     {
-        if (titleRectTransform == null) yield break;
+         yield return null;
+        // if (titleRectTransform == null) yield break;
 
-        Vector2 startPos = titleOriginalPosition;
-        float elapsedTime = 0f;
-        Vector2 overshootPos = new Vector2(titleTargetPosition.x + titleOvershootAmount, startPos.y);
+        // Vector3 startScale = Vector3.one*TitleStart;  // 标题初始大小
+        // Vector3 targetScale = titleRectTransform.localScale;  // 目标大小为零
+        // float elapsedTime = 0f;
 
-        while (elapsedTime < titleMoveDuration)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = titleMoveCurve.Evaluate(elapsedTime / titleMoveDuration);
-            float newX = Mathf.Lerp(startPos.x, overshootPos.x, t);
-            titleRectTransform.anchoredPosition = new Vector2(newX, startPos.y);
-            yield return null;
-        }
+        // // 从大到小缩放的动画
+        // while (elapsedTime < titleMoveDuration)
+        // {
+        //     elapsedTime += Time.deltaTime;
+        //     float t = titleMoveCurve.Evaluate(elapsedTime / titleMoveDuration);  // 缓动曲线
 
-        elapsedTime = 0f;
-        while (elapsedTime < titleOvershootDuration)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = overshootCurve.Evaluate(elapsedTime / titleOvershootDuration);
-            float newX = Mathf.Lerp(overshootPos.x, titleTargetPosition.x, t);
-            titleRectTransform.anchoredPosition = new Vector2(newX, startPos.y);
-            yield return null;
-        }
+        //     // 按照缓动曲线平滑缩放
+        //     titleRectTransform.localScale = Vector3.Lerp(startScale, targetScale, t);
+        //     yield return null;
+        // }
 
-        titleRectTransform.anchoredPosition = titleTargetPosition;
+        // // 确保最终缩放到目标大小
+        // titleRectTransform.localScale = targetScale;
+
+        // 可选：如果要在动画后恢复原本的大小，可以在动画后设置回初始大小
+        // titleRectTransform.localScale = startScale;
     }
 
     private IEnumerator EntryAnimationRoutine()
@@ -490,9 +530,26 @@ public class MainMenuController : MonoBehaviour
         if (data.button != null)
         {
             data.button.interactable = true;
+
+            // ✅ 入场结束后检测鼠标是否已经在按钮上
+            if (IsPointerOverButton(data))
+            {
+                OnButtonHoverEnter(data);
+            }
         }
     }
+    private bool IsPointerOverButton(ButtonData data)
+    {
+        if (data.rectTransform == null) return false;
 
+        Vector2 mousePos = Input.mousePosition;
+
+        // Canvas 如果是 Screen Space - Camera / World Space 需要传入 camera
+        Canvas canvas = data.button.GetComponentInParent<Canvas>();
+        Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+
+        return RectTransformUtility.RectangleContainsScreenPoint(data.rectTransform, mousePos, cam);
+    }
     private void OnButtonHoverEnter(ButtonData data)
     {
         if (data.button != null && !data.button.interactable) return;

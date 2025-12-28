@@ -266,6 +266,7 @@ public class SkillTree : MonoBehaviour
                 if (GameValManager.Instance != null)
                 {
                     var cost = connection.toNode.skillData.GetCurrentUpgradeCost();
+                    
                     resourceEnough = GameValManager.Instance.HasEnoughResource(
                         cost.costType,
                         cost.costAmount);

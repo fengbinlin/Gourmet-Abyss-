@@ -19551,6 +19551,10 @@ MonoBehaviour:
   targetPoint: {x: 0, y: 0, z: 0}
   flightDuration: 2
   maxHeight: 5
+  horizontalRandomRange: 1
+  verticalRandomRange: 0.48
+  pathCurveRandomness: 0.31
+  rotationRandomness: 0.1
   speedCurve:
     serializedVersion: 2
     m_Curve:

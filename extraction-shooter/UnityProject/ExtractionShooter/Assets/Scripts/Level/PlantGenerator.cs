@@ -4,9 +4,19 @@ using UnityEngine;
 using System;
 using System.Linq;
 using UnityEngine.AI;
-
+public enum GenerationOrder
+{
+    LeftToRight,    // 从左到右（当前默认）
+    RightToLeft,    // 从右到左
+    TopToBottom,    // 从上到下
+    BottomToTop,    // 从下到上
+    CenterOut,      // 从中心向外
+    OutToCenter,    // 从外向中心
+    Random          // 随机
+}
 public class PlantGenerator : MonoBehaviour
 {
+    [SerializeField] private GenerationOrder generationOrder = GenerationOrder.LeftToRight;
     [SerializeField] private PlantGenerationSettings settings;
     [SerializeField] private Transform plantsParent;
     [SerializeField] private bool generateOnStart = true;
@@ -133,7 +143,8 @@ public class PlantGenerator : MonoBehaviour
                 generationPoints = GenerateUniformPoints();
                 break;
         }
-
+        // 对生成点进行排序
+        generationPoints = SortGenerationPoints(generationPoints);
         if (showDebugInfo)
         {
             Debug.Log($"生成了 {generationPoints.Count} 个候选点");
@@ -185,7 +196,87 @@ public class PlantGenerator : MonoBehaviour
             }
         }
     }
+    // 添加排序方法
+    private List<Vector2> SortGenerationPoints(List<Vector2> points)
+    {
+        switch (generationOrder)
+        {
+            case GenerationOrder.LeftToRight:
+                return points.OrderBy(p => p.x).ThenBy(p => p.y).ToList();
 
+            case GenerationOrder.RightToLeft:
+                return points.OrderByDescending(p => p.x).ThenBy(p => p.y).ToList();
+
+            case GenerationOrder.TopToBottom:
+                return points.OrderByDescending(p => p.y).ThenBy(p => p.x).ToList();
+
+            case GenerationOrder.BottomToTop:
+                return points.OrderBy(p => p.y).ThenBy(p => p.x).ToList();
+
+            case GenerationOrder.CenterOut:
+                // 寻找标签为"Player"的物体
+                GameObject player = GameObject.FindWithTag("Player");
+                Vector2 center;
+
+                if (player != null)
+                {
+                    // 使用玩家的位置作为中心点
+                    center = new Vector2(
+                        player.transform.position.x,
+                        player.transform.position.z
+                    );
+
+                    if (showDebugInfo)
+                    {
+                        Debug.Log($"使用玩家位置作为中心点: {center}");
+                    }
+                }
+                else
+                {
+                    // 如果没有找到玩家，则使用生成区域中心
+                    center = new Vector2(
+                        settings.generationAreaCenter.x,
+                        settings.generationAreaCenter.z
+                    );
+
+                    if (showDebugInfo)
+                    {
+                        Debug.Log($"未找到玩家，使用生成区域中心: {center}");
+                    }
+                }
+
+                return points.OrderBy(p => Vector2.Distance(p, center)).ToList();
+
+            case GenerationOrder.OutToCenter:
+                // 同样使用玩家的位置作为中心点
+                GameObject player2 = GameObject.FindWithTag("Player");
+                Vector2 center2;
+
+                if (player2 != null)
+                {
+                    center2 = new Vector2(
+                        player2.transform.position.x,
+                        player2.transform.position.z
+                    );
+                }
+                else
+                {
+                    center2 = new Vector2(
+                        settings.generationAreaCenter.x,
+                        settings.generationAreaCenter.z
+                    );
+                }
+
+                return points.OrderByDescending(p => Vector2.Distance(p, center2)).ToList();
+
+            case GenerationOrder.Random:
+                // 使用随机种子打乱顺序
+                return points.OrderBy(p => random.Next()).ToList();
+
+            default:
+                return points;
+        }
+    }
     /// <summary>
     /// 初始化植物计数
     /// </summary>
@@ -383,7 +474,7 @@ public class PlantGenerator : MonoBehaviour
         {
             plant.transform.position = position;
         }
-        
+
         plant.transform.rotation = rotation;
 
         // 随机缩放

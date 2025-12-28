@@ -22,10 +22,7 @@ public class InterationManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            if (skillTreeObject.activeInHierarchy)
-            {
-                SwitchToHomeScene();
-            }
+            
         }
     }
 
@@ -37,6 +34,7 @@ public class InterationManager : MonoBehaviour
         mainSceneObject.SetActive(true);
         mainUI.SetActive(true);
         StartCoroutine(UITapBounce.Instance.BounceDown()); 
+        PlayerStateManager.instance.currentState=PlayerState.UpGround;
     }
 
     //�л�������������

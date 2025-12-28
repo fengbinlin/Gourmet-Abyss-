@@ -10,6 +10,7 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private GameObject slotPrefab; // 格子预制体
     [SerializeField] private int fixedSlotCount = 4; // 固定格子数量，不会增加
     [SerializeField] private int slotCapacity = 4; // 每个格子的容量
+    [SerializeField] private GameObject inventoryFullObject; // 背包满时激活的物体
 
     // 格子列表
     private List<InventoryItemUI> slots = new List<InventoryItemUI>();
@@ -46,15 +47,21 @@ public class InventoryManager : MonoBehaviour
         {
             CreateNewSlot(i);
         }
+        
+        // 初始化背包满物体状态
+        UpdateInventoryFullState();
     }
 
     private void Start()
     {
         // 订阅背包数值变化事件
         WeaponStatsManager.Instance.OnInventoryStatsChanged += OnInventoryStatsUpdated;
+        
+        // 确保初始状态正确
+        UpdateInventoryFullState();
 
         // 测试代码
-        AddItem(ResourceType.LootEggSmall, 4);
+        //AddItem(ResourceType.LootEggSmall, 4);
         // AddItem(ResourceType.LootEggBig, 4);
         // AddItem(ResourceType.LootMushroom, 4);
         // AddItem(ResourceType.LootPumkin, 4);
@@ -89,6 +96,41 @@ public class InventoryManager : MonoBehaviour
         // 保存新值
         fixedSlotCount = newSlotCount;
         slotCapacity = newSlotCapacity;
+        
+        // 更新背包满状态
+        UpdateInventoryFullState();
+    }
+
+    // 更新背包满状态
+    private void UpdateInventoryFullState()
+    {
+        if (inventoryFullObject == null)
+        {
+            Debug.LogWarning("InventoryManager: 未设置背包满物体");
+            return;
+        }
+        
+        bool isFull = IsInventoryFull();
+        inventoryFullObject.SetActive(isFull);
+    }
+    
+    // 检查背包是否已满
+    public bool IsInventoryFull()
+    {
+        if (slots.Count == 0) return false;
+        
+        // 检查所有格子是否都满了
+        foreach (var slot in slots)
+        {
+            if (slot == null) continue;
+            
+            if (slot.IsEmpty() || !slot.IsFull())
+            {
+                return false; // 如果找到空格子或未满的格子，背包未满
+            }
+        }
+        
+        return true; // 所有格子都满了
     }
 
     // 更新所有现有格子的容量
@@ -101,6 +143,9 @@ public class InventoryManager : MonoBehaviour
                 slot.UpdateSlotCapacity(newCapacity);
             }
         }
+        
+        // 容量变化可能影响背包满状态
+        UpdateInventoryFullState();
     }
 
     // 增加新格子（不销毁已有的）
@@ -115,6 +160,9 @@ public class InventoryManager : MonoBehaviour
         }
 
         Debug.Log($"增加了 {slotsToAdd} 个新格子，现在总格子数: {slots.Count}");
+        
+        // 新格子增加后更新背包状态
+        UpdateInventoryFullState();
     }
 
     // 清除现有格子
@@ -165,6 +213,9 @@ public class InventoryManager : MonoBehaviour
         {
             slots[i].AddItem(items[i].itemType, items[i].itemCount, out int added);
         }
+        
+        // 重新整理后更新背包满状态
+        UpdateInventoryFullState();
     }
 
     // 创建新的格子
@@ -213,7 +264,10 @@ public class InventoryManager : MonoBehaviour
             Debug.LogWarning($"背包已满，无法完全添加 {itemType}，剩余: {remainingAmount}");
             return false;
         }
-
+        
+        // 添加物品后更新背包满状态
+        UpdateInventoryFullState();
+        
         return true;
     }
 
@@ -354,6 +408,9 @@ public class InventoryManager : MonoBehaviour
         {
             ReorganizeInventory();
         }
+        
+        // 清空后更新背包满状态
+        UpdateInventoryFullState();
     }
 
     // 清空背包内后指定数量的格子
@@ -392,6 +449,9 @@ public class InventoryManager : MonoBehaviour
         {
             ReorganizeInventory();
         }
+        
+        // 清空后更新背包满状态
+        UpdateInventoryFullState();
     }
 
     // 清空背包内所有物品
@@ -415,5 +475,8 @@ public class InventoryManager : MonoBehaviour
         {
             ReorganizeInventory();
         }
+        
+        // 清空后更新背包满状态
+        UpdateInventoryFullState();
     }
 }

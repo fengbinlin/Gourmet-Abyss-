@@ -97,7 +97,7 @@ public class TopDownController : MonoBehaviour
     private bool mouseIsActive = false;
     private Vector3 lastMousePosition;
     private float mouseInactiveTimer = 0f;
-    private bool isDead = false;
+    public bool isDead = false;
     [SerializeField] private float mouseInactiveThreshold = 0.1f; // 鼠标静止多久后算不活动
 
     void Awake()

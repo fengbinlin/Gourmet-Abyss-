@@ -13,12 +13,14 @@ public class PrerequisiteData
     public SkillNode node;  // 前置节点
     public int requiredLevel = 1;  // 需要的前置节点等级
 }
+
 [System.Serializable]
 public class SkillLevelCost
 {
     public ResourceType costType;
     public int costAmount;
 }
+
 [System.Serializable]
 public class SkillNodeData
 {
@@ -28,8 +30,6 @@ public class SkillNodeData
     public string description;
     public Sprite icon;
 
-    // public ResourceType costType = ResourceType.Money;
-    // public int costAmount = 100;
     public List<SkillLevelCost> levelCosts = new List<SkillLevelCost>();
     public int maxLevel = 1;
     public int currentLevel = 0;
@@ -43,6 +43,7 @@ public class SkillNodeData
     public float defenseMultiplier = 1f;
     public float speedMultiplier = 1f;
     public bool isRare = false;
+
     public bool CanLearn()
     {
         return !isLearned && currentLevel < maxLevel;
@@ -77,6 +78,7 @@ public class SkillNodeData
             speedMultiplier = this.speedMultiplier
         };
     }
+
     public SkillLevelCost GetCurrentUpgradeCost()
     {
         if (currentLevel > maxLevel) return null;
@@ -93,9 +95,6 @@ public enum SkillNodeState
     Unlocked,   // 解锁但未学习
     Learned     // 已学习
 }
-
-// UI信息面板组件
-
 
 public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -529,16 +528,16 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             learnSequence.Append(transform.DOShakeRotation(0.2f, new Vector3(0, 0, 15f), 3, 45f, false, ShakeRandomnessMode.Harmonic));
             learnSequence.Append(transform.DOScale(1f, 0.1f).SetEase(Ease.InCubic));
             learnSequence.OnComplete(() =>
-{
-    transform.localRotation = Quaternion.identity; // 强制归位
-});
+            {
+                transform.localRotation = Quaternion.identity; // 强制归位
+            });
 
             if (skillTree != null)
                 skillTree.UpdateAllNodes();
 
             SkillTree.Instance.learnedSkillNum++;
-            print("当期等级"+skillData.currentLevel);
-            print("最大等级"+skillData.maxLevel);
+            print("当期等级" + skillData.currentLevel);
+            print("最大等级" + skillData.maxLevel);
             if (skillData.currentLevel >= skillData.maxLevel)
             {
                 print("触发隐藏面板");
@@ -645,9 +644,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         infoPanel.transform.SetParent(transform, true);
         if (infoPanel == null || skillData == null) return;
-
-
-
+        infoPanel.InitializeResourceIconDictionary();
         // 更新面板信息
         infoPanel.UpdateInfo(skillData);
 

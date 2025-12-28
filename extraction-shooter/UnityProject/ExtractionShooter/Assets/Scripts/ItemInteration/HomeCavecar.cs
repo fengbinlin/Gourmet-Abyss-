@@ -39,6 +39,7 @@ public class HomeCavecar : MonoBehaviour
         if (isPlayerEnter && Input.GetKeyDown(KeyCode.E) && !isAnimating && canUse)
         {
             ToggleMapUI();
+
         }
         
         if (Input.GetKeyDown(KeyCode.Escape) && isUIActive && !isAnimating)
@@ -116,6 +117,7 @@ public class HomeCavecar : MonoBehaviour
         sequence.OnComplete(() => isAnimating = false);
         
         currentUITween = sequence;
+        PlayerStateManager.instance.currentState=PlayerState.UI;
     }
     
     private void HideMapUI()
@@ -145,6 +147,7 @@ public class HomeCavecar : MonoBehaviour
         });
         
         currentUITween = sequence;
+        PlayerStateManager.instance.currentState=PlayerState.UpGround;
     }
     
     public void CloseMapUI()

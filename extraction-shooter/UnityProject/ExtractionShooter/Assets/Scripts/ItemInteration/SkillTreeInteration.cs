@@ -52,6 +52,7 @@ public class SkillTreeInteration : MonoBehaviour
         //Debug.Log("ִ�н�������");
 
         InterationManager.instance.SwitchToSkillTree();
+        PlayerStateManager.instance.currentState=PlayerState.UI;
     }
 
     // ��ʾ/���ؽ�����ʾ����Ҫ���Լ�ʵ��UI���֣�

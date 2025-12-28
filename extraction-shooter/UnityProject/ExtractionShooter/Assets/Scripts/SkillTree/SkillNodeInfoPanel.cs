@@ -14,6 +14,16 @@ public class SkillNodeInfoPanel : MonoBehaviour
     public Text descriptionText;
     public Text costText;
     public Image costIconImage;
+    
+    [System.Serializable]
+    public class ResourceIconConfig
+    {
+        public ResourceType resourceType;
+        public Sprite icon;
+    }
+    
+    [SerializeField]
+    public List<ResourceIconConfig> resourceIcons = new List<ResourceIconConfig>();
 
     [Header("动画设置")]
     public float fadeInDuration = 0.3f;
@@ -29,16 +39,60 @@ public class SkillNodeInfoPanel : MonoBehaviour
     private RectTransform rectTransform;
     private bool isShowing = false;
     private Sequence currentAnimation;
+    
+    // 资源图标查找字典
+    private Dictionary<ResourceType, Sprite> resourceIconDictionary = new Dictionary<ResourceType, Sprite>();
 
     private void Awake()
     {
         canvasGroup = GetComponent<CanvasGroup>();
         rectTransform = GetComponent<RectTransform>();
 
+        // 初始化资源图标字典
+        InitializeResourceIconDictionary();
+
         // 初始隐藏
         canvasGroup.alpha = 0f;
         canvasGroup.interactable = false;
         canvasGroup.blocksRaycasts = false;
+    }
+    
+   public void InitializeResourceIconDictionary()
+    {
+        resourceIconDictionary.Clear();
+        foreach (var config in resourceIcons)
+        {
+            if (!resourceIconDictionary.ContainsKey(config.resourceType))
+            {
+                resourceIconDictionary.Add(config.resourceType, config.icon);
+            }
+        }
+    }
+    
+    // 可以在运行时添加或更新资源图标
+    public void AddResourceIcon(ResourceType resourceType, Sprite icon)
+    {
+        if (resourceIconDictionary.ContainsKey(resourceType))
+        {
+            resourceIconDictionary[resourceType] = icon;
+        }
+        else
+        {
+            resourceIconDictionary.Add(resourceType, icon);
+        }
+    }
+    
+    // 获取资源图标
+    public Sprite GetResourceIcon(ResourceType resourceType)
+    {
+        if (resourceIconDictionary.ContainsKey(resourceType))
+        {
+            return resourceIconDictionary[resourceType];
+        }
+        
+        // 如果没有找到对应的图标，返回null
+        Debug.LogWarning($"未找到资源类型 {resourceType} 对应的图标");
+        return null;
     }
 
     public void Show()
@@ -111,18 +165,32 @@ public class SkillNodeInfoPanel : MonoBehaviour
         if (descriptionText != null)
             descriptionText.text = skillData.description;
 
-        if (costText != null)
+        if (costText != null && costIconImage != null)
         {
             var cost = skillData.GetCurrentUpgradeCost();
-            costText.text = cost.costAmount.ToString();
-        }
-            
-
-        // 可以根据costType设置不同的图标
-        if (costIconImage != null)
-        {
-            // 这里需要根据你的资源系统来设置图标
-            // 例如：costIconImage.sprite = ResourceManager.Instance.GetResourceIcon(skillData.costType);
+            if (cost != null)
+            {
+                costText.text = cost.costAmount.ToString();
+                
+                // 根据资源类型设置图标
+                costIconImage.sprite = GetResourceIcon(cost.costType);
+                
+                // 如果找不到图标，可以设置一个默认图标或隐藏图标
+                if (costIconImage.sprite == null)
+                {
+                    Debug.LogWarning($"未找到资源类型 {cost.costType} 对应的图标，已隐藏图标");
+                    costIconImage.gameObject.SetActive(false);
+                }
+                else
+                {
+                    costIconImage.gameObject.SetActive(true);
+                }
+            }
+            else
+            {
+                costText.text = "MAX";
+                costIconImage.gameObject.SetActive(false);
+            }
         }
     }
 
@@ -143,5 +211,12 @@ public class SkillNodeInfoPanel : MonoBehaviour
         {
             rectTransform.anchoredPosition = position;
         }
+    }
+    
+    // 编辑器方法：刷新资源图标字典
+    [ContextMenu("Refresh Resource Icons")]
+    public void RefreshResourceIcons()
+    {
+        InitializeResourceIconDictionary();
     }
 }

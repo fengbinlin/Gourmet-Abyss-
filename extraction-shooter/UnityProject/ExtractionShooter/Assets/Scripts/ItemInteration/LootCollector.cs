@@ -9,6 +9,7 @@ public class LootCollector : MonoBehaviour
     [SerializeField] private float rotationSpeed = 180f; // 旋转速度
     [SerializeField] private float floatAmplitude = 0.5f; // 浮动幅度
     [SerializeField] private float floatFrequency = 2f;  // 浮动频率
+    [SerializeField] private float randomStartRotation = 360f; // 随机起始旋转角度范围
 
     [Header("飞行设置")]
     [SerializeField] private float flySpeed = 15f;       // 飞行速度
@@ -65,6 +66,9 @@ public class LootCollector : MonoBehaviour
             Random.Range(0f, 360f),
             Random.Range(0f, 360f)
         );
+        
+        // 添加随机起始旋转角度
+        ApplyRandomStartRotation();
     }
 
     private void Start()
@@ -108,6 +112,21 @@ public class LootCollector : MonoBehaviour
         {
             CheckDestroyTimeout();
         }
+    }
+
+    // 添加随机起始旋转
+    private void ApplyRandomStartRotation()
+    {
+        // 在Y轴上生成随机旋转角度
+        float randomYRotation = Random.Range(0f, randomStartRotation);
+        
+        // 应用旋转
+        transform.rotation = Quaternion.Euler(0f, randomYRotation, 0f);
+        
+        // 如果需要更随机的三维旋转，可以取消下面的注释
+        // float randomXRotation = Random.Range(0f, randomStartRotation);
+        // float randomZRotation = Random.Range(0f, randomStartRotation);
+        // transform.rotation = Quaternion.Euler(randomXRotation, randomYRotation, randomZRotation);
     }
 
     // 检查销毁超时
@@ -173,9 +192,13 @@ public class LootCollector : MonoBehaviour
 
         if (other.CompareTag("Player"))
         {
+            if (other.GetComponent<TopDownController>().isDead)
+            {
+                return;
+            }
             playerInTrigger = true;
             timeSinceLastInteraction = Time.time; // 重置超时计时
-
+            
             // 如果是植物资源并且设置为直接加入数值管理器，则直接可以收集
             if (isPlantResource && plantDirectToGameVal)
             {

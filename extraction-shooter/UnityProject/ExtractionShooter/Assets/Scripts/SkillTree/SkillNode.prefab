@@ -290,6 +290,11 @@ MonoBehaviour:
   descriptionText: {fileID: 2762110101188394689}
   costText: {fileID: 822019274635701919}
   costIconImage: {fileID: 245100309665957177}
+  resourceIcons:
+  - resourceType: 0
+    icon: {fileID: 21300000, guid: 28c622bad6837224392f39b04d88b8a1, type: 3}
+  - resourceType: 20
+    icon: {fileID: 21300000, guid: 37cbf4bc6a83466428a304b0f4f793ab, type: 3}
   fadeInDuration: 0.3
   fadeOutDuration: 0.2
   scaleInDuration: 0.3
@@ -738,8 +743,7 @@ MonoBehaviour:
     skillName: "\u6D4B\u8BD5\u6280\u80FD"
     description: 
     icon: {fileID: 0}
-    costType: 0
-    costAmount: 100
+    levelCosts: []
     maxLevel: 3
     currentLevel: 0
     isLearned: 0
