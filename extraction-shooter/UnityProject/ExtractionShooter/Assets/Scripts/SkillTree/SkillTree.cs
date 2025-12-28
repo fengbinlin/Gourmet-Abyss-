@@ -265,9 +265,10 @@ public class SkillTree : MonoBehaviour
                 bool resourceEnough = true;
                 if (GameValManager.Instance != null)
                 {
+                    var cost = connection.toNode.skillData.GetCurrentUpgradeCost();
                     resourceEnough = GameValManager.Instance.HasEnoughResource(
-                        connection.toNode.skillData.costType,
-                        connection.toNode.skillData.costAmount);
+                        cost.costType,
+                        cost.costAmount);
                 }
 
                 // 按目标节点状态决定颜色
@@ -590,9 +591,10 @@ public class SkillTree : MonoBehaviour
                 bool resourceEnough = true;
                 if (GameValManager.Instance != null)
                 {
+                    var cost = connection.toNode.skillData.GetCurrentUpgradeCost();
                     resourceEnough = GameValManager.Instance.HasEnoughResource(
-                        connection.toNode.skillData.costType,
-                        connection.toNode.skillData.costAmount);
+                        cost.costType,
+                        cost.costAmount);
                 }
 
                 if (connection.fromNode.State == SkillNodeState.Learned && connection.toNode.State == SkillNodeState.Learned)
