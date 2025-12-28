@@ -45,7 +45,30 @@ public class SkillTreeInitializer : MonoBehaviour
             wsm.RebuildDensityDictionary();
         }
     }
+    private List<SkillLevelCost> ParseLevelCosts(string str)
+    {
+        var costs = new List<SkillLevelCost>();
+        if (string.IsNullOrEmpty(str)) return costs;
 
+        var levelEntries = str.Split('|'); // 按等级分割
+        foreach (string entry in levelEntries)
+        {
+            var parts = entry.Split(':'); // 货币类型:数量
+            if (parts.Length == 2)
+            {
+                if (int.TryParse(parts[0], out int typeInt) &&
+                    int.TryParse(parts[1], out int amount))
+                {
+                    costs.Add(new SkillLevelCost
+                    {
+                        costType = (ResourceType)typeInt,
+                        costAmount = amount
+                    });
+                }
+            }
+        }
+        return costs;
+    }
     private void GenerateSkillTreeFromConfig()
     {
         var configReader = ExcelConfigReader.Instance;
@@ -60,6 +83,7 @@ public class SkillTreeInitializer : MonoBehaviour
         skillNodeMap.Clear();
 
         // 第一遍：创建所有技能节点
+        // 第一遍：创建所有技能节点
         foreach (var config in skillConfigs)
         {
             SkillNode newNode = Instantiate(skillNodePrefab, nodesParent);
@@ -70,19 +94,18 @@ public class SkillTreeInitializer : MonoBehaviour
                 skillID = config.skillID.ToString(),
                 skillName = config.skillName,
                 description = config.description,
-                costType = (ResourceType)config.costType,
-                costAmount = config.costAmount,
                 maxLevel = config.maxLevel,
                 currentLevel = 0,
                 isLearned = false,
                 isRare = config.isRare == 1
             };
 
-            // 加载图标并设置到SkillNodeData
+            // 解析等级消耗字符串到 List<SkillLevelCost>
+            skillData.levelCosts = config.levelCosts;
+            print("Config路径"+config.iconPath);
+            // 图标
             Sprite icon = LoadSkillIcon(config.iconPath);
             skillData.icon = icon;
-
-            // 如果SkillNode有iconImage组件，也直接设置
             if (newNode.iconImage != null)
             {
                 newNode.iconImage.sprite = icon;
@@ -170,10 +193,10 @@ public class SkillTreeInitializer : MonoBehaviour
         }
 
         // 调试信息
-        //Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
-        //Debug.Log($"路径长度: {pathWithoutExtension.Length}");
-        //Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
-        //Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
+        Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
+        Debug.Log($"路径长度: {pathWithoutExtension.Length}");
+        Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
+        Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
 
         // 直接尝试加载，不使用 Path.Combine
         try
@@ -193,17 +216,17 @@ public class SkillTreeInitializer : MonoBehaviour
                 Texture2D texture = Resources.Load<Texture2D>(pathWithoutExtension);
                 if (texture != null)
                 {
-                   // Debug.Log($"找到Texture2D: {texture.name}");
+                    // Debug.Log($"找到Texture2D: {texture.name}");
                     icon = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f);
                     return icon;
                 }
 
                 // 列出所有可用的资源
                 UnityEngine.Object[] allResources = Resources.LoadAll("");
-               // Debug.Log($"Resources根目录共有 {allResources.Length} 个资源:");
+                // Debug.Log($"Resources根目录共有 {allResources.Length} 个资源:");
                 foreach (UnityEngine.Object obj in allResources)
                 {
-                   // Debug.Log($"  - {obj.name} ({obj.GetType().Name})");
+                    // Debug.Log($"  - {obj.name} ({obj.GetType().Name})");
                 }
 
                 //Debug.LogWarning($"无法加载图标: {iconPath}，使用默认图标");

@@ -13,7 +13,12 @@ public class PrerequisiteData
     public SkillNode node;  // 前置节点
     public int requiredLevel = 1;  // 需要的前置节点等级
 }
-
+[System.Serializable]
+public class SkillLevelCost
+{
+    public ResourceType costType;
+    public int costAmount;
+}
 [System.Serializable]
 public class SkillNodeData
 {
@@ -23,9 +28,9 @@ public class SkillNodeData
     public string description;
     public Sprite icon;
 
-    public ResourceType costType = ResourceType.Money;
-    public int costAmount = 100;
-
+    // public ResourceType costType = ResourceType.Money;
+    // public int costAmount = 100;
+    public List<SkillLevelCost> levelCosts = new List<SkillLevelCost>();
     public int maxLevel = 1;
     public int currentLevel = 0;
     public bool isLearned = false;
@@ -64,8 +69,6 @@ public class SkillNodeData
             skillName = this.skillName,
             description = this.description,
             icon = this.icon,
-            costType = this.costType,
-            costAmount = this.costAmount,
             maxLevel = this.maxLevel,
             currentLevel = this.currentLevel,
             isLearned = this.isLearned,
@@ -73,6 +76,15 @@ public class SkillNodeData
             defenseMultiplier = this.defenseMultiplier,
             speedMultiplier = this.speedMultiplier
         };
+    }
+    public SkillLevelCost GetCurrentUpgradeCost()
+    {
+        
+        if (currentLevel >= maxLevel) return null;
+        if (levelCosts == null || levelCosts.Count == 0) return null;
+
+        // 当前等级升级到下一等级所需消耗
+        return levelCosts[Mathf.Clamp(currentLevel, 0, levelCosts.Count - 1)];
     }
 }
 
@@ -419,9 +431,12 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 bool resourceEnough = true;
                 if (GameValManager.Instance != null)
                 {
+                    print(skillData.levelCosts.Count);
+                    var cost = skillData.GetCurrentUpgradeCost();
+                    print(cost.costType + " : " + cost.costAmount);
                     resourceEnough = GameValManager.Instance.HasEnoughResource(
-                        skillData.costType,
-                        skillData.costAmount
+                        cost.costType,
+                        cost.costAmount
                     );
                 }
 
@@ -485,7 +500,8 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
         if (GameValManager.Instance != null)
         {
-            return GameValManager.Instance.HasEnoughResource(skillData.costType, skillData.costAmount);
+            var cost = skillData.GetCurrentUpgradeCost();
+            return GameValManager.Instance.HasEnoughResource(cost.costType, cost.costAmount);
         }
 
         return false;
@@ -496,7 +512,8 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         transform.DOKill(true);
         transform.localRotation = Quaternion.identity;
         if (!isVisible) return;
-        if (CanLearn() && GameValManager.Instance.TryConsumeResource(skillData.costType, skillData.costAmount))
+        var cost = skillData.GetCurrentUpgradeCost();
+        if (CanLearn() && GameValManager.Instance.TryConsumeResource(cost.costType, cost.costAmount))
         {
             skillData.Learn();
             SetState(SkillNodeState.Learned, true);
@@ -521,7 +538,10 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 skillTree.UpdateAllNodes();
 
             SkillTree.Instance.learnedSkillNum++;
+            infoPanel.UpdateInfo(skillData);
             HideInfoPanel();
+            ShowInfoPanel();
+            //HideInfoPanel();
         }
     }
 
