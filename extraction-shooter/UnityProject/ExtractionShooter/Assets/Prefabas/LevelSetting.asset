@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelRequirements:
   - level: 0
-    requiredSkills: 0
-    levelTitle: 
-  - level: 1
     requiredSkills: 1
     levelTitle: 
+  - level: 1
+    requiredSkills: 40
+    levelTitle: 
   - level: 2
-    requiredSkills: 2
+    requiredSkills: 80
     levelTitle: 
