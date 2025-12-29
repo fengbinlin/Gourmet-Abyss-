@@ -108,14 +108,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13a9da657c1c3814691d61c858e9fa6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mainUI: {fileID: 0}
+  TitleText: {fileID: 0}
   homeSceneObject: {fileID: 0}
   emissionTransition: {fileID: 0}
   saturationTransition: {fileID: 0}
-  TransitionUIAnimator: {fileID: 0}
-  autoEnterLevel: 0
-  transitionDelay: 3
-  autoToggleAfterTransition: 1
-  toggleDelay: 2
+  transitionUIAnimator: {fileID: 0}
+  transitionDuration: 1
+  uiAnimationDelay: 0.5
   levelSceneName: Layer1
 --- !u!114 &194642349892938126
 MonoBehaviour:
@@ -144,6 +144,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8836e668db46c9f4a914bfa190bf4385, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isPrimaryEnable: 1
   primaryFireRate: 0.2
   primaryPelletCount: 1
   primaryPenetrationCount: 0
@@ -153,6 +154,7 @@ MonoBehaviour:
   primaryCriticalChance: 0.1
   primaryCriticalMultiplier: 2
   primaryMaxTravelDistance: 100
+  isSecondaryEnable: 1
   secondaryDamageValue: 20
   secondaryFireRate: 0.5
   secondaryLaserLength: 4
@@ -176,12 +178,13 @@ MonoBehaviour:
   secondaryAmmoConsumePerShot: 1
   defaultMapDensityMultiplier: 1
   mapDensityBindings:
-  - settings: {fileID: 11400000, guid: 6bae188aa83001547baf0f6aed46ac6c, type: 2}
+  - settings: {fileID: 11400000, guid: 6275d3821011499439d2f4419bb5ac47, type: 2}
     densityMultiplier: 1
   - settings: {fileID: 11400000, guid: bbb87559eb6c8e8458f47dbc1544f1f8, type: 2}
     densityMultiplier: 1
   - settings: {fileID: 11400000, guid: e7e913c5c2f7e6f44b5f1f72a24e78b7, type: 2}
     densityMultiplier: 1
+  enemtLootDensityBindings: []
 --- !u!114 &6622484420345514325
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -238,3 +241,5 @@ MonoBehaviour:
   textF1: {fileID: 0}
   textF2: {fileID: 0}
   textF3: {fileID: 0}
+  STextMoneyVal: {fileID: 0}
+  STextPKVal: {fileID: 0}
