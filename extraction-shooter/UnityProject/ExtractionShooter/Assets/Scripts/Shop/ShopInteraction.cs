@@ -131,7 +131,7 @@ public class ShopInteraction : MonoBehaviour
     {
         playerInRange = false;
         playerTransform = null;
-
+        pendingItemCount = 0; // 重置待处理计数
         if (!shopHasItems)
             HideShopUI();
 
@@ -182,53 +182,62 @@ public class ShopInteraction : MonoBehaviour
         hideSequence.OnComplete(() => { shopUICanvas.SetActive(false); });
         currentUItween = hideSequence;
     }
-
+    private int pendingItemCount = 0; // 追踪正在飞行中的物品数量
     private void TryTransferItem()
     {
         if (playerInventory == null || shopManager == null || !canInteract)
+        {
+            Debug.Log($"[TryTransfer] 提前返回: inventory={playerInventory != null}, shop={shopManager != null}, canInteract={canInteract}");
             return;
+        }
 
         InventoryItemUI firstSlot = FindFirstNonEmptyInventorySlot();
-        //if (firstSlot == null)
-        //{
-        //    ShowMessage(noItemsMessage, Color.red);
-        //    PlaySound(errorSound);
-        //    return;
-        //}
+        if (firstSlot == null)
+        {
+            Debug.Log("[TryTransfer] 背包为空");
+            return;
+        }
 
         ResourceType itemType = firstSlot.GetItemType();
         int amountToTransfer = 1;
-        // 每次加入前都检测能否加入商店
-        if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
-            return; // 商店满，直接不处理
-        //if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
-        //{
-        //    ShowMessage(shopFullMessage, Color.red);
-        //    PlaySound(errorSound);
-        //    return;
-        //}
+
+        bool canReceive = shopManager.CanReceiveItem(itemType, amountToTransfer + pendingItemCount);
+        Debug.Log($"[TryTransfer] 检查: 类型={itemType}, 请求={amountToTransfer + pendingItemCount}, pending={pendingItemCount}, 可接收={canReceive}");
+
+        if (!canReceive)
+        {
+            // 商店已满，播放错误音效但不进入冷却
+            if (errorSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(errorSound, 0.3f);
+            }
+            return; // 这里直接返回，不进入冷却
+        }
 
         if (RemoveItemFromInventory(firstSlot, itemType, amountToTransfer, out int removedCount))
         {
+            pendingItemCount += removedCount;
+            Debug.Log($"[TryTransfer] 发射! pendingItemCount 增加到 {pendingItemCount}");
+
             PlaySound(transferSound);
 
-            // 发射抛射物
             if (projectileLauncher != null)
             {
                 projectileLauncher.SpawnProjectile(
-                playerTransform,
-                shopUICanvas.transform,
-                itemType,
-                removedCount,
-                () =>
+                    playerTransform,
+                    shopUICanvas.transform,
+                    itemType,
+                    removedCount,
+                    () =>
                     {
-                        // 实际加入商店
+                        pendingItemCount -= removedCount;
+                        Debug.Log($"[回调] 到达! pendingItemCount 减少到 {pendingItemCount}");
+
                         shopManager.ReceiveItemFromPlayer(itemType, removedCount);
                         ShowMessage($"已出售 {removedCount} 个 {GetItemName(itemType)}", Color.green);
                         UpdateShopUIState();
                         OnItemTransferred?.Invoke();
 
-                        // 面板弹动动画恢复
                         if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
                         {
                             Vector3 feedbackScale = originalUIScale * 1.1f;
@@ -236,19 +245,42 @@ public class ShopInteraction : MonoBehaviour
                             feedbackSequence.Append(shopUIRectTransform.DOScale(feedbackScale, 0.1f));
                             feedbackSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.2f).SetEase(Ease.OutBack));
                         }
+
+                    // 增加：物品到达后尝试立即触发下一次发射
+                    if (playerInRange && Input.GetKey(interactKey))
+                        {
+                            StartCoroutine(TriggerImmediate());
+                        }
                     }
                 );
             }
             else
             {
-                // 如果没有发射器，直接加入商店
+                pendingItemCount -= removedCount;
                 shopManager.ReceiveItemFromPlayer(itemType, removedCount);
                 ShowMessage($"已出售 {removedCount} 个 {GetItemName(itemType)}", Color.green);
                 UpdateShopUIState();
                 OnItemTransferred?.Invoke();
+
+                // 增加：无弹道时也立即触发
+                if (playerInRange && Input.GetKey(interactKey))
+                {
+                    StartCoroutine(TriggerImmediate());
+                }
             }
 
+            // 只在成功发射后进入冷却
             StartCoroutine(InteractionCooldown());
+        }
+    }
+
+    // 新增：立即触发下一次检测
+    private IEnumerator TriggerImmediate()
+    {
+        yield return new WaitForEndOfFrame(); // 等待一帧，确保UI状态已更新
+        if (playerInRange && Input.GetKey(interactKey))
+        {
+            TryTransferItem();
         }
     }
 

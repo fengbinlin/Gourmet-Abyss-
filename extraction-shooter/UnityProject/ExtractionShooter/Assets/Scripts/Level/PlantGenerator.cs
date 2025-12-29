@@ -52,6 +52,9 @@ public class PlantGenerator : MonoBehaviour
 
     private void Start()
     {
+        float densityMultiplier = WeaponStatsManager.Instance.GetMapDensityMultiplier(settings);
+        print("地图密度"+densityMultiplier);
+        ManagertdensityMultiplier = densityMultiplier;
         if (generateOnStart)
         {
             StartCoroutine(GeneratePlantsCoroutine());
