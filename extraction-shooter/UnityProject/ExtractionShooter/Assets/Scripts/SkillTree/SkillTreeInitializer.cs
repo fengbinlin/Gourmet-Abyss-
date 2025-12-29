@@ -371,7 +371,7 @@ public class SkillTreeInitializer : MonoBehaviour
 
             // 商店相关
             case 18: wsm.sellPriceMultiplier = initialValue * (1 + value * level); break; // 售价乘数
-            case 19: wsm.sellTimeMultiplier = initialValue * (1 + value * level); break; // 时间乘数
+            case 19: wsm.sellTimeMultiplier = initialValue / (1 + value * level); break; // 时间乘数
             case 20: wsm.shopSlotCount += (int)value; break; // 个数，保持加法
             case 21: wsm.slotCapacity += (int)value; break; // 个数，保持加法
             case 22: wsm.inventorySlotCount += (int)value; break; // 个数，保持加法

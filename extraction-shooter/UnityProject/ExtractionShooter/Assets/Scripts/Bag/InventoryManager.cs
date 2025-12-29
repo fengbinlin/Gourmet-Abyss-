@@ -82,23 +82,53 @@ public class InventoryManager : MonoBehaviour
         int newSlotCount = WeaponStatsManager.Instance.inventorySlotCount;
         int newSlotCapacity = WeaponStatsManager.Instance.inventorySlotCapacity;
 
-        Debug.Log($"背包数值更新: 新格子数={newSlotCount}, 新容量={newSlotCapacity}, 当前格子数={slots.Count}");
+        Debug.Log($"背包数值更新: 新格子数={newSlotCount}, 新容量={newSlotCapacity}, 当前格子数={slots.Count}, 当前容量={slotCapacity}");
 
-        // 更新所有现有格子的容量
-        UpdateSlotCapacities(newSlotCapacity);
-
-        // 如果新格子数大于当前格子数，增加新格子
-        if (newSlotCount > slots.Count)
-        {
-            AddNewSlots(newSlotCount);
-        }
-
-        // 保存新值
+        // 先保存新值
         fixedSlotCount = newSlotCount;
         slotCapacity = newSlotCapacity;
-        
+
+        // 更新所有格子的容量（包括已存在的格子）
+        UpdateSlotCapacities(newSlotCapacity);
+
+        // 如果格子数量变化，调整格子数量
+        if (newSlotCount != slots.Count)
+        {
+            AdjustSlotCount(newSlotCount, newSlotCapacity);
+        }
+
         // 更新背包满状态
         UpdateInventoryFullState();
+    }
+    // 调整格子数量
+    private void AdjustSlotCount(int targetCount, int newCapacity)
+    {
+        if (targetCount > slots.Count)
+        {
+            // 增加格子
+            int slotsToAdd = targetCount - slots.Count;
+            for (int i = 0; i < slotsToAdd; i++)
+            {
+                int slotIndex = slots.Count;
+                CreateNewSlot(slotIndex, newCapacity);
+            }
+            Debug.Log($"增加了 {slotsToAdd} 个新格子，容量={newCapacity}");
+        }
+        else if (targetCount < slots.Count)
+        {
+            // 减少格子（移除多余的格子）
+            int slotsToRemove = slots.Count - targetCount;
+            for (int i = 0; i < slotsToRemove; i++)
+            {
+                int lastIndex = slots.Count - 1;
+                if (slots[lastIndex] != null && slots[lastIndex].gameObject != null)
+                {
+                    Destroy(slots[lastIndex].gameObject);
+                }
+                slots.RemoveAt(lastIndex);
+            }
+            Debug.Log($"移除了 {slotsToRemove} 个格子");
+        }
     }
 
     // 更新背包满状态
@@ -218,8 +248,8 @@ public class InventoryManager : MonoBehaviour
         UpdateInventoryFullState();
     }
 
-    // 创建新的格子
-    private InventoryItemUI CreateNewSlot(int slotIndex)
+    // 修改 CreateNewSlot 方法，明确传入容量
+    private InventoryItemUI CreateNewSlot(int slotIndex, int capacity = -1)
     {
         GameObject slotObj = Instantiate(slotPrefab, gridParent);
         slotObj.name = $"InventorySlot_{slotIndex}";
@@ -227,7 +257,9 @@ public class InventoryManager : MonoBehaviour
         InventoryItemUI slotUI = slotObj.GetComponent<InventoryItemUI>();
         if (slotUI != null)
         {
-            slotUI.Initialize(slotIndex, slotCapacity);
+            int actualCapacity = capacity >= 0 ? capacity : slotCapacity;
+            Debug.Log($"创建格子 {slotIndex}，容量={actualCapacity}");
+            slotUI.Initialize(slotIndex, actualCapacity);
         }
         else
         {
