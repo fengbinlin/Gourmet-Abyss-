@@ -102,7 +102,7 @@ public class SkillTreeInitializer : MonoBehaviour
 
             // 解析等级消耗字符串到 List<SkillLevelCost>
             skillData.levelCosts = config.levelCosts;
-            print("Config路径"+config.iconPath);
+            print("Config路径" + config.iconPath);
             // 图标
             Sprite icon = LoadSkillIcon(config.iconPath);
             skillData.icon = icon;
@@ -113,7 +113,7 @@ public class SkillTreeInitializer : MonoBehaviour
 
             // 设置技能效果回调
             skillData.onSkillLearned = new UnityEngine.Events.UnityEvent();
-            skillData.onSkillLearned.AddListener(() => ApplySkillEffects(config));
+            skillData.onSkillLearned.AddListener(() => ApplySkillEffects(config, skillData.currentLevel));
 
             newNode.skillData = skillData;
 
@@ -255,7 +255,7 @@ public class SkillTreeInitializer : MonoBehaviour
         return Vector2.zero;
     }
 
-    private void ApplySkillEffects(SkillConfigData config)
+    private void ApplySkillEffects(SkillConfigData config, int level = 1)
     {
         var wsm = WeaponStatsManager.Instance;
         if (wsm == null || string.IsNullOrEmpty(config.buffEffects)) return;
@@ -264,14 +264,14 @@ public class SkillTreeInitializer : MonoBehaviour
         string[] effects = config.buffEffects.Split(';');
         foreach (string effect in effects)
         {
-            ApplySingleEffect(effect.Trim(), wsm);
+            ApplySingleEffect(effect.Trim(), wsm, level);
         }
 
         // 触发相应的事件
         TriggerStatChangeEvents(config.buffEffects, wsm);
     }
 
-    private void ApplySingleEffect(string effect, WeaponStatsManager wsm)
+    private void ApplySingleEffect(string effect, WeaponStatsManager wsm, int level = 1)
     {
         // 检查是否是地图密度元组效果 (30,(levelID,multiplier))
         var mapDensityMatch = Regex.Match(effect, @"\(30,\((\d+),([\d.]+)\)\)");
@@ -280,7 +280,7 @@ public class SkillTreeInitializer : MonoBehaviour
             // 地图密度特殊效果
             int levelID = int.Parse(mapDensityMatch.Groups[1].Value);
             float multiplier = float.Parse(mapDensityMatch.Groups[2].Value, CultureInfo.InvariantCulture);
-            ApplyMapDensityEffect(levelID, multiplier, wsm);
+            ApplyMapDensityEffect(levelID, multiplier, wsm, level);
             return;
         }
 
@@ -290,11 +290,11 @@ public class SkillTreeInitializer : MonoBehaviour
         {
             int statID = int.Parse(normalMatch.Groups[1].Value);
             float value = float.Parse(normalMatch.Groups[2].Value, CultureInfo.InvariantCulture);
-            ApplyStatEffect(statID, value, wsm);
+            ApplyStatEffect(statID, value, wsm, level);
         }
     }
 
-    private void ApplyMapDensityEffect(int levelID, float multiplier, WeaponStatsManager wsm)
+    private void ApplyMapDensityEffect(int levelID, float multiplier, WeaponStatsManager wsm, int level = 1)
     {
         // 通过levelID查找对应的地图密度绑定
         if (levelID >= 0 && levelID < wsm.mapDensityBindings.Count)
@@ -303,7 +303,7 @@ public class SkillTreeInitializer : MonoBehaviour
             if (binding.settings != null)
             {
                 // 应用密度乘数
-                binding.densityMultiplier = 1 * (1 + multiplier);
+                binding.densityMultiplier = 1 * (1 + multiplier * level);
                 wsm.RebuildDensityDictionary();
             }
         }
@@ -313,7 +313,7 @@ public class SkillTreeInitializer : MonoBehaviour
         }
     }
 
-    private void ApplyStatEffect(int statID, float value, WeaponStatsManager wsm)
+    private void ApplyStatEffect(int statID, float value, WeaponStatsManager wsm, int level = 1)
     {
         // 获取初始值
         float initialValue = GetInitialStatValue(statID, wsm);
@@ -321,44 +321,44 @@ public class SkillTreeInitializer : MonoBehaviour
         switch (statID)
         {
             // 主武器
-            case 0: wsm.primaryFireRate = initialValue * (1 + value); break; // 开火速率
+            case 0: wsm.primaryFireRate = initialValue * (1 + value * level); break; // 开火速率
             case 1: wsm.primaryPelletCount += (int)value; break; // 个数，保持加法
             case 2: wsm.primaryPenetrationCount += (int)value; break; // 个数，保持加法
-            case 3: wsm.primaryBulletSpeed = initialValue * (1 + value); break; // 子弹速度
-            case 4: wsm.primaryBulletSize = initialValue * (1 + value); break; // 子弹大小
-            case 5: wsm.primaryBaseDamage = initialValue * (1 + value); break; // 基础伤害
-            case 6: wsm.primaryCriticalChance = initialValue * (1 + value); break; // 暴击几率
-            case 7: wsm.primaryCriticalMultiplier = initialValue * (1 + value); break; // 暴击倍率
-            case 8: wsm.primaryMaxTravelDistance = initialValue * (1 + value); break; // 最大射程
+            case 3: wsm.primaryBulletSpeed = initialValue * (1 + value * level); break; // 子弹速度
+            case 4: wsm.primaryBulletSize = initialValue * (1 + value * level); break; // 子弹大小
+            case 5: wsm.primaryBaseDamage = initialValue * (1 + value * level); break; // 基础伤害
+            case 6: wsm.primaryCriticalChance = initialValue * (1 + value * level); break; // 暴击几率
+            case 7: wsm.primaryCriticalMultiplier = initialValue * (1 + value * level); break; // 暴击倍率
+            case 8: wsm.primaryMaxTravelDistance = initialValue * (1 + value * level); break; // 最大射程
 
             // 副武器
-            case 9: wsm.secondaryDamageValue = initialValue * (1 + value); break; // 副武器伤害
-            case 10: wsm.secondaryFireRate = initialValue * (1 + value); break; // 副武器开火速率
-            case 11: wsm.secondaryLaserLength = initialValue * (1 + value); break; // 激光长度
+            case 9: wsm.secondaryDamageValue = initialValue * (1 + value * level); break; // 副武器伤害
+            case 10: wsm.secondaryFireRate = initialValue * (1 + value * level); break; // 副武器开火速率
+            case 11: wsm.secondaryLaserLength = initialValue * (1 + value * level); break; // 激光长度
             case 12: wsm.secondaryLaserCount += (int)value; break; // 个数，保持加法
-            case 13: wsm.secondaryLaserWidth = initialValue * (1 + value); break; // 激光宽度
-            case 14: wsm.secondaryCritChance = initialValue * (1 + value); break; // 副武器暴击几率
-            case 15: wsm.secondaryCritMultiplier = initialValue * (1 + value); break; // 副武器暴击倍率
+            case 13: wsm.secondaryLaserWidth = initialValue * (1 + value * level); break; // 激光宽度
+            case 14: wsm.secondaryCritChance = initialValue * (1 + value * level); break; // 副武器暴击几率
+            case 15: wsm.secondaryCritMultiplier = initialValue * (1 + value * level); break; // 副武器暴击倍率
             case 16: wsm.secondaryMaxChainCount += (int)value; break; // 个数，保持加法
-            case 17: wsm.secondaryChainSearchRadius = initialValue * (1 + value); break; // 连锁搜索半径
+            case 17: wsm.secondaryChainSearchRadius = initialValue * (1 + value * level); break; // 连锁搜索半径
 
             // 商店相关
-            case 18: wsm.sellPriceMultiplier = initialValue * (1 + value); break; // 售价乘数
-            case 19: wsm.sellTimeMultiplier = initialValue * (1 + value); break; // 时间乘数
+            case 18: wsm.sellPriceMultiplier = initialValue * (1 + value * level); break; // 售价乘数
+            case 19: wsm.sellTimeMultiplier = initialValue * (1 + value * level); break; // 时间乘数
             case 20: wsm.shopSlotCount += (int)value; break; // 个数，保持加法
             case 21: wsm.slotCapacity += (int)value; break; // 个数，保持加法
             case 22: wsm.inventorySlotCount += (int)value; break; // 个数，保持加法
             case 23: wsm.inventorySlotCapacity += (int)value; break; // 个数，保持加法
 
             // 氧气系统
-            case 24: wsm.oxygenMax = initialValue * (1 + value); break; // 氧气最大值
-            case 25: wsm.oxygenConsumeRate = initialValue * (1 + value); break; // 氧气消耗速率
+            case 24: wsm.oxygenMax = initialValue * (1 + value * level); break; // 氧气最大值
+            case 25: wsm.oxygenConsumeRate = initialValue * (1 + value * level); break; // 氧气消耗速率
 
             // 弹药系统
-            case 26: wsm.primaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 主武器弹药最大值
-            case 27: wsm.primaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 主武器每发弹药消耗
-            case 28: wsm.secondaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 副武器弹药最大值
-            case 29: wsm.secondaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value))); break; // 副武器每发弹药消耗
+            case 26: wsm.primaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 主武器弹药最大值
+            case 27: wsm.primaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 主武器每发弹药消耗
+            case 28: wsm.secondaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 副武器弹药最大值
+            case 29: wsm.secondaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 副武器每发弹药消耗
         }
     }
 
