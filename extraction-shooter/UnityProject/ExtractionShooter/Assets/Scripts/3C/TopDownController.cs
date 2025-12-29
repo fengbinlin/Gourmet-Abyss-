@@ -136,6 +136,14 @@ public class TopDownController : MonoBehaviour
     void Start()
     {
         if (mainCamera == null) mainCamera = Camera.main;
+        if (WeaponStatsManager.Instance.isSecondaryEnable)
+        {
+            secondaryWeapon.gameObject.SetActive(true);
+        }
+        else
+        {
+            secondaryWeapon.gameObject.SetActive(false);
+        }
     }
     private void HandleOxygenDepleted()
     {
@@ -453,18 +461,26 @@ public class TopDownController : MonoBehaviour
                 primaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
             }
         }
-
-        // 副武器开火
-        if (secondaryWeapon != null)
+        if (WeaponStatsManager.Instance.isSecondaryEnable)
         {
-            bool isFiringSecondary = Input.GetButton("Fire2");
-            secondaryWeapon.SetShooting(isFiringSecondary);
-
-            if (isFiringSecondary)
+            //secondaryWeapon.gameObject.SetActive(true);
+            // 副武器开火
+            if (secondaryWeapon != null)
             {
-                secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                bool isFiringSecondary = Input.GetButton("Fire2");
+                secondaryWeapon.SetShooting(isFiringSecondary);
+
+                if (isFiringSecondary)
+                {
+                    secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                }
             }
         }
+        else
+        {
+            //secondaryWeapon.gameObject.SetActive(false);
+        }
+
     }
     #endregion
 

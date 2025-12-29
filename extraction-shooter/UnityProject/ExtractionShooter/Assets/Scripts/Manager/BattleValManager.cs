@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public class BattleValManager : MonoBehaviour
 {
     public static BattleValManager Instance { get; private set; }
-
+    public GameObject subweaponUI;
     [Header("氧气设置")]
     [SerializeField] private float oxygenMax = 100f;          // 氧气总量
     [SerializeField] private float oxygenConsumeRate = 1f;  // 氧气每秒消耗速度
@@ -76,6 +76,10 @@ public class BattleValManager : MonoBehaviour
         ResetValues();
     }
 
+    public void enbaleSecondWeapon()
+    {
+        subweaponUI.SetActive(true);
+    }
     private void Update()
     {
         if (!isActive) return;

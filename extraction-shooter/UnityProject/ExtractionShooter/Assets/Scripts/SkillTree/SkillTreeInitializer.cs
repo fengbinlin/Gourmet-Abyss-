@@ -386,6 +386,14 @@ public class SkillTreeInitializer : MonoBehaviour
             case 27: wsm.primaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 主武器每发弹药消耗
             case 28: wsm.secondaryAmmoMax = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 副武器弹药最大值
             case 29: wsm.secondaryAmmoConsumePerShot = Mathf.Max(1, (int)(initialValue * (1 + value * level))); break; // 副武器每发弹药消耗
+            case 32:
+                {
+                    //启动副武器
+                    wsm.isSecondaryEnable = (value != 0); 
+                    BattleValManager.Instance.enbaleSecondWeapon();
+                    break;
+                } 
+            
         }
     }
 
