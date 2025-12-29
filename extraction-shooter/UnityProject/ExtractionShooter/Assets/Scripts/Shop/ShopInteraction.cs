@@ -198,7 +198,9 @@ public class ShopInteraction : MonoBehaviour
 
         ResourceType itemType = firstSlot.GetItemType();
         int amountToTransfer = 1;
-
+        // 每次加入前都检测能否加入商店
+        if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
+            return; // 商店满，直接不处理
         if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
         {
             ShowMessage(shopFullMessage, Color.red);
@@ -214,28 +216,28 @@ public class ShopInteraction : MonoBehaviour
             if (projectileLauncher != null)
             {
                 projectileLauncher.SpawnProjectile(
-    playerTransform,
-    shopUICanvas.transform,
-    itemType,
-    removedCount,
-    () =>
-    {
-        // 实际加入商店
-        shopManager.ReceiveItemFromPlayer(itemType, removedCount);
-        ShowMessage($"已出售 {removedCount} 个 {GetItemName(itemType)}", Color.green);
-        UpdateShopUIState();
-        OnItemTransferred?.Invoke();
+                playerTransform,
+                shopUICanvas.transform,
+                itemType,
+                removedCount,
+                () =>
+                    {
+                        // 实际加入商店
+                        shopManager.ReceiveItemFromPlayer(itemType, removedCount);
+                        ShowMessage($"已出售 {removedCount} 个 {GetItemName(itemType)}", Color.green);
+                        UpdateShopUIState();
+                        OnItemTransferred?.Invoke();
 
-        // 面板弹动动画恢复
-        if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
-        {
-            Vector3 feedbackScale = originalUIScale * 1.1f;
-            Sequence feedbackSequence = DOTween.Sequence();
-            feedbackSequence.Append(shopUIRectTransform.DOScale(feedbackScale, 0.1f));
-            feedbackSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.2f).SetEase(Ease.OutBack));
-        }
-    }
-);
+                        // 面板弹动动画恢复
+                        if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
+                        {
+                            Vector3 feedbackScale = originalUIScale * 1.1f;
+                            Sequence feedbackSequence = DOTween.Sequence();
+                            feedbackSequence.Append(shopUIRectTransform.DOScale(feedbackScale, 0.1f));
+                            feedbackSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.2f).SetEase(Ease.OutBack));
+                        }
+                    }
+                );
             }
             else
             {
