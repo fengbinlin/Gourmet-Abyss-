@@ -147,6 +147,7 @@ public class SecondaryWeapon : MonoBehaviour
     {
         // 从 WeaponStatsManager 获取数值
         maxChainCount = 1;
+        secondaryFireRate = WeaponStatsManager.Instance.secondaryFireRate;
         damageTickInterval = WeaponStatsManager.Instance.secondaryFireRate;
         damageValue = WeaponStatsManager.Instance.secondaryDamageValue;
         laserLength = WeaponStatsManager.Instance.secondaryLaserLength;
