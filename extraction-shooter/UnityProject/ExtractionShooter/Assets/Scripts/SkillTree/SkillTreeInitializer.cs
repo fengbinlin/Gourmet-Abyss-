@@ -354,8 +354,8 @@ public class SkillTreeInitializer : MonoBehaviour
             case 3: wsm.primaryBulletSpeed = initialValue * (1 + value * level); break; // 子弹速度
             case 4: wsm.primaryBulletSize = initialValue * (1 + value * level); break; // 子弹大小
             case 5: wsm.primaryBaseDamage = initialValue * (1 + value * level); break; // 基础伤害
-            case 6: wsm.primaryCriticalChance = initialValue * (1 + value * level); break; // 暴击几率
-            case 7: wsm.primaryCriticalMultiplier = initialValue * (1 + value * level); break; // 暴击倍率
+            case 6: wsm.primaryCriticalChance = initialValue + value * level; break; // 暴击几率
+            case 7: wsm.primaryCriticalMultiplier = initialValue + value * level; break; // 暴击倍率
             case 8: wsm.primaryMaxTravelDistance = initialValue * (1 + value * level); break; // 最大射程
 
             // 副武器
@@ -364,8 +364,8 @@ public class SkillTreeInitializer : MonoBehaviour
             case 11: wsm.secondaryLaserLength = initialValue * (1 + value * level); break; // 激光长度
             case 12: wsm.secondaryLaserCount += (int)value; break; // 个数，保持加法
             case 13: wsm.secondaryLaserWidth = initialValue * (1 + value * level); break; // 激光宽度
-            case 14: wsm.secondaryCritChance = initialValue * (1 + value * level); break; // 副武器暴击几率
-            case 15: wsm.secondaryCritMultiplier = initialValue * (1 + value * level); break; // 副武器暴击倍率
+            case 14: wsm.secondaryCritChance = initialValue + value * level; break; // 副武器暴击几率
+            case 15: wsm.secondaryCritMultiplier = initialValue + value * level; break; // 副武器暴击倍率
             case 16: wsm.secondaryMaxChainCount += (int)value; break; // 个数，保持加法
             case 17: wsm.secondaryChainSearchRadius = initialValue * (1 + value * level); break; // 连锁搜索半径
 
