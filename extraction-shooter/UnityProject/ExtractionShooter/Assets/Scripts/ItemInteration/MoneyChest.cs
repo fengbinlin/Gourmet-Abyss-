@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
-using System.Text; // 用于StringBuilder
+using System.Text;
 
 public class MoneyChest : MonoBehaviour
 {
@@ -12,16 +12,17 @@ public class MoneyChest : MonoBehaviour
 
     [Header("取钱设置")]
     [SerializeField] private float baseWithdrawTime = 2.0f;
-    [SerializeField] private float minWithdrawTime = 1.0f;
+    [SerializeField] private float minWithdrawTime = 0.3f;  // 最短取钱时间
     [SerializeField] private float maxWithdrawTime = 5.0f;
     [SerializeField] private float smoothEndDuration = 0.5f;
+    [SerializeField] private float minWithdrawRate = 20f;   // 新增：最小取钱速率（每秒至少取多少钱）
 
     [Header("UI设置")]
     [SerializeField] private GameObject moneyTextPrefab;
     [SerializeField] private Vector3 textOffset = new Vector3(0, 2f, 0);
-    [SerializeField] private bool useCompactNotation = true; // 是否使用简写
-    [SerializeField] private int decimalPlaces = 1; // 小数位数
-    [SerializeField] private bool showDecimalForSmallValues = false; // 小数值是否显示小数
+    [SerializeField] private bool useCompactNotation = true;
+    [SerializeField] private int decimalPlaces = 1;
+    [SerializeField] private bool showDecimalForSmallValues = false;
 
     [Header("交互设置")]
     [SerializeField] private KeyCode interactKey = KeyCode.E;
@@ -51,7 +52,7 @@ public class MoneyChest : MonoBehaviour
     private bool isBouncing = false;
     private Coroutine bounceCoroutine;
 
-    private int totalWithdrawAmount = 0;
+    private int withdrawStartAmount = 0;
     private int alreadyWithdrawn = 0;
 
     public delegate void MoneyChangedHandler(int newAmount, int changeAmount);
@@ -59,7 +60,6 @@ public class MoneyChest : MonoBehaviour
 
     public static MoneyChest Instance { get; private set; }
 
-    // 货币单位定义
     private static readonly string[] MoneyUnits = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No" };
 
     private void Awake()
@@ -116,8 +116,6 @@ public class MoneyChest : MonoBehaviour
         }
     }
 
-    private bool moneyJustAdded = false;
-
     public void AddMoney(int amount)
     {
         if (amount <= 0) return;
@@ -126,9 +124,6 @@ public class MoneyChest : MonoBehaviour
         PlayDepositEffects();
 
         OnMoneyChanged?.Invoke(currentMoney, amount);
-
-        if (isWithdrawing)
-            moneyJustAdded = true;
     }
 
     public int WithdrawMoney(int amount)
@@ -161,14 +156,29 @@ public class MoneyChest : MonoBehaviour
         return actualAmount;
     }
 
+    /// <summary>
+    /// 根据金额计算实际取钱时间
+    /// </summary>
+    private float CalculateWithdrawTime(int amount)
+    {
+        // 按最小速率取完需要的时间
+        float timeByMinRate = amount / minWithdrawRate;
+
+        // 取 baseWithdrawTime 和 timeByMinRate 中的较小值
+        // 这样小金额会更快取完
+        float actualTime = Mathf.Min(baseWithdrawTime, timeByMinRate);
+
+        // 限制在最小和最大时间范围内
+        return Mathf.Clamp(actualTime, minWithdrawTime, maxWithdrawTime);
+    }
+
     private void StartWithdrawing()
     {
         if (isWithdrawing || currentMoney <= 0) return;
 
         isWithdrawing = true;
         alreadyWithdrawn = 0;
-        totalWithdrawAmount = currentMoney;
-        baseWithdrawTime = Mathf.Clamp(baseWithdrawTime, minWithdrawTime, maxWithdrawTime);
+        withdrawStartAmount = currentMoney;
 
         if (withdrawCoroutine != null)
             StopCoroutine(withdrawCoroutine);
@@ -191,47 +201,62 @@ public class MoneyChest : MonoBehaviour
     private IEnumerator WithdrawMoneySmoothly()
     {
         float elapsedTime = 0f;
-        float mainWithdrawTime = baseWithdrawTime - smoothEndDuration;
+
+        // 根据金额动态计算取钱时间
+        float totalWithdrawTime = CalculateWithdrawTime(withdrawStartAmount);
+        float mainWithdrawTime = Mathf.Max(0.1f, totalWithdrawTime - smoothEndDuration);
+        float actualSmoothDuration = Mathf.Min(smoothEndDuration, totalWithdrawTime * 0.3f);
 
         while (isWithdrawing && currentMoney > 0)
         {
-            // 当前总金额始终等于已经取到 + 还剩的钱
-            int totalNow = alreadyWithdrawn + currentMoney;
-
-            // 按当前总金额算主阶段还是结束阶段
             if (elapsedTime <= mainWithdrawTime)
             {
                 float t = Mathf.Clamp01(elapsedTime / mainWithdrawTime);
-                float eased = t * t * (3f - 2f * t); // easeInOut
-                int targetAmount = Mathf.RoundToInt(totalNow * Mathf.Lerp(0f, 0.9f, eased));
-                int amountToWithdraw = targetAmount - alreadyWithdrawn;
+                float eased = t * t * (3f - 2f * t);
+                float targetRatio = Mathf.Lerp(0f, 0.9f, eased);
+
+                int targetWithdrawnThisRound = Mathf.RoundToInt(withdrawStartAmount * targetRatio);
+                int amountToWithdraw = targetWithdrawnThisRound - alreadyWithdrawn;
 
                 if (amountToWithdraw > 0)
-                    alreadyWithdrawn += WithdrawMoney(amountToWithdraw);
+                {
+                    int withdrawn = WithdrawMoney(amountToWithdraw);
+                    alreadyWithdrawn += withdrawn;
+                }
             }
             else
             {
-                // smoothEnd
                 float smoothElapsed = elapsedTime - mainWithdrawTime;
-                float smoothT = Mathf.Clamp01(smoothElapsed / smoothEndDuration);
+                float smoothT = Mathf.Clamp01(smoothElapsed / actualSmoothDuration);
                 float eased = 1f - Mathf.Pow(1f - smoothT, 3f);
-                int targetAmount = Mathf.RoundToInt(totalNow * Mathf.Lerp(0.9f, 1f, eased));
-                int amountToWithdraw = targetAmount - alreadyWithdrawn;
+                float targetRatio = Mathf.Lerp(0.9f, 1f, eased);
+
+                int targetWithdrawnThisRound = Mathf.RoundToInt(withdrawStartAmount * targetRatio);
+                int amountToWithdraw = targetWithdrawnThisRound - alreadyWithdrawn;
 
                 if (amountToWithdraw > 0)
-                    alreadyWithdrawn += WithdrawMoney(amountToWithdraw);
+                {
+                    int withdrawn = WithdrawMoney(amountToWithdraw);
+                    alreadyWithdrawn += withdrawn;
+                }
+
+                // 如果结束阶段完成但还有钱，重新开始一轮
+                if (smoothT >= 1f && currentMoney > 0)
+                {
+                    elapsedTime = 0f;
+                    alreadyWithdrawn = 0;
+                    withdrawStartAmount = currentMoney;
+
+                    // 重新计算新一轮的时间
+                    totalWithdrawTime = CalculateWithdrawTime(withdrawStartAmount);
+                    mainWithdrawTime = Mathf.Max(0.1f, totalWithdrawTime - smoothEndDuration);
+                    actualSmoothDuration = Mathf.Min(smoothEndDuration, totalWithdrawTime * 0.3f);
+                    continue;
+                }
             }
 
-            // 时间推进
             elapsedTime += Time.deltaTime;
             yield return null;
-
-            // 当中途加钱时，直接重置 elapsedTime，让曲线重新开始
-            if (moneyJustAdded)
-            {
-                elapsedTime = 0f;
-                moneyJustAdded = false;
-            }
         }
 
         isWithdrawing = false;
@@ -252,10 +277,8 @@ public class MoneyChest : MonoBehaviour
 
         if (Input.GetKeyDown(interactKey))
         {
-            // 按下当帧立即取一次钱，比如一次取 10% 或最少 1 块
             int firstWithdraw = WithdrawMoney(Mathf.Max(1, Mathf.CeilToInt(currentMoney * 0.1f)));
 
-            // 如果仍有钱，进入持续取钱状态
             if (currentMoney > 0)
                 StartWithdrawing();
         }
@@ -277,16 +300,10 @@ public class MoneyChest : MonoBehaviour
         if (moneyLight != null) moneyLight.enabled = false;
     }
 
-    /// <summary>
-    /// 格式化金额显示，支持简写（如K、M、B、T等）
-    /// </summary>
-    /// <param name="amount">金额数值</param>
-    /// <returns>格式化后的字符串</returns>
     public string FormatMoney(int amount)
     {
         if (!useCompactNotation)
         {
-            // 如果不使用简写，直接返回逗号分隔的数字
             return amount.ToString("N0");
         }
 
@@ -297,20 +314,18 @@ public class MoneyChest : MonoBehaviour
 
         int unitIndex = 0;
         double value = amount;
-        
+
         while (value >= 1000.0 && unitIndex < MoneyUnits.Length - 1)
         {
             value /= 1000.0;
             unitIndex++;
         }
 
-        // 构建格式化字符串
         StringBuilder format = new StringBuilder("0");
-        
-        // 如果值小于10或者需要显示小数，则添加小数位
-        bool shouldShowDecimal = (value < 10 && value != Mathf.Floor((float)value)) || 
+
+        bool shouldShowDecimal = (value < 10 && value != Mathf.Floor((float)value)) ||
                                 (showDecimalForSmallValues && value < 1000);
-                                
+
         if (shouldShowDecimal && decimalPlaces > 0)
         {
             format.Append(".");
@@ -327,10 +342,8 @@ public class MoneyChest : MonoBehaviour
     {
         if (moneyText != null)
         {
-            // 使用新的格式化方法
             moneyText.text = FormatMoney(currentMoney);
-            
-            // 颜色设置保持不变
+
             if (currentMoney == 0)
                 moneyText.color = Color.white;
             else if (currentMoney < 100)
@@ -411,8 +424,7 @@ public class MoneyChest : MonoBehaviour
         if (isBouncing && bounceCoroutine == null)
             bounceCoroutine = StartCoroutine(BounceAnimation());
     }
-    
-    // 调试用：显示简写示例
+
     private void OnGUI()
     {
         if (debugMode)
