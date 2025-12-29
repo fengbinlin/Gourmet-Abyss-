@@ -264,10 +264,10 @@ MonoBehaviour:
     sellTimePerUnit: 6
   - type: 7
     pricePerUnit: 30
-    sellTimePerUnit: 12
+    sellTimePerUnit: 18
   - type: 8
     pricePerUnit: 100
-    sellTimePerUnit: 24
+    sellTimePerUnit: 54
   - type: 20
     pricePerUnit: 12
     sellTimePerUnit: 35
