@@ -610,7 +610,9 @@ public class EnemyHealth : MonoBehaviour
             {
                 // 生成随机数量的掉落物实例
                 int itemAmount = Random.Range(lootItem.minAmount, lootItem.maxAmount + 1);
-                
+                itemAmount*=(int)WeaponStatsManager.Instance.enemtLootDensityBindings[(int)lootItem.resourceType].lootDensityMultiplier;
+                print("资源编号:"+(int)lootItem.resourceType);
+                print("加成值:"+(int)WeaponStatsManager.Instance.enemtLootDensityBindings[(int)lootItem.resourceType].lootDensityMultiplier);
                 for (int i = 0; i < itemAmount; i++)
                 {
                     // 生成位置在敌人周围随机偏移

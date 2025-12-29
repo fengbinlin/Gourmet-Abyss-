@@ -6,15 +6,22 @@ using System.Collections.Generic;
 public class MapDensityBinding
 {
     public PlantGenerationSettings settings;   // 对应的Setting文件
-    [Range(0f, 5f)] public float densityMultiplier = 1f; // 乘积因子
+    public float densityMultiplier = 1f; // 乘积因子
 }
 
+[System.Serializable]
+public class EnemyLootBinding
+{
+    public ResourceType type;   // 对应的Setting文件
+    public float lootDensityMultiplier = 1f; // 乘积因子
+}
 
 public class WeaponStatsManager : MonoBehaviour
 {
     public static WeaponStatsManager Instance { get; private set; }
 
     [Header("主武器数值")]
+    public bool isPrimaryEnable=true;
     public float primaryFireRate = 0.2f;
     public int primaryPelletCount = 1;
     public int primaryPenetrationCount = 0;
@@ -26,6 +33,7 @@ public class WeaponStatsManager : MonoBehaviour
     public float primaryMaxTravelDistance = 100f;
 
     [Header("副武器数值")]
+    public bool isSecondaryEnable=true;
     public float secondaryDamageValue = 20f;
     public float secondaryFireRate = 0.5f;
     public float secondaryLaserLength = 30f;
@@ -37,8 +45,8 @@ public class WeaponStatsManager : MonoBehaviour
     public float secondaryChainSearchRadius = 10f;
 
     [Header("商店数值")]
-    [Range(0.1f, 5f)] public float sellPriceMultiplier = 1f; // 售卖价格倍率
-    [Range(0.1f, 5f)] public float sellTimeMultiplier = 1f;   // 售卖时间缩短倍率
+    public float sellPriceMultiplier = 1f; // 售卖价格倍率
+    public float sellTimeMultiplier = 1f;   // 售卖时间缩短倍率
     public int shopSlotCount = 4;
     public int slotCapacity = 4;
 
@@ -60,7 +68,8 @@ public class WeaponStatsManager : MonoBehaviour
 
     [Tooltip("各PlantGenerationSettings专属密度乘积绑定")]
     public List<MapDensityBinding> mapDensityBindings = new List<MapDensityBinding>();
-
+    [Tooltip("各掉落物专属密度乘积绑定")]
+    public List<EnemyLootBinding> enemtLootDensityBindings = new List<EnemyLootBinding>();
     // 运行时用的快速查找字典
     private Dictionary<string, float> mapDensityMultipliers = new Dictionary<string, float>();
 

@@ -284,6 +284,16 @@ public class SkillTreeInitializer : MonoBehaviour
             return;
         }
 
+        // 检查是否是凋落物密度元组效果 (31,(levelID,multiplier))
+        var lootDensityMatch = Regex.Match(effect, @"\(31,\((\d+),([\d.]+)\)\)");
+        if (lootDensityMatch.Success)
+        {
+            // 地图密度特殊效果
+            int resourceID = int.Parse(lootDensityMatch.Groups[1].Value);
+            float multiplier = float.Parse(lootDensityMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+            ApplyLootDensityEffect(resourceID, multiplier, wsm, level);
+            return;
+        }
         // 普通效果 (statID,value)
         var normalMatch = Regex.Match(effect, @"\((\d+),([\d.-]+)\)");
         if (normalMatch.Success)
@@ -293,7 +303,24 @@ public class SkillTreeInitializer : MonoBehaviour
             ApplyStatEffect(statID, value, wsm, level);
         }
     }
-
+    private void ApplyLootDensityEffect(int RecourcesID, float multiplier, WeaponStatsManager wsm, int level = 1)
+    {
+        // 通过levelID查找对应的地图密度绑定
+        if (RecourcesID >= 0 && RecourcesID < wsm.enemtLootDensityBindings.Count)
+        {
+            var binding = wsm.enemtLootDensityBindings[RecourcesID];
+            if (binding.type != ResourceType.None)
+            {
+                // 应用密度乘数
+                binding.lootDensityMultiplier = 1 * (1 + multiplier * level);
+                wsm.RebuildDensityDictionary();
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"未找到凋落物资源ID {RecourcesID} 对应的凋落物资源设置");
+        }
+    }
     private void ApplyMapDensityEffect(int levelID, float multiplier, WeaponStatsManager wsm, int level = 1)
     {
         // 通过levelID查找对应的地图密度绑定
