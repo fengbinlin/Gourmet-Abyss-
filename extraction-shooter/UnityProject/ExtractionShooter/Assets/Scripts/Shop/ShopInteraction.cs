@@ -189,24 +189,24 @@ public class ShopInteraction : MonoBehaviour
             return;
 
         InventoryItemUI firstSlot = FindFirstNonEmptyInventorySlot();
-        if (firstSlot == null)
-        {
-            ShowMessage(noItemsMessage, Color.red);
-            PlaySound(errorSound);
-            return;
-        }
+        //if (firstSlot == null)
+        //{
+        //    ShowMessage(noItemsMessage, Color.red);
+        //    PlaySound(errorSound);
+        //    return;
+        //}
 
         ResourceType itemType = firstSlot.GetItemType();
         int amountToTransfer = 1;
         // 每次加入前都检测能否加入商店
         if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
             return; // 商店满，直接不处理
-        if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
-        {
-            ShowMessage(shopFullMessage, Color.red);
-            PlaySound(errorSound);
-            return;
-        }
+        //if (!shopManager.CanReceiveItem(itemType, amountToTransfer))
+        //{
+        //    ShowMessage(shopFullMessage, Color.red);
+        //    PlaySound(errorSound);
+        //    return;
+        //}
 
         if (RemoveItemFromInventory(firstSlot, itemType, amountToTransfer, out int removedCount))
         {
