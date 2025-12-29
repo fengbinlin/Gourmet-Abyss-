@@ -146,6 +146,7 @@ public class SecondaryWeapon : MonoBehaviour
     private void Start()
     {
         // 从 WeaponStatsManager 获取数值
+        maxChainCount = 1;
         damageTickInterval = WeaponStatsManager.Instance.secondaryFireRate;
         damageValue = WeaponStatsManager.Instance.secondaryDamageValue;
         laserLength = WeaponStatsManager.Instance.secondaryLaserLength;
@@ -153,7 +154,7 @@ public class SecondaryWeapon : MonoBehaviour
         laserWidth = WeaponStatsManager.Instance.secondaryLaserWidth;
         critChance = WeaponStatsManager.Instance.secondaryCritChance;
         critMultiplier = WeaponStatsManager.Instance.secondaryCritMultiplier;
-        maxChainCount = WeaponStatsManager.Instance.secondaryMaxChainCount;
+        maxChainsPerEnemy = WeaponStatsManager.Instance.secondaryMaxChainCount;
         chainSearchRadius = WeaponStatsManager.Instance.secondaryChainSearchRadius;
     }
     public void Initialize(Animator anim, Camera cam, TopDownController ctrl)
