@@ -122,6 +122,7 @@ public class LevelManager : MonoBehaviour
             homeVehicle.TransitionToWhite(transitionDuration);
         }
 
+
         // 3. 其他过渡效果
         if (saturationTransition != null)
         {
@@ -202,6 +203,9 @@ public class LevelManager : MonoBehaviour
 
     private IEnumerator ExitLevelProcess(string levelName)
     {
+        // 8. 重置游戏状态
+
+        BattleValManager.Instance?.StopConsuming();
         isTransitioning = true;
 
         // 1. 触发UI动画
@@ -287,10 +291,14 @@ public class LevelManager : MonoBehaviour
         loadedLevels.Remove(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
+        BattleValManager.Instance?.ResetValues();
     }
 
     private IEnumerator FromLevelToHomeProcess(string levelName)
     {
+        // 8. 重置游戏状态
+
+        BattleValManager.Instance?.StopConsuming();
         isTransitioning = true;
 
         // 1. 触发UI动画
@@ -357,13 +365,12 @@ public class LevelManager : MonoBehaviour
         UITapBounce.Instance.ResetPosition();
         mainUI.SetActive(false);
         mainUI.SetActive(true);
-        // 8. 重置游戏状态
-        BattleValManager.Instance?.ResetValues();
-        BattleValManager.Instance?.StopConsuming();
+
         GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
         loadedLevels.Remove(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
+        BattleValManager.Instance?.ResetValues();
     }
 
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)

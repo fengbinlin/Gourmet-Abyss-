@@ -6,6 +6,7 @@ using Microsoft.Unity.VisualStudio.Editor;
 using UnityEngine.UI;
 public class BattleValManager : MonoBehaviour
 {
+    public Animator mainUIAnimator;
     public static BattleValManager Instance { get; private set; }
     public GameObject subweaponUI;
     [Header("氧气设置")]
@@ -35,7 +36,10 @@ public class BattleValManager : MonoBehaviour
     public event Action OnOxygenDepleted;    // 氧气耗尽
     public event Action OnPrimaryAmmoEmpty;  // 主武器弹药耗尽
     public event Action OnSecondaryAmmoEmpty; // 副武器弹药耗尽
-
+    [Header("进度条效果控制器")]
+    [SerializeField] private ResourceBarController oxygenBarController;
+    [SerializeField] private ResourceBarController primaryAmmoBarController;
+    [SerializeField] private ResourceBarController secondaryAmmoBarController;
     #region 公共属性
     public float OxygenCurrent => oxygenCurrent;
     public float OxygenMax => oxygenMax;
@@ -86,6 +90,20 @@ public class BattleValManager : MonoBehaviour
         oxgImage.fillAmount = OxygenCurrent * 1.0f / oxygenMax;
         weaponImage.fillAmount = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
         subWeaponImage.fillAmount = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+        // 计算百分比
+        float oxygenPercent = OxygenPercentage;
+        float primaryPercent = PrimaryAmmoPercentage;
+        float secondaryPercent = SecondaryAmmoPercentage;
+        // 更新进度条效果
+        if (oxygenBarController != null)
+            oxygenBarController.UpdateProgress(oxygenPercent);
+
+        if (primaryAmmoBarController != null)
+            primaryAmmoBarController.UpdateProgress(primaryPercent);
+
+        if (secondaryAmmoBarController != null)
+            secondaryAmmoBarController.UpdateProgress(secondaryPercent);
+
         ConsumeOxygen();
     }
 
@@ -241,8 +259,9 @@ public class BattleValManager : MonoBehaviour
     /// </summary>
     public void ResetValues()
     {
+        mainUIAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
         // 从WeaponStatsManager获取最新的数值
-        oxygenMax=WeaponStatsManager.Instance.oxygenMax;
+        oxygenMax =WeaponStatsManager.Instance.oxygenMax;
         oxygenConsumeRate=WeaponStatsManager.Instance.oxygenConsumeRate;
         primaryAmmoMax=WeaponStatsManager.Instance.primaryAmmoMax;
         primaryAmmoConsumePerShot=WeaponStatsManager.Instance.primaryAmmoConsumePerShot;
@@ -251,6 +270,17 @@ public class BattleValManager : MonoBehaviour
         oxygenCurrent = oxygenMax;
         primaryAmmoCurrent = primaryAmmoMax;
         secondaryAmmoCurrent = secondaryAmmoMax;
+
+
+        // 重置进度条到初始状态
+        if (oxygenBarController != null)
+            oxygenBarController.ResetBar();
+
+        if (primaryAmmoBarController != null)
+            primaryAmmoBarController.ResetBar();
+
+        if (secondaryAmmoBarController != null)
+            secondaryAmmoBarController.ResetBar();
 
         OnOxygenChanged?.Invoke();
         OnPrimaryAmmoChanged?.Invoke();
