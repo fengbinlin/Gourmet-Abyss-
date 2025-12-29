@@ -30,6 +30,8 @@ public class Projectile : MonoBehaviour
     [SerializeField] private bool useDamageFalloff = false;
     [SerializeField] private AnimationCurve damageFalloffCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.5f);
     [SerializeField] private float maxFalloffDistance = 50f;
+    [Header("暴击效果")]
+    [SerializeField] private GameObject criticalHitEffext;
 
     [Header("调试设置")]
     [SerializeField] private bool debugMode = false;
@@ -335,13 +337,25 @@ public class Projectile : MonoBehaviour
                 }
             }
         }
-
-        // 播放特效
-        if (impactVFX != null)
+        if (isCritical)
         {
-            Quaternion rotation = Quaternion.LookRotation(hitNormal);
-            Instantiate(impactVFX, hitPoint, rotation);
+             // 播放特效
+            if (criticalHitEffext != null)
+            {
+                Quaternion rotation = Quaternion.LookRotation(hitNormal);
+                Instantiate(criticalHitEffext, hitPoint, rotation);
+            }
         }
+        else
+        {
+            // 播放特效
+            if (impactVFX != null)
+            {
+                Quaternion rotation = Quaternion.LookRotation(hitNormal);
+                Instantiate(impactVFX, hitPoint, rotation);
+            }
+        }
+
 
         // 处理穿透
         if (currentPenetrationCount > 0)

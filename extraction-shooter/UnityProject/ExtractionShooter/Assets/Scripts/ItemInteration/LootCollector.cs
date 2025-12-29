@@ -38,6 +38,10 @@ public class LootCollector : MonoBehaviour
     [Tooltip("植物资源是否直接加入数值管理器而不经过背包")]
     [SerializeField] private bool plantDirectToGameVal = true; // 植物资源是否直接加入数值管理器
 
+    [Header("背包已满设置")]
+    [Tooltip("背包已满时是否仍然飞向玩家并销毁")]
+    [SerializeField] private bool flyAndDestroyWhenFull = true; // 背包已满时是否仍然飞向玩家并销毁
+
     private Transform player;
     private Rigidbody rb;
     private Collider col;
@@ -51,6 +55,7 @@ public class LootCollector : MonoBehaviour
     private bool canBeCollected = false; // 标记是否可以收集
     private bool playerInTrigger = false; // 标记玩家是否在触发器中
     private Coroutine waitForCollectionCoroutine; // 等待收集的协程
+    private bool isInventoryFull = false; // 标记背包是否已满
 
     private void Awake()
     {
@@ -208,19 +213,33 @@ public class LootCollector : MonoBehaviour
             else
             {
                 // 检查背包空间
-                if (CheckInventorySpace())
+                bool hasSpace = CheckInventorySpace();
+                isInventoryFull = !hasSpace;
+                
+                if (hasSpace)
                 {
                     canBeCollected = true;
                     StartFlyToPlayer();
                 }
                 else
                 {
-                    // 背包已满，开始等待重试
-                    if (waitForCollectionCoroutine != null)
+                    // 背包已满
+                    if (flyAndDestroyWhenFull)
                     {
-                        StopCoroutine(waitForCollectionCoroutine);
+                        // 即使背包已满，也直接开始飞向玩家
+                        canBeCollected = true;
+                        isInventoryFull = true;
+                        StartFlyToPlayer();
                     }
-                    waitForCollectionCoroutine = StartCoroutine(WaitForCollectionInTrigger());
+                    else
+                    {
+                        // 背包已满，开始等待重试
+                        if (waitForCollectionCoroutine != null)
+                        {
+                            StopCoroutine(waitForCollectionCoroutine);
+                        }
+                        waitForCollectionCoroutine = StartCoroutine(WaitForCollectionInTrigger());
+                    }
                 }
             }
         }
@@ -255,9 +274,20 @@ public class LootCollector : MonoBehaviour
         {
             yield return new WaitForSeconds(0.5f); // 每0.5秒检查一次
 
-            if (CheckInventorySpace())
+            bool hasSpace = CheckInventorySpace();
+            isInventoryFull = !hasSpace;
+            
+            if (hasSpace)
             {
                 canBeCollected = true;
+                StartFlyToPlayer();
+                yield break;
+            }
+            else if (flyAndDestroyWhenFull)
+            {
+                // 即使背包已满，也直接开始飞向玩家
+                canBeCollected = true;
+                isInventoryFull = true;
                 StartFlyToPlayer();
                 yield break;
             }
@@ -355,7 +385,10 @@ public class LootCollector : MonoBehaviour
         if (!isPlantResource || !plantDirectToGameVal)
         {
             // 双重检查背包空间
-            if (!CheckInventorySpace())
+            bool hasSpace = CheckInventorySpace();
+            isInventoryFull = !hasSpace;
+            
+            if (!hasSpace && !flyAndDestroyWhenFull)
             {
                 Debug.LogWarning($"收集时背包已满: {resourceAmount} 个 {resourceType}");
                 canBeCollected = false;
@@ -387,40 +420,50 @@ public class LootCollector : MonoBehaviour
 
         bool addedSuccessfully = false;
 
-        // 如果是植物资源并且直接加入数值管理器
-        if (isPlantResource && plantDirectToGameVal)
+        // 检查背包是否已满
+        if (!isInventoryFull)
         {
-            // 直接加入数值管理器
-            if (GameValManager.Instance != null)
+            // 如果是植物资源并且直接加入数值管理器
+            if (isPlantResource && plantDirectToGameVal)
             {
-                addedSuccessfully = GameValManager.Instance.AddResource(resourceType, resourceAmount);
-                Debug.Log($"植物资源直接加入数值管理器: {resourceAmount} 个 {resourceType}");
+                // 直接加入数值管理器
+                if (GameValManager.Instance != null)
+                {
+                    addedSuccessfully = GameValManager.Instance.AddResource(resourceType, resourceAmount);
+                    Debug.Log($"植物资源直接加入数值管理器: {resourceAmount} 个 {resourceType}");
+                }
+                else
+                {
+                    Debug.LogError("GameValManager实例为空，无法添加植物资源");
+                    addedSuccessfully = false;
+                }
             }
             else
             {
-                Debug.LogError("GameValManager实例为空，无法添加植物资源");
-                addedSuccessfully = false;
+                // 正常流程：先添加到背包，再更新数值管理器
+                InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
+
+                if (inventoryManager != null)
+                {
+                    addedSuccessfully = inventoryManager.AddItem(resourceType, resourceAmount);
+                }
+
+                if (addedSuccessfully)
+                {
+                    // 同时更新资源管理器
+                    if (GameValManager.Instance != null)
+                    {
+                        GameValManager.Instance.AddResource(resourceType, resourceAmount);
+                    }
+                    Debug.Log($"已收集: {resourceAmount} 个 {resourceType}");
+                }
             }
         }
         else
         {
-            // 正常流程：先添加到背包，再更新数值管理器
-            InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
-
-            if (inventoryManager != null)
-            {
-                addedSuccessfully = inventoryManager.AddItem(resourceType, resourceAmount);
-            }
-
-            if (addedSuccessfully)
-            {
-                // 同时更新资源管理器
-                if (GameValManager.Instance != null)
-                {
-                    GameValManager.Instance.AddResource(resourceType, resourceAmount);
-                }
-                Debug.Log($"已收集: {resourceAmount} 个 {resourceType}");
-            }
+            // 背包已满，不添加任何数值，但仍然销毁物品
+            Debug.Log($"背包已满，物品销毁但未添加数值: {resourceAmount} 个 {resourceType}");
+            addedSuccessfully = true; // 标记为成功，以便销毁物品
         }
 
         if (addedSuccessfully)
@@ -456,9 +499,20 @@ public class LootCollector : MonoBehaviour
         {
             yield return new WaitForSeconds(0.5f); // 每0.5秒检查一次
 
-            if (CheckInventorySpace())
+            bool hasSpace = CheckInventorySpace();
+            isInventoryFull = !hasSpace;
+            
+            if (hasSpace)
             {
                 canBeCollected = true;
+                StartFlyToPlayer();
+                yield break;
+            }
+            else if (flyAndDestroyWhenFull)
+            {
+                // 即使背包已满，也直接开始飞向玩家
+                canBeCollected = true;
+                isInventoryFull = true;
                 StartFlyToPlayer();
                 yield break;
             }
