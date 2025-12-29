@@ -43,16 +43,19 @@ public class PlantGenerator : MonoBehaviour
     private Dictionary<GameObject, int> plantCountByPrefab = new Dictionary<GameObject, int>();
     private Dictionary<GameObject, int> plantTargetCountByPrefab = new Dictionary<GameObject, int>();
 
+    public float initDensity = 1f;
+    public int MapIndex = 0;
     // 调试统计
     private int totalAttempts = 0;
     private int noisePassed = 0;
     private int groundPassed = 0;
     private int prefabPassed = 0;
     private int regenerationCount = 0;
-
+    
+    
     private void Start()
     {
-        float densityMultiplier = WeaponStatsManager.Instance.GetMapDensityMultiplier(settings);
+        float densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
         print("地图密度"+densityMultiplier);
         ManagertdensityMultiplier = densityMultiplier;
         if (generateOnStart)
@@ -101,16 +104,16 @@ public class PlantGenerator : MonoBehaviour
         // === 在生成之前读取密度乘积并应用 ===
         if (WeaponStatsManager.Instance != null)
         {
-            float densityMultiplier = WeaponStatsManager.Instance.GetMapDensityMultiplier(settings);
+            float densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
             ManagertdensityMultiplier = densityMultiplier;
-            float originalBaseDensity = settings.baseDensity;
+            //float originalBaseDensity = settings.baseDensity;
 
-            // settings.baseDensity = Mathf.Clamp01(originalBaseDensity * densityMultiplier);
+            //settings.baseDensity = initDensity*densityMultiplier;
 
-            if (showDebugInfo)
-            {
-                Debug.Log($"应用密度乘积：原始={originalBaseDensity} 乘积={densityMultiplier} 结果={settings.baseDensity}");
-            }
+            //if (showDebugInfo)
+            //{
+            //    Debug.Log($"应用密度乘积：原始={initDensity} 乘积={densityMultiplier} 结果={settings.baseDensity}");
+            //}
         }
 
         // 设置随机种子
