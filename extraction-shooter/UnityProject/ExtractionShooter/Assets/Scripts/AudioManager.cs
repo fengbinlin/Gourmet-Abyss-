@@ -4,34 +4,34 @@ using UnityEngine;
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
-    
+
     [System.Serializable]
     public class AudioData
     {
         public string audioID;
         public AudioClip audioClip;
     }
-    
+
     [System.Serializable]
     public class AudioConfig
     {
         [Header("音频配置列表")]
         public List<AudioData> audioDatas = new List<AudioData>();
-        
+
         [Header("播放限制设置")]
         [Tooltip("最大同时播放音频数量，0表示无限制")]
         public int maxSimultaneousAudio = 0; // 0表示无限制
-        
+
         [Tooltip("达到最大数量时的处理策略")]
         public OverflowStrategy overflowStrategy = OverflowStrategy.RejectNew;
-        
+
         [Tooltip("对象池初始大小")]
         public int initialPoolSize = 20;
-        
+
         [Tooltip("是否在Awake时预加载所有音频")]
         public bool preloadAllAudio = true;
     }
-    
+
     public enum OverflowStrategy
     {
         RejectNew,      // 拒绝新的播放请求
@@ -39,15 +39,15 @@ public class AudioManager : MonoBehaviour
         StopQuietest,   // 停止音量最小的音频
         StopSameType   // 停止相同类型的音频(如果存在)
     }
-    
+
     [SerializeField] private AudioConfig config = new AudioConfig();
-    
+
     private Dictionary<string, AudioClip> audioDictionary = new Dictionary<string, AudioClip>();
     private Queue<AudioSource> audioSourcePool = new Queue<AudioSource>();
     private List<ActiveAudioInfo> activeAudioSources = new List<ActiveAudioInfo>();
     private float cleanupTimer = 0f;
     private const float CLEANUP_INTERVAL = 1f; // 每1秒清理一次
-    
+
     // 活跃音频信息
     private class ActiveAudioInfo
     {
@@ -55,7 +55,7 @@ public class AudioManager : MonoBehaviour
         public string audioID;
         public float startTime;
         public float volume;
-        
+
         public ActiveAudioInfo(AudioSource source, string id, float vol)
         {
             audioSource = source;
@@ -64,7 +64,7 @@ public class AudioManager : MonoBehaviour
             volume = vol;
         }
     }
-    
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -72,18 +72,18 @@ public class AudioManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
         Initialize();
     }
-    
+
     private void Initialize()
     {
         InitializeAudioDictionary();
         InitializeObjectPool();
     }
-    
+
     private void InitializeAudioDictionary()
     {
         audioDictionary.Clear();
@@ -99,7 +99,7 @@ public class AudioManager : MonoBehaviour
             }
         }
     }
-    
+
     private void InitializeObjectPool()
     {
         for (int i = 0; i < config.initialPoolSize; i++)
@@ -107,7 +107,7 @@ public class AudioManager : MonoBehaviour
             CreatePooledAudioSource();
         }
     }
-    
+
     private void CreatePooledAudioSource()
     {
         GameObject audioSourceObj = new GameObject($"PooledAudioSource");
@@ -117,7 +117,7 @@ public class AudioManager : MonoBehaviour
         audioSourceObj.SetActive(false);
         audioSourcePool.Enqueue(audioSource);
     }
-    
+
     private void Update()
     {
         // 定期清理已播放完毕的音频
@@ -128,7 +128,7 @@ public class AudioManager : MonoBehaviour
             cleanupTimer = 0f;
         }
     }
-    
+
     /// <summary>
     /// 清理已播放完毕的音频
     /// </summary>
@@ -137,19 +137,25 @@ public class AudioManager : MonoBehaviour
         for (int i = activeAudioSources.Count - 1; i >= 0; i--)
         {
             var audioInfo = activeAudioSources[i];
-            if (audioInfo.audioSource == null || 
-                !audioInfo.audioSource.gameObject.activeSelf || 
+            if (audioInfo.audioSource == null ||
+                !audioInfo.audioSource.gameObject.activeSelf ||
                 !audioInfo.audioSource.isPlaying)
             {
                 if (audioInfo.audioSource != null)
                 {
                     ReturnAudioSourceToPool(audioInfo.audioSource);
                 }
-                activeAudioSources.RemoveAt(i);
+                else
+                {
+                    // 只有当 audioSource 为 null 时才手动移除
+                    // 因为 ReturnAudioSourceToPool 不会被调用
+                    activeAudioSources.RemoveAt(i);
+                }
+                // 删掉原来这行: activeAudioSources.RemoveAt(i);
             }
         }
     }
-    
+
     /// <summary>
     /// 播放音频
     /// </summary>
@@ -163,9 +169,9 @@ public class AudioManager : MonoBehaviour
             Debug.LogError($"未找到音频ID: {audioID}");
             return false;
         }
-        
+
         // 检查是否达到最大数量限制
-        if (config.maxSimultaneousAudio > 0 && 
+        if (config.maxSimultaneousAudio > 0 &&
             activeAudioSources.Count >= config.maxSimultaneousAudio)
         {
             if (!HandleOverflow(audioID, volume))
@@ -174,10 +180,10 @@ public class AudioManager : MonoBehaviour
                 return false;
             }
         }
-        
+
         return PlayNewAudio(audioID, volume);
     }
-    
+
     /// <summary>
     /// 处理音频数量超限的情况
     /// </summary>
@@ -188,21 +194,21 @@ public class AudioManager : MonoBehaviour
         {
             case OverflowStrategy.RejectNew:
                 return false;
-                
+
             case OverflowStrategy.StopOldest:
                 return StopOldestAudio(newAudioID, newVolume);
-                
+
             case OverflowStrategy.StopQuietest:
                 return StopQuietestAudio(newAudioID, newVolume);
-                
+
             case OverflowStrategy.StopSameType:
                 return StopSameTypeAudio(newAudioID, newVolume);
-                
+
             default:
                 return false;
         }
     }
-    
+
     /// <summary>
     /// 播放新音频
     /// </summary>
@@ -215,25 +221,25 @@ public class AudioManager : MonoBehaviour
             CreatePooledAudioSource();
             audioSource = audioSourcePool.Dequeue();
         }
-        
+
         if (audioSource == null)
         {
             Debug.LogError("无法获取AudioSource");
             return false;
         }
-        
+
         audioSource.gameObject.name = $"Audio_{audioID}_{System.Guid.NewGuid().ToString().Substring(0, 8)}";
         audioSource.clip = audioDictionary[audioID];
         audioSource.volume = Mathf.Clamp01(volume);
         audioSource.gameObject.SetActive(true);
         audioSource.Play();
-        
+
         // 添加到活跃音频列表
         activeAudioSources.Add(new ActiveAudioInfo(audioSource, audioID, volume));
-        
+
         return true;
     }
-    
+
     /// <summary>
     /// 停止最早播放的音频
     /// </summary>
@@ -241,11 +247,11 @@ public class AudioManager : MonoBehaviour
     {
         if (activeAudioSources.Count == 0)
             return false;
-            
+
         // 找到最早播放的音频
         ActiveAudioInfo oldest = null;
         float oldestTime = float.MaxValue;
-        
+
         foreach (var audioInfo in activeAudioSources)
         {
             if (audioInfo.startTime < oldestTime)
@@ -254,16 +260,16 @@ public class AudioManager : MonoBehaviour
                 oldest = audioInfo;
             }
         }
-        
+
         if (oldest != null)
         {
             StopAndReturnAudioSource(oldest.audioSource);
             return PlayNewAudio(newAudioID, newVolume);
         }
-        
+
         return false;
     }
-    
+
     /// <summary>
     /// 停止音量最小的音频
     /// </summary>
@@ -271,11 +277,11 @@ public class AudioManager : MonoBehaviour
     {
         if (activeAudioSources.Count == 0)
             return false;
-            
+
         // 找到音量最小的音频
         ActiveAudioInfo quietest = null;
         float lowestVolume = float.MaxValue;
-        
+
         foreach (var audioInfo in activeAudioSources)
         {
             if (audioInfo.volume < lowestVolume)
@@ -284,16 +290,16 @@ public class AudioManager : MonoBehaviour
                 quietest = audioInfo;
             }
         }
-        
+
         if (quietest != null && quietest.volume < newVolume)
         {
             StopAndReturnAudioSource(quietest.audioSource);
             return PlayNewAudio(newAudioID, newVolume);
         }
-        
+
         return false;
     }
-    
+
     /// <summary>
     /// 停止相同类型的音频(如果存在)
     /// </summary>
@@ -308,11 +314,11 @@ public class AudioManager : MonoBehaviour
                 return PlayNewAudio(newAudioID, newVolume);
             }
         }
-        
+
         // 如果没有相同类型的，则停止最早播放的
         return StopOldestAudio(newAudioID, newVolume);
     }
-    
+
     /// <summary>
     /// 获取可用的AudioSource
     /// </summary>
@@ -324,7 +330,7 @@ public class AudioManager : MonoBehaviour
         }
         return null;
     }
-    
+
     /// <summary>
     /// 停止并返回AudioSource到对象池
     /// </summary>
@@ -336,7 +342,7 @@ public class AudioManager : MonoBehaviour
             ReturnAudioSourceToPool(audioSource);
         }
     }
-    
+
     /// <summary>
     /// 返回AudioSource到对象池
     /// </summary>
@@ -348,7 +354,7 @@ public class AudioManager : MonoBehaviour
             audioSource.clip = null;
             audioSource.gameObject.SetActive(false);
             audioSourcePool.Enqueue(audioSource);
-            
+
             // 从活跃列表中移除
             for (int i = activeAudioSources.Count - 1; i >= 0; i--)
             {
@@ -360,7 +366,7 @@ public class AudioManager : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// 获取可用音频源数量
     /// </summary>
@@ -368,7 +374,7 @@ public class AudioManager : MonoBehaviour
     {
         return audioSourcePool.Count;
     }
-    
+
     /// <summary>
     /// 获取活跃音频数量
     /// </summary>
@@ -376,7 +382,7 @@ public class AudioManager : MonoBehaviour
     {
         return activeAudioSources.Count;
     }
-    
+
     /// <summary>
     /// 获取特定音频ID的活跃实例数量
     /// </summary>
@@ -392,7 +398,7 @@ public class AudioManager : MonoBehaviour
         }
         return count;
     }
-    
+
     /// <summary>
     /// 停止所有音频
     /// </summary>
@@ -407,7 +413,7 @@ public class AudioManager : MonoBehaviour
         }
         activeAudioSources.Clear();
     }
-    
+
     /// <summary>
     /// 停止特定音频ID的所有实例
     /// </summary>
@@ -415,14 +421,14 @@ public class AudioManager : MonoBehaviour
     {
         for (int i = activeAudioSources.Count - 1; i >= 0; i--)
         {
-            if (activeAudioSources[i].audioID == audioID && 
+            if (activeAudioSources[i].audioID == audioID &&
                 activeAudioSources[i].audioSource != null)
             {
                 StopAndReturnAudioSource(activeAudioSources[i].audioSource);
             }
         }
     }
-    
+
     /// <summary>
     /// 检查音频是否正在播放
     /// </summary>
@@ -430,8 +436,8 @@ public class AudioManager : MonoBehaviour
     {
         foreach (var audioInfo in activeAudioSources)
         {
-            if (audioInfo.audioID == audioID && 
-                audioInfo.audioSource != null && 
+            if (audioInfo.audioID == audioID &&
+                audioInfo.audioSource != null &&
                 audioInfo.audioSource.isPlaying)
             {
                 return true;
@@ -439,7 +445,7 @@ public class AudioManager : MonoBehaviour
         }
         return false;
     }
-    
+
     /// <summary>
     /// 设置最大同时播放音频数量
     /// </summary>
@@ -447,7 +453,7 @@ public class AudioManager : MonoBehaviour
     {
         config.maxSimultaneousAudio = Mathf.Max(0, maxCount);
     }
-    
+
     /// <summary>
     /// 设置溢出处理策略
     /// </summary>
@@ -455,7 +461,7 @@ public class AudioManager : MonoBehaviour
     {
         config.overflowStrategy = strategy;
     }
-    
+
     /// <summary>
     /// 预加载音频（提前创建AudioSource对象）
     /// </summary>
@@ -466,7 +472,7 @@ public class AudioManager : MonoBehaviour
             CreatePooledAudioSource();
         }
     }
-    
+
     private void OnDestroy()
     {
         if (Instance == this)

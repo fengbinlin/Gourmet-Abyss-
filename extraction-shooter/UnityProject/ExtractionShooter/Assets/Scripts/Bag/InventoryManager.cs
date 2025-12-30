@@ -65,6 +65,7 @@ public class InventoryManager : MonoBehaviour
         // AddItem(ResourceType.LootEggBig, 4);
         // AddItem(ResourceType.LootMushroom, 4);
         // AddItem(ResourceType.LootPumkin, 4);
+        OnInventoryStatsUpdated();
     }
 
     private void OnDestroy()

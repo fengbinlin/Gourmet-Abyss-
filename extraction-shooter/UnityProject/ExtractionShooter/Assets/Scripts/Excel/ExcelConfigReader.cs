@@ -235,6 +235,10 @@ public class ExcelConfigReader : MonoBehaviour
                 case 29: wsm.secondaryAmmoConsumePerShot = (int)stat.initialValue; break;
                 case 30: wsm.defaultMapDensityMultiplier = stat.initialValue; break;
             }
+            wsm.OnInventoryStatsChangedInvoke();
+            wsm.OnShopStatsChangedInvoke();
+            wsm.OnBattleStatsChangedInvoke();
+            wsm.RebuildDensityDictionary();
         }
     }
 

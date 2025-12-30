@@ -261,7 +261,7 @@ public class LevelManager : MonoBehaviour
         {
             yield return null;
         }
-
+        TitleText.text = SceneTitle.instance.SceneName;
         // 6. 显示主场景物体
         if (homeSceneObject != null)
         {
@@ -365,6 +365,7 @@ public class LevelManager : MonoBehaviour
             StartCoroutine(SetVehicleLayerAfterDelay(homeVehicle, 11, transitionDuration));
         }
         UITapBounce.Instance.ResetPosition();
+        TitleText.text = SceneTitle.instance.SceneName;
         mainUI.SetActive(false);
         mainUI.SetActive(true);
 
@@ -448,6 +449,7 @@ public class LevelManager : MonoBehaviour
             StartCoroutine(SetVehicleLayerAfterDelay(toVehicle, 11, transitionDuration));
         }
         UITapBounce.Instance.ResetPosition();
+        TitleText.text = SceneTitle.instance.SceneName;
         mainUI.SetActive(false);
         mainUI.SetActive(true);
         // 更新关卡列表
