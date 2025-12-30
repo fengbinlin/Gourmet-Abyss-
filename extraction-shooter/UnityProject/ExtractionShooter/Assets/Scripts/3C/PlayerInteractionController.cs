@@ -92,7 +92,7 @@ public class PlayerInteractionController : MonoBehaviour
         if (IsInteractableBuilding(other))
         {
             buildingCount++;
-
+            AudioManager.Instance.PlayAudio("3");
             // 如果Canvas还未激活，激活并播放弹出动画
             if (!isCanvasActive)
             {

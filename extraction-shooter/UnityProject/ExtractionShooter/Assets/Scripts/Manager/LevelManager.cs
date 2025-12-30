@@ -59,6 +59,7 @@ public class LevelManager : MonoBehaviour
         if (isTransitioning) return;
 
         string targetScene = sceneName ?? levelSceneName;
+        AudioManager.Instance.PlayAudio("3");
         StartCoroutine(EnterLevelProcess(targetScene));
     }
 
@@ -85,7 +86,7 @@ public class LevelManager : MonoBehaviour
         {
             targetScene = loadedLevels[loadedLevels.Count - 1];
         }
-
+        AudioManager.Instance.PlayAudio("3");
         StartCoroutine(FromLevelToHomeProcess(targetScene));
     }
 
@@ -95,7 +96,7 @@ public class LevelManager : MonoBehaviour
     public void SwitchLevel(string fromLevel, string toLevel)
     {
         if (isTransitioning) return;
-
+        AudioManager.Instance.PlayAudio("3");
         StartCoroutine(SwitchLevelProcess(fromLevel, toLevel));
     }
 
@@ -203,6 +204,7 @@ public class LevelManager : MonoBehaviour
 
     private IEnumerator ExitLevelProcess(string levelName)
     {
+        AudioManager.Instance.PlayAudio("3");
         // 8. 重置游戏状态
 
         BattleValManager.Instance?.StopConsuming();

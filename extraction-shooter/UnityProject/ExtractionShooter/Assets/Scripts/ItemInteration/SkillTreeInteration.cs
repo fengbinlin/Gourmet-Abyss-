@@ -17,6 +17,7 @@ public class SkillTreeInteration : MonoBehaviour
             // �����������ã�E��������Ϊ"Negative Button"�����Լ�⸺������
             if (Input.GetAxis("Interaction") > 0)
             {
+                AudioManager.Instance.PlayAudio("3");
                 ExecuteInteraction();
             }
         }

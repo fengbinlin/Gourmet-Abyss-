@@ -423,6 +423,7 @@ public class LootCollector : MonoBehaviour
         // 检查背包是否已满
         if (!isInventoryFull)
         {
+            AudioManager.Instance.PlayAudio("2");
             // 如果是植物资源并且直接加入数值管理器
             if (isPlantResource && plantDirectToGameVal)
             {

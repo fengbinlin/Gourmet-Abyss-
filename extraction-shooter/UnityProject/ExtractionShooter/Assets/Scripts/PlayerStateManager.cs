@@ -32,6 +32,7 @@ public class PlayerStateManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            AudioManager.Instance.PlayAudio("3");
             if (InterationManager.instance.skillTreeObject.activeInHierarchy)
             {
                 InterationManager.instance.SwitchToHomeScene();
@@ -40,16 +41,24 @@ public class PlayerStateManager : MonoBehaviour
             {
                 if (currentState == PlayerState.Battle || currentState == PlayerState.UpGround)
                 {
-                    if (SetttingPanel.activeInHierarchy)
+                    if (HomeCavecar.homeCavecar.MapUI.activeInHierarchy)
                     {
-                        SetttingPanel.SetActive(false);
-                        isSettingUIActive = false;
+                        return;
                     }
                     else
                     {
-                        SetttingPanel.SetActive(true);
-                        isSettingUIActive = true;
+                        if (SetttingPanel.activeInHierarchy)
+                        {
+                            SetttingPanel.SetActive(false);
+                            isSettingUIActive = false;
+                        }
+                        else
+                        {
+                            SetttingPanel.SetActive(true);
+                            isSettingUIActive = true;
+                        }
                     }
+
                 }
             }
 

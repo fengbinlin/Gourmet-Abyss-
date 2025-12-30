@@ -672,7 +672,7 @@ public class SecondaryWeapon : MonoBehaviour
             currentSecondaryWeaponKick = secondaryWeaponRecoilKick;
             currentSecondaryWeaponRotation = secondaryWeaponRecoilRotation;
         }
-
+        AudioManager.Instance.PlayAudio("1");
         UpdateLaserPositions(aimPoint, mouseActive);
     }
 

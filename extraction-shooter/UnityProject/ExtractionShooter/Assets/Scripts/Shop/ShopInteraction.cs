@@ -218,7 +218,7 @@ public class ShopInteraction : MonoBehaviour
         {
             pendingItemCount += removedCount;
             Debug.Log($"[TryTransfer] 发射! pendingItemCount 增加到 {pendingItemCount}");
-
+            AudioManager.Instance.PlayAudio("3");
             PlaySound(transferSound);
 
             if (projectileLauncher != null)

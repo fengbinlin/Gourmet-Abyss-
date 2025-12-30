@@ -38,13 +38,16 @@ public class HomeCavecar : MonoBehaviour
     {
         if (isPlayerEnter && Input.GetKeyDown(KeyCode.E) && !isAnimating && canUse)
         {
+            AudioManager.Instance.PlayAudio("3");
             ToggleMapUI();
 
         }
         
         if (Input.GetKeyDown(KeyCode.Escape) && isUIActive && !isAnimating)
         {
+            AudioManager.Instance.PlayAudio("3");
             HideMapUI();
+            PlayerStateManager.instance.currentState=PlayerState.UpGround;
         }
     }
     
@@ -63,6 +66,7 @@ public class HomeCavecar : MonoBehaviour
         {
             isPlayerEnter = false;
             HideMapUI();
+            PlayerStateManager.instance.currentState=PlayerState.UpGround;
         }
     }
     
@@ -147,7 +151,7 @@ public class HomeCavecar : MonoBehaviour
         });
         
         currentUITween = sequence;
-        PlayerStateManager.instance.currentState=PlayerState.UpGround;
+        
     }
     
     public void CloseMapUI()

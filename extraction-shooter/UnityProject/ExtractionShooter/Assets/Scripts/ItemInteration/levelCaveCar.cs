@@ -28,6 +28,7 @@ public class levelCaveCar : MonoBehaviour
     {
         if (isPlayerInTrigger && canUse && Input.GetKeyDown(KeyCode.E))
         {
+            AudioManager.Instance.PlayAudio("3");
             ToHome();
         }
     }

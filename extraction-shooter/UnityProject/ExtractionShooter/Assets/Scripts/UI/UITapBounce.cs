@@ -56,6 +56,7 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
     
     public void OnTap()
     {
+        AudioManager.Instance.PlayAudio("3");
         // 停止正在进行的动画
         if (bounceCoroutine != null)
         {

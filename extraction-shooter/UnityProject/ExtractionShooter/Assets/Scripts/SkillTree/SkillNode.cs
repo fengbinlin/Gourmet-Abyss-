@@ -538,6 +538,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             SkillTree.Instance.learnedSkillNum++;
             print("当期等级" + skillData.currentLevel);
             print("最大等级" + skillData.maxLevel);
+            AudioManager.Instance.PlayAudio("3");
             if (skillData.currentLevel >= skillData.maxLevel)
             {
                 print("触发隐藏面板");

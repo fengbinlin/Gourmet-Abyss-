@@ -140,6 +140,7 @@ public class MoneyChest : MonoBehaviour
 
         if (projectileLauncher != null && playerTransform != null)
         {
+            AudioManager.Instance.PlayAudio("2");
             projectileLauncher.SpawnProjectile(
                 transform,
                 playerTransform,

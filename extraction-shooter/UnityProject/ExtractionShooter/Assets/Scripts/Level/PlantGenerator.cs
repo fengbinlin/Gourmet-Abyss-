@@ -51,12 +51,19 @@ public class PlantGenerator : MonoBehaviour
     private int groundPassed = 0;
     private int prefabPassed = 0;
     private int regenerationCount = 0;
-    
-    
+
+
     private void Start()
     {
-        float densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
-        print("地图密度"+densityMultiplier);
+        float densityMultiplier = 1;
+        if (
+            WeaponStatsManager.Instance
+        )
+        {
+            densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
+        }
+
+        print("地图密度" + densityMultiplier);
         ManagertdensityMultiplier = densityMultiplier;
         if (generateOnStart)
         {
@@ -104,7 +111,13 @@ public class PlantGenerator : MonoBehaviour
         // === 在生成之前读取密度乘积并应用 ===
         if (WeaponStatsManager.Instance != null)
         {
-            float densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
+            float densityMultiplier = 1;
+            if (
+                WeaponStatsManager.Instance
+            )
+            {
+                densityMultiplier = WeaponStatsManager.Instance.mapDensityBindings[MapIndex].densityMultiplier;
+            }
             ManagertdensityMultiplier = densityMultiplier;
             //float originalBaseDensity = settings.baseDensity;
 

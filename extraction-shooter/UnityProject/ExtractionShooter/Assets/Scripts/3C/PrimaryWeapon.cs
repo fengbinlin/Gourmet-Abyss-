@@ -378,6 +378,7 @@ public class PrimaryWeapon : MonoBehaviour
 
     private void Shoot(Vector3 aimPoint, bool mouseActive)
     {
+        
         if (bulletPrefab == null || firePoint == null)
         {
             Debug.LogError("子弹预制体或开火点为空！");
@@ -400,7 +401,7 @@ public class PrimaryWeapon : MonoBehaviour
                 return;
             }
         }
-
+        AudioManager.Instance.PlayAudio("0");
         // 重置枪口下垂计时器
         currentMuzzleDownAngle = 0f;
 
