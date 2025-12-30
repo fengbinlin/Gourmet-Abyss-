@@ -5,46 +5,47 @@ using System.Collections;
 public class ResourceBarController : MonoBehaviour
 {
     public Animator mainUIAnimator;
-    [Header("½ø¶ÈÌõÉèÖÃ")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Image progressBarImage;
-    [SerializeField] private Transform barTransform;  // ÓÃÓÚÌø¶¯Ğ§¹û
+    [SerializeField] private Transform barTransform;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
 
-    [Header("ÑÕÉ«ÉèÖÃ")]
+    [Header("ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color lowResourceColor = Color.red;
-    [SerializeField] [Range(0f, 1f)] private float lowResourceThreshold = 0.3f; // µÍÓÚ´ËãĞÖµ¿ªÊ¼ÉÁË¸
+    [SerializeField] [Range(0f, 1f)] private float lowResourceThreshold = 0.3f; // ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½Öµï¿½ï¿½Ê¼ï¿½ï¿½Ë¸
 
-    [Header("ÑÕÉ«ÉÁË¸ÉèÖÃ")]
-    [SerializeField] private float colorBlinkSpeed = 2f; // ÑÕÉ«ÉÁË¸ËÙ¶È
-    [SerializeField] private float minAlpha = 0.5f;      // ×îĞ¡Í¸Ã÷¶È
-    [SerializeField] private float maxAlpha = 1f;        // ×î´óÍ¸Ã÷¶È
+    [Header("ï¿½ï¿½É«ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½")]
+    [SerializeField] private float colorBlinkSpeed = 2f; // ï¿½ï¿½É«ï¿½ï¿½Ë¸ï¿½Ù¶ï¿½
+    [SerializeField] private float minAlpha = 0.5f;      // ï¿½ï¿½Ğ¡Í¸ï¿½ï¿½ï¿½ï¿½
+    [SerializeField] private float maxAlpha = 1f;        // ï¿½ï¿½ï¿½Í¸ï¿½ï¿½ï¿½ï¿½
 
-    [Header("Ìø¶¯Ğ§¹ûÉèÖÃ")]
-    [SerializeField] private float pulseSpeed = 8f;      // Ìø¶¯ËÙ¶È
-    [SerializeField] private float minPulseScale = 0.9f; // ×îĞ¡Ëõ·Å
-    [SerializeField] private float maxPulseScale = 1.1f; // ×î´óËõ·Å
-    [SerializeField] [Range(0f, 1f)] private float pulseThreshold = 0.2f; // µÍÓÚ´ËãĞÖµ¿ªÊ¼Ìø¶¯
+    [Header("ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
+    [SerializeField] private float pulseSpeed = 8f;      // ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
+    [SerializeField] private float minPulseScale = 0.9f; // ï¿½ï¿½Ğ¡ï¿½ï¿½ï¿½ï¿½
+    [SerializeField] private float maxPulseScale = 1.1f; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    [SerializeField] [Range(0f, 1f)] private float pulseThreshold = 0.2f; // ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½Öµï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½
 
     [Header("×´Ì¬")]
     [SerializeField] private float currentPercentage = 1f;
 
-    private Color originalColor;
-    private Vector3 originalScale;
+    [SerializeField]private Color originalColor;
+    [SerializeField]private Vector3 originalScale;
     private Coroutine pulseCoroutine;
     private Coroutine colorBlinkCoroutine;
     private bool isPulsing = false;
     private bool isColorBlinking = false;
 
-    // ¼ÇÂ¼ÊÇ·ñÔÚÌø¶¯×´Ì¬
+    // ï¿½ï¿½Â¼ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
     public bool IsPulsing => isPulsing;
     public bool IsColorBlinking => isColorBlinking;
 
     private void Awake()
     {
-        // ¼ÇÂ¼³õÊ¼×´Ì¬
+        // ï¿½ï¿½Â¼ï¿½ï¿½Ê¼×´Ì¬
         if (progressBarImage != null)
         {
             originalColor = progressBarImage.color;
+            print("åˆå§‹é¢œè‰²"+originalColor);
         }
 
         if (barTransform != null)
@@ -56,16 +57,16 @@ public class ResourceBarController : MonoBehaviour
             originalScale = transform.localScale;
         }
 
-        // È·±£normalColorÊÇ³õÊ¼ÑÕÉ«
+        // È·ï¿½ï¿½normalColorï¿½Ç³ï¿½Ê¼ï¿½ï¿½É«
         normalColor = originalColor;
 
-        // ³õÊ¼»¯Îª100%
+        // ï¿½ï¿½Ê¼ï¿½ï¿½Îª100%
         currentPercentage = 1f;
     }
 
     private void Start()
     {
-        // È·±£¿ªÊ¼Ê±ÊÇÕıÈ·µÄ×´Ì¬
+        // È·ï¿½ï¿½ï¿½ï¿½Ê¼Ê±ï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½×´Ì¬
         ResetBar();
     }
 
@@ -84,32 +85,32 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÖØÖÃ½ø¶ÈÌõµ½³õÊ¼×´Ì¬
+    /// ï¿½ï¿½ï¿½Ã½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼×´Ì¬
     /// </summary>
     public void ResetBar()
     {
-        // Í£Ö¹ËùÓĞĞ­³Ì
+        // Í£Ö¹ï¿½ï¿½ï¿½ï¿½Ğ­ï¿½ï¿½
         StopAllCoroutines();
         isPulsing = false;
         isColorBlinking = false;
 
-        // ÖØÖÃÑÕÉ«
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
         if (progressBarImage != null)
         {
             progressBarImage.color = originalColor;
         }
 
-        // ÖØÖÃËõ·Å
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         ResetScale();
 
-        // ÖØÖÃ°Ù·Ö±È
+        // ï¿½ï¿½ï¿½Ã°Ù·Ö±ï¿½
         currentPercentage = 1f;
     }
 
     /// <summary>
-    /// ¸üĞÂ½ø¶ÈÌõ
+    /// ï¿½ï¿½ï¿½Â½ï¿½ï¿½ï¿½ï¿½ï¿½
     /// </summary>
-    /// <param name="percentage">µ±Ç°°Ù·Ö±È (0-1)</param>
+    /// <param name="percentage">ï¿½ï¿½Ç°ï¿½Ù·Ö±ï¿½ (0-1)</param>
     public void UpdateProgress(float percentage)
     {
         if (percentage < 0) percentage = 0;
@@ -117,49 +118,49 @@ public class ResourceBarController : MonoBehaviour
 
         currentPercentage = percentage;
 
-        // ¿ØÖÆÑÕÉ«ÉÁË¸Ğ§¹û
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½Ë¸Ğ§ï¿½ï¿½
         ControlColorBlinkEffect(percentage);
 
-        // ¿ØÖÆÌø¶¯Ğ§¹û
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
         ControlPulseEffect(percentage);
     }
 
     /// <summary>
-    /// ¿ØÖÆÑÕÉ«ÉÁË¸Ğ§¹û
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½Ë¸Ğ§ï¿½ï¿½
     /// </summary>
     private void ControlColorBlinkEffect(float percentage)
     {
         if (percentage <= lowResourceThreshold && !isColorBlinking)
         {
-            // ¿ªÊ¼ÑÕÉ«ÉÁË¸
+            // ï¿½ï¿½Ê¼ï¿½ï¿½É«ï¿½ï¿½Ë¸
             StartColorBlink();
         }
         else if (percentage > lowResourceThreshold && isColorBlinking)
         {
-            // Í£Ö¹ÑÕÉ«ÉÁË¸
+            // Í£Ö¹ï¿½ï¿½É«ï¿½ï¿½Ë¸
             StopColorBlink();
         }
     }
 
     /// <summary>
-    /// ¿ØÖÆÌø¶¯Ğ§¹û
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
     /// </summary>
     private void ControlPulseEffect(float percentage)
     {
         if (percentage <= pulseThreshold && !isPulsing)
         {
-            // ¿ªÊ¼Ìø¶¯
+            // ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½
             StartPulse();
         }
         else if (percentage > pulseThreshold && isPulsing)
         {
-            // Í£Ö¹Ìø¶¯
+            // Í£Ö¹ï¿½ï¿½ï¿½ï¿½
             StopPulse();
         }
     }
 
     /// <summary>
-    /// ¿ªÊ¼ÑÕÉ«ÉÁË¸Ğ§¹û
+    /// ï¿½ï¿½Ê¼ï¿½ï¿½É«ï¿½ï¿½Ë¸Ğ§ï¿½ï¿½
     /// </summary>
     private void StartColorBlink()
     {
@@ -174,7 +175,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Í£Ö¹ÑÕÉ«ÉÁË¸Ğ§¹û
+    /// Í£Ö¹ï¿½ï¿½É«ï¿½ï¿½Ë¸Ğ§ï¿½ï¿½
     /// </summary>
     private void StopColorBlink()
     {
@@ -187,7 +188,7 @@ public class ResourceBarController : MonoBehaviour
             colorBlinkCoroutine = null;
         }
 
-        // ÖØÖÃÑÕÉ«
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
         if (progressBarImage != null)
         {
             progressBarImage.color = normalColor;
@@ -195,7 +196,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ¿ªÊ¼Ìø¶¯Ğ§¹û
+    /// ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
     /// </summary>
     private void StartPulse()
     {
@@ -210,7 +211,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Í£Ö¹Ìø¶¯Ğ§¹û
+    /// Í£Ö¹ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
     /// </summary>
     private void StopPulse()
     {
@@ -227,25 +228,25 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÑÕÉ«ÉÁË¸¶¯»­Ğ­³Ì
+    /// ï¿½ï¿½É«ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½Ğ­ï¿½ï¿½
     /// </summary>
     private IEnumerator ColorBlinkAnimation()
     {
         if (progressBarImage == null) yield break;
 
         float timer = 0f;
-        Color startColor = Color.white; // ´Ó°×É«¿ªÊ¼
-        Color targetColor = lowResourceColor; // µ½µÍ×ÊÔ´ÑÕÉ«
+        Color startColor = Color.white; // ï¿½Ó°ï¿½É«ï¿½ï¿½Ê¼
+        Color targetColor = lowResourceColor; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½É«
 
         while (isColorBlinking)
         {
-            // ¼ÆËãÕıÏÒ²¨Öµ£¬ÔÚ0-1Ö®¼ä±ä»¯
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½Öµï¿½ï¿½ï¿½ï¿½0-1Ö®ï¿½ï¿½ä»¯
             float t = (Mathf.Sin(timer * colorBlinkSpeed) + 1f) * 0.5f;
 
-            // ÔÚ°×É«ºÍµÍ×ÊÔ´ÑÕÉ«Ö®¼ä²åÖµ
+            // ï¿½Ú°ï¿½É«ï¿½Íµï¿½ï¿½ï¿½Ô´ï¿½ï¿½É«Ö®ï¿½ï¿½ï¿½Öµ
             progressBarImage.color = Color.Lerp(startColor, targetColor, t);
 
-            // ¿ÉÒÔÍ¬Ê±¿ØÖÆÍ¸Ã÷¶È±ä»¯£¬Èç¹ûĞèÒªµÄ»°
+            // ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ï¿½ï¿½È±ä»¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ä»ï¿½
             // Color lerpedColor = Color.Lerp(startColor, targetColor, t);
             // lerpedColor.a = Mathf.Lerp(minAlpha, maxAlpha, t);
             // progressBarImage.color = lerpedColor;
@@ -254,12 +255,12 @@ public class ResourceBarController : MonoBehaviour
             yield return null;
         }
 
-        // È·±£Í£Ö¹ÉÁË¸ºóÑÕÉ«»Ö¸´Õı³£
+        // È·ï¿½ï¿½Í£Ö¹ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½É«ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½
         progressBarImage.color = normalColor;
     }
 
     /// <summary>
-    /// Ìø¶¯¶¯»­Ğ­³Ì
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ­ï¿½ï¿½
     /// </summary>
     private IEnumerator PulseAnimation()
     {
@@ -270,11 +271,11 @@ public class ResourceBarController : MonoBehaviour
 
         while (isPulsing)
         {
-            // Ê¹ÓÃÕıÏÒ²¨´´½¨Ìø¶¯Ğ§¹û
+            // Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½
             float pulseValue = Mathf.Sin(timer * pulseSpeed);
             float scaleFactor = Mathf.Lerp(minPulseScale, maxPulseScale, (pulseValue + 1f) / 2f);
 
-            // Ó¦ÓÃËõ·Å
+            // Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             targetTransform.localScale = originalScale * scaleFactor;
             if (mainUIAnimator != null)
             {
@@ -288,7 +289,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÖØÖÃËõ·Å
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     /// </summary>
     private void ResetScale()
     {
@@ -297,7 +298,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÉèÖÃ½ø¶ÈÌõÑÕÉ«
+    /// ï¿½ï¿½ï¿½Ã½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
     /// </summary>
     public void SetNormalColor(Color color)
     {
@@ -309,7 +310,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// »ñÈ¡Ô­Ê¼ÑÕÉ«
+    /// ï¿½ï¿½È¡Ô­Ê¼ï¿½ï¿½É«
     /// </summary>
     public Color GetOriginalColor()
     {
@@ -317,12 +318,12 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÉèÖÃµÍ×ÊÔ´ÑÕÉ«
+    /// ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½Ô´ï¿½ï¿½É«
     /// </summary>
     public void SetLowResourceColor(Color color)
     {
         lowResourceColor = color;
-        // Èç¹ûµ±Ç°ÕıÔÚÉÁË¸£¬ĞèÒªÖØĞÂ¿ªÊ¼ÉÁË¸ÒÔÊ¹ÓÃĞÂÑÕÉ«
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Â¿ï¿½Ê¼ï¿½ï¿½Ë¸ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
         if (isColorBlinking)
         {
             StopColorBlink();
@@ -331,7 +332,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÉèÖÃÑÕÉ«ÉÁË¸ËÙ¶È
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½Ë¸ï¿½Ù¶ï¿½
     /// </summary>
     public void SetColorBlinkSpeed(float speed)
     {
@@ -339,7 +340,7 @@ public class ResourceBarController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÊÖ¶¯¿ØÖÆÑÕÉ«ÉÁË¸
+    /// ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½Ë¸
     /// </summary>
     public void SetColorBlink(bool active)
     {
