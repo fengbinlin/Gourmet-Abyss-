@@ -128,4 +128,5 @@ Shader "ProPixelizer/SRP/PixelizedWithOutline"
      }
 	CustomEditor "ProPixelizer.PixelizedWithOutlineShaderGUI"
 	FallBack "ProPixelizer/Hidden/ProPixelizerBase"
+	
 }

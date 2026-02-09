@@ -56,7 +56,7 @@ MonoBehaviour:
   globalScale: 0.79
   rayMaterial: {fileID: 2100000, guid: e349799befeba9948a28f3e1a260fa29, type: 2}
   globalRotation: {x: 42.600006, y: 307.26, z: 0}
-  globalBrightness: 0.026
+  globalBrightness: 0.051
   variationSpeed: 1
   variationScale: 10
   variationColor: {r: 1.6245048, g: 1.6245048, b: 1.6245048, a: 1}
@@ -68,7 +68,7 @@ MonoBehaviour:
   useCameraDepthFade: 1
   cameraDepthFadeStart: 1
   cameraDepthFadeEnd: 3
-  useCameraDistanceFade: 1
+  useCameraDistanceFade: 0
   cameraDistanceFadeStart: 40
   cameraDistanceFadeEnd: 60
   useSceneDepthFade: 1
@@ -78,4 +78,4 @@ MonoBehaviour:
   angleFadeStart: 1.14
   angleFadeEnd: 2.49
   useVariation: 1
-  useLightColor: 0
+  useLightColor: 1

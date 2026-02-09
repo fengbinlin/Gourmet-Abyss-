@@ -1,0 +1,194 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: InstancedIndirectGrass
+  m_Shader: {fileID: 4800000, guid: fd090f3b1d7b5df4f9c363d609cfa330, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - USE_BILLBOARD
+  m_InvalidKeywords:
+  - PROPIXELIZER_DITHERING_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseColorTexture:
+        m_Texture: {fileID: 2800000, guid: edec5ef3226950841ac8090d6ac18095, type: 3}
+        m_Scale: {x: 0.02, y: 0.02}
+        m_Offset: {x: -0.43, y: -1.87}
+    - _BaseMap:
+        m_Texture: {fileID: 10309, guid: 0000000000000000f000000000000000, type: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BaseTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LightingRamp:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MetallicGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PaletteLUT:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SpecGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - COLOR_GRADING: 0
+    - PROPIXELIZER_DITHERING: 1
+    - _AlphaClip: 0
+    - _BendSpeed: 1.83
+    - _Blend: 0
+    - _BoundSize: 50
+    - _BoundSizeX: 50
+    - _BoundSizeZ: 1
+    - _BumpScale: 1
+    - _CelShadingLevels: 3
+    - _ColorBlend: 0.5
+    - _ColorNoiseScale: 3
+    - _ColorNoiseSpeed: 0.05
+    - _ColorVariation: 0.215
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DrawDistance: 125
+    - _DstBlend: 0
+    - _Elasticity: 0.65
+    - _EnvironmentReflections: 1
+    - _FullGrassThreshold: 0.6
+    - _GlobalVarScale: 1.25
+    - _GlobalVarStrength: 0
+    - _GlossMapScale: 0
+    - _Glossiness: 0
+    - _GlossyReflections: 0
+    - _GrassCoverScale: 0.5
+    - _GrassHeight: 0.34
+    - _GrassModelScale: 1
+    - _GrassScale: 4.51
+    - _GrassWidth: 0.83
+    - _GrassWidthMult: 0.46
+    - _HeightBlendFactor: 1
+    - _HeightNoiseScale: 0.46
+    - _HeightNoiseStrength: 0.318
+    - _ID: 1
+    - _Metallic: 0
+    - _MixNoiseScale: 1.78
+    - _NoGrassThreshold: 0.3
+    - _NoiseScale: 0.51
+    - _NoiseSpeed: 0
+    - _NormalRandomness: 0.3
+    - _OcclusionStrength: 1
+    - _OutlineThreshold: 0.5
+    - _OutlineWidth: 0.031
+    - _PixelDither: 0.1
+    - _PixelSize: 3
+    - _Pixelation: 64
+    - _PlacementNoiseScale: 42
+    - _PlacementThreshold: -0.05
+    - _QueueOffset: 0
+    - _RandomNormal: 0.05
+    - _RandomRotation: 0.5
+    - _ReceiveShadows: 1
+    - _RotationAngle: 0
+    - _SampleGI: 0
+    - _ShadowStrength: 0.486
+    - _ShadowThreshold: 0.5
+    - _Smoothness: 0.5
+    - _SmoothnessTextureChannel: 0
+    - _SpecularHighlights: 1
+    - _SrcBlend: 1
+    - _Surface: 0
+    - _TextureCutoff: 0
+    - _TextureRotation: 0
+    - _ToonSmoothness: 0.143
+    - _ToonSteps: 3
+    - _ToonThreshold: 0.222
+    - _Translucency: 0.5
+    - _UseBillboard: 1
+    - _WidthCompensation: 0.55
+    - _WidthNoiseScale: 0.46
+    - _WidthNoiseStrength: 0.165
+    - _WindAFrequency: 2.88
+    - _WindAIntensity: 0.32
+    - _WindBFrequency: 1.51
+    - _WindBIntensity: 2.27
+    - _WindCFrequency: 19.56
+    - _WindCIntensity: 0.09
+    - _WindFrequency: 4
+    - _WindIntensity: 1
+    - _WorkflowMode: 1
+    - _ZWrite: 1
+    m_Colors:
+    - _AmbientLight: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _BaseColor: {r: 1, g: 0.5971223, b: 0, a: 1}
+    - _BaseColor2: {r: 0.39999998, g: 0.7, b: 0.29999998, a: 1}
+    - _BaseColor3: {r: 0.19999996, g: 0.5, b: 0.09999997, a: 1}
+    - _BaseColor4: {r: 0.5, g: 0.8, b: 0.39999998, a: 1}
+    - _BoundSize: {r: 125, g: 125, b: 0, a: 0}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _ColorA: {r: 1, g: 0.7100147, b: 0.32941175, a: 1}
+    - _ColorB: {r: 1, g: 0.80284446, b: 0.45098042, a: 1}
+    - _EdgeHighlightColor: {r: 0.5, g: 0.5, b: 0.5, a: 0}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GroundColor: {r: 0.82641506, g: 0.6778577, b: 0.40385187, a: 1}
+    - _GroundColor2: {r: 0.19999996, g: 0.19999996, b: 0.09999997, a: 1}
+    - _MixNoiseOffset: {r: 1.07, g: 0, b: 0, a: 0}
+    - _NoiseOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _OutlineColor: {r: 0.2905661, g: 0.2905661, b: 0.2905661, a: 0.5568628}
+    - _PivotPosWS: {r: 0, g: 0, b: 0, a: 0}
+    - _PixelGridOrigin: {r: 0, g: 0, b: 0, a: 0}
+    - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _TextureOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _TextureTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _TopColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WindADirection: {r: 0.1, g: 0.1, b: 0, a: 1}
+    - _WindATiling: {r: 134.9, g: 0.52, b: 0, a: 1}
+    - _WindAWrap: {r: 0.12, g: 0, b: 0, a: 1}
+    - _WindBDirection: {r: 0.35, g: 0, b: 0, a: 1}
+    - _WindBTiling: {r: 2.53, g: -1.9, b: 0, a: 1}
+    - _WindBWrap: {r: 0.02, g: 0.02, b: -0.01, a: 1}
+    - _WindCDirection: {r: 0.7, g: -0.1, b: 0, a: 1}
+    - _WindCTiling: {r: -1.01, g: 2.01, b: 0, a: 1}
+    - _WindCWrap: {r: 0.14, g: 0, b: 0, a: 1}
+  m_BuildTextureStacks: []
