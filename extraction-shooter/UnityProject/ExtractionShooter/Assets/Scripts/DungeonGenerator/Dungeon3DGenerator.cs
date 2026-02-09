@@ -26,7 +26,7 @@ public class ChunkData
     public List<ObjectRecord> objects = new List<ObjectRecord>();
     public Vector3 worldOffset; // Chunk的世界偏移量
     public HashSet<Vector2Int> generatedFloorPositions = new HashSet<Vector2Int>();
-    public Dungeon3DData dungeon3DData=new Dungeon3DData();  // 把数据放这里
+    public Dungeon3DData dungeon3DData = new Dungeon3DData();  // 把数据放这里
 }
 
 public class ObjectRecord
@@ -47,6 +47,7 @@ public class Dungeon3DGenerator : MonoBehaviour
     public int localMinY = -22;
     public int localMaxX = 50;
     public int localMaxY = 22;
+    public int dungeoHeight = 30;
     public static Dungeon3DGenerator instance;
     [Header("Dungeon 2D 数据源")]
     public DungeonGenerator dungeonGenerator2D;
@@ -151,6 +152,9 @@ public class Dungeon3DGenerator : MonoBehaviour
     private GameObject propsParent;
 
     private HashSet<Vector2Int> generatedFloorPositions = new HashSet<Vector2Int>();
+    public List<Vector2Int> markerPositions = new List<Vector2Int>();
+    List<Vector2Int> currentEntrances;
+    List<Vector2Int> currentExits;
     void Awake()
     {
         instance = this;
@@ -183,12 +187,76 @@ public class Dungeon3DGenerator : MonoBehaviour
         {
             chunkIndex++;
             nextChunkTriggerZ -= dungeonChunkLength;
-            Vector3 chunkOffset = new Vector3(0, 0, -dungeonChunkLength * chunkIndex);
-            StartCoroutine(GenerateChunk(chunkIndex, chunkOffset,50));
+            Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
+            StartCoroutine(GenerateChunk(chunkIndex, chunkOffset, 50));
         }
 
     }
-    private IEnumerator GenerateChunk(int chunkIndex, Vector3 worldOffset,int BaseSpeed=1)
+    private List<Vector2Int> previousExits = new List<Vector2Int>();
+
+    /// 生成入口出口标记点
+    private List<Vector2Int> GenerateMarkersForChunk(int chunkIndex)
+    {
+        List<Vector2Int> markers = new List<Vector2Int>();
+
+        if (chunkIndex == 1)
+        {
+            // 第一个 Chunk，入口固定
+            markers.Add(new Vector2Int(0, 15));
+            // 出口随机 1~3 个
+            int exitCount = Random.Range(1, 4);
+            List<Vector2Int> exits = GenerateRandomMarkers(exitCount, -15);
+            previousExits = exits;
+            markers.AddRange(exits);
+        }
+        else
+        {
+            // 入口根据上一个 Chunk 的出口对应生成
+            foreach (var exit in previousExits)
+            {
+                markers.Add(new Vector2Int(exit.x, 15));
+            }
+            // 出口随机 1~3 个
+            int exitCount = Random.Range(1, 4);
+            List<Vector2Int> exits = GenerateRandomMarkers(exitCount, -15);
+            previousExits = exits;
+            markers.AddRange(exits);
+        }
+
+        return markers;
+    }
+
+    /// 生成随机 marker（保证 X 距离 >= 8）
+    private List<Vector2Int> GenerateRandomMarkers(int count, int fixedY)
+    {
+        List<Vector2Int> markers = new List<Vector2Int>();
+
+        int attempts = 0;
+        while (markers.Count < count && attempts < 100)
+        {
+            attempts++;
+            int x = Random.Range(-20, 21); // 包含边界
+            bool valid = true;
+
+            // 检查 X 间距
+            foreach (var m in markers)
+            {
+                if (Mathf.Abs(m.x - x) < 8)
+                {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid)
+            {
+                markers.Add(new Vector2Int(x, fixedY));
+            }
+        }
+
+        return markers;
+    }
+    private IEnumerator GenerateChunk(int chunkIndex, Vector3 worldOffset, int BaseSpeed = 1)
     {
         // 1. 创建 ChunkData
         ChunkData chunkData = new ChunkData();
@@ -209,19 +277,20 @@ public class Dungeon3DGenerator : MonoBehaviour
         propsParent = new GameObject("Props");
         propsParent.transform.SetParent(chunkData.chunkRoot.transform);
         // 3. 生成地牢数据（2D -> 3D）
-        dungeonGenerator2D.GenerateDungeon();
+        markerPositions = GenerateMarkersForChunk(chunkIndex);
+        dungeonGenerator2D.GenerateDungeon(markerPositions);
         ExtractDungeonDataFrom2D(chunkData.dungeon3DData);
         CalculateBaseMountainArea(chunkData.dungeon3DData);
         ExpandMountainAreaWithNoise(chunkData.dungeon3DData);
-        ClampDungeonBounds(new Vector2Int(localMinX, localMinY), new Vector2Int(localMaxX, localMaxY),chunkData.dungeon3DData);
+        ClampDungeonBounds(new Vector2Int(localMinX, localMinY), new Vector2Int(localMaxX, localMaxY), chunkData.dungeon3DData);
 
         // 4. 生成物体（全部走 SpawnObject）
-        yield return StartCoroutine(GenerateGroundModels_WithOffset(worldOffset, chunkData, 30*BaseSpeed));
-        yield return StartCoroutine(GenerateWallModels_WithOffset(worldOffset, chunkData, 30*BaseSpeed));
-        yield return StartCoroutine(GenerateAllMountainLayers_WithOffset(worldOffset, chunkData, 30*BaseSpeed));
-        yield return StartCoroutine(DecorateMountainsWithProps_WithOffset(worldOffset, chunkData, 10*BaseSpeed));
-        yield return StartCoroutine(DecorateFloorsWithProps_WithOffset(worldOffset, chunkData, 10*BaseSpeed));
-        yield return StartCoroutine(DecorateFloorMountainEdges_WithOffset(worldOffset, chunkData, 10*BaseSpeed));
+        yield return StartCoroutine(GenerateGroundModels_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
+        yield return StartCoroutine(GenerateWallModels_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
+        yield return StartCoroutine(GenerateAllMountainLayers_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
+        yield return StartCoroutine(DecorateMountainsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
+        yield return StartCoroutine(DecorateFloorsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
+        yield return StartCoroutine(DecorateFloorMountainEdges_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         // 5. 存入字典
         chunkRegistry[chunkIndex] = chunkData;
     }
@@ -234,7 +303,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         {
             chunkIndex++;
             nextChunkTriggerZ -= dungeonChunkLength;
-            Vector3 chunkOffset = new Vector3(0, 0, -dungeonChunkLength * chunkIndex);
+            Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
             StartCoroutine(GenerateChunk(chunkIndex, chunkOffset));
         }
 
@@ -1442,7 +1511,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         }
     }
     // 新增方法：裁切/补齐地形到固定范围
-    void ClampDungeonBounds(Vector2Int minBound, Vector2Int maxBound,Dungeon3DData targetData)
+    void ClampDungeonBounds(Vector2Int minBound, Vector2Int maxBound, Dungeon3DData targetData)
     {
         // 1. 把所有位置都裁切到范围内（删除范围外的数据）
         targetData.roomPositions = targetData.roomPositions

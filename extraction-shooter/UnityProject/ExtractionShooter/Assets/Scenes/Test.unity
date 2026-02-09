@@ -218,6 +218,7 @@ MonoBehaviour:
   localMinY: -22
   localMaxX: 50
   localMaxY: 22
+  dungeoHeight: 5
   dungeonGenerator2D: {fileID: 48001062}
   ivyGenerator: {fileID: 1272303045}
   vineRayCount: 40

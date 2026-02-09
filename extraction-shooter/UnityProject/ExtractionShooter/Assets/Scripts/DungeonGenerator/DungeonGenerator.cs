@@ -187,12 +187,14 @@ public class DungeonGenerator : MonoBehaviour
 
     void Awake()
     {
-        GenerateDungeon(); // 游戏开始时生成地牢
+        //GenerateDungeon(); // 游戏开始时生成地牢
     }
 
     // 主生成函数
-    public void GenerateDungeon()
+    public void GenerateDungeon(List<Vector2Int> t_markerPositions = null)
     {
+        markerPositions = t_markerPositions ?? markerPositions; // 如果传入了标记位置，使用它们；否则使用Inspector中的默认值
+        
         random = new System.Random(DateTime.Now.Millisecond);
         ClearDungeon(); // 清空现有地牢
         random = useSeed ? new System.Random(seed) : new System.Random(DateTime.Now.Millisecond);
