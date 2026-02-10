@@ -38,6 +38,7 @@ public class ObjectRecord
 }
 public class Dungeon3DGenerator : MonoBehaviour
 {
+    // ================================
     [Header("无限生成设置")]
     public Transform cameraTransform;         // 主相机
     public float dungeonChunkLength = 50f;    // 单个3D地牢沿Z轴的长度
@@ -49,15 +50,19 @@ public class Dungeon3DGenerator : MonoBehaviour
     public int localMaxY = 22;
     public int dungeoHeight = 30;
     public static Dungeon3DGenerator instance;
+
+    // ================================
     [Header("Dungeon 2D 数据源")]
     public DungeonGenerator dungeonGenerator2D;
 
+    // ================================
     [Header("藤蔓生成设置")]
     public Artngame.TreeGEN.ProceduralIvy.IvyGeneratorTREANT ivyGenerator;  // 引用已有的藤蔓生成器脚本
     public int vineRayCount = 30;            // 要生成多少条藤蔓
     public float vineRayHeight = 30f;        // 射线起点的高度（从底部往上）
     public float vineSpawnProbability = 0.8f; // 每次射线命中是否生成藤蔓的概率
 
+    // ================================
     [Header("3D 网格设置")]
     public float gridSize = 2.0f;
     public float floorHeight = 0f;
@@ -67,10 +72,12 @@ public class Dungeon3DGenerator : MonoBehaviour
     public int mountainThickness = 2;
     public int maxMountainLayers = 5;
 
+    // ================================
     [Header("分层高度设置")]
     public bool useCustomLayerHeights = false;
     public List<float> layerHeights = new List<float>();
 
+    // ================================
     [Header("3D 模型预制体")]
     public GameObject roomWallPrefab;
     public GameObject corridorWallPrefab;
@@ -78,11 +85,13 @@ public class Dungeon3DGenerator : MonoBehaviour
     public GameObject mountainLayer2Prefab;
     public GameObject mountainLayer3PlusPrefab;
 
+    // ================================
     [Header("地面 prefab 及概率设置（房间和走廊共用）")]
     public List<PrefabProbability> groundPrefabsWithProbabilities;
     public float groundNoiseScale = 0.05f;
     public float groundNoiseThreshold = 0.5f;
 
+    // ================================
     [Header("第一层山体扩展噪声")]
     public int noiseSeed = 0;
     public float expansionNoiseScale = 0.05f;
@@ -90,37 +99,44 @@ public class Dungeon3DGenerator : MonoBehaviour
     public float expansionProbability = 0.4f;
     public int expansionDistance = 2;
 
+    // ================================
     [Header("高层山体噪声设置")]
     public float layerNoiseScale = 0.1f;
     public float layerNoiseThreshold = 0.5f;
     public float layerDensity = 0.7f;
     public float noiseDetailScale = 0.3f;
 
+    // ================================
     [Header("山体层限制")]
     public bool excludeEdgesFromHigherLayers = true;
     public int edgeDistance = 1;
 
+    // ================================
     [Header("山体块旋转变化")]
     public bool randomizeRotation = true;
     public float rotationNoiseScale = 0.2f;
 
+    // ================================
     [Header("性能优化")]
     public bool setObjectsStatic = true;
 
+    // ================================
     [Header("山体装饰设置")]
     public List<PrefabProbability> propsPrefabsWithProbabilities;
     public float propsNoiseScale = 0.1f;
     public bool randomizePropsRotation = true;
     public Vector2 propsScaleRange = new Vector2(0.8f, 1.2f);
 
+    // ================================
     [Header("地面装饰设置（支持交界优先）")]
     public List<PrefabProbability> floorPropsPrefabsWithProbabilities;
     public float floorPropsNoiseScale = 0.08f;
     public float floorPropsClusterRadius = 3f;
     public int floorPropsClusterDensity = 3;
     public float floorPropsEdgeBonus = 0.3f; // 在山体交界处额外的概率加成
-    public float floorPropsTH = 0.7f; // 在山体交界处额外的概率加成
+    public float floorPropsTH = 0.7f;        // 在山体交界处额外的概率加成
 
+    // ================================
     [Header("地板边缘装饰设置（与山体交界）")]
     [Range(0f, 1f)] public float floorEdgeDecorationProbability = 0.5f;
     [Range(1, 5)] public int floorEdgeDetectionDistance = 1;
@@ -130,10 +146,13 @@ public class Dungeon3DGenerator : MonoBehaviour
     public float floorEdgeDecorationHeightOffset = 0.05f;
     public float floorEdgeRotationVariation = 0f; // 旋转变化范围（角度）
 
+    // ================================
     [Header("走廊屏蔽prefabs列表")]
     [Tooltip("在走廊地块上会屏蔽这些prefabs的生成")]
     public List<GameObject> corridorBlockedPrefabs = new List<GameObject>();
 
+    // ================================
+    [Header("内部数据缓存")]
     private Dungeon3DData dungeon3DData = new Dungeon3DData();
     private List<GameObject> spawnedModels = new List<GameObject>();
     private List<GameObject> spawnedMountains = new List<GameObject>();
@@ -153,12 +172,20 @@ public class Dungeon3DGenerator : MonoBehaviour
 
     private HashSet<Vector2Int> generatedFloorPositions = new HashSet<Vector2Int>();
     public List<Vector2Int> markerPositions = new List<Vector2Int>();
+    private List<Vector2Int> previousExits = new List<Vector2Int>();
     List<Vector2Int> currentEntrances;
     List<Vector2Int> currentExits;
+
+    // ================================
+    [Header("可视化与调试")]
+    [SerializeField] private int visibleChunkCount = 3;
+    private Dictionary<int, ChunkData> chunkRegistry = new Dictionary<int, ChunkData>();
+    [SerializeField] private bool debugVinePositions = true;  // 是否可视化调试
     void Awake()
     {
         instance = this;
     }
+
     void Start()
     {
         // 预填充常用 Prefab
@@ -176,11 +203,7 @@ public class Dungeon3DGenerator : MonoBehaviour
 
         foreach (var p in propsPrefabsWithProbabilities)
             if (p.prefab) DungeonObjectPool.Instance.Prewarm(p.prefab, 300, transform);
-        // if (dungeonGenerator2D != null)
-        // {
-        //     Vector3 chunkOffset = new Vector3(0, 0, -dungeonChunkLength * chunkIndex);
-        //     GenerateDungeon3D_WithOffset(chunkOffset);
-        // }
+
         // 一开始生成多个 Chunk
         int prewarmChunkCount = 3; // 要提前生成的 Chunk 数
         for (int i = 0; i < prewarmChunkCount; i++)
@@ -192,9 +215,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         }
 
     }
-    private List<Vector2Int> previousExits = new List<Vector2Int>();
 
-    /// 生成入口出口标记点
     private List<Vector2Int> GenerateMarkersForChunk(int chunkIndex)
     {
         List<Vector2Int> markers = new List<Vector2Int>();
@@ -306,105 +327,15 @@ public class Dungeon3DGenerator : MonoBehaviour
             Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
             StartCoroutine(GenerateChunk(chunkIndex, chunkOffset));
         }
+    }
 
-        // // 检查可见范围
-        // foreach (var kvp in chunkRegistry)
-        // {
-        //     int idx = kvp.Key;
-        //     var chunkData = kvp.Value;
-        //     float chunkCenterZ = chunkData.worldOffset.z;
-        //     if (Mathf.Abs(cameraTransform.position.z - chunkCenterZ) > visibleChunkCount * dungeonChunkLength)
-        //     {
-        //         // 超出可视范围 -> 回收
-        //         //DespawnChunk(chunkData);
-        //     }
-        //     else
-        //     {
-        //         // 在可视范围内但没有物体 -> 重建
-        //         if (chunkData.chunkRoot.transform.childCount == 0)
-        //         {
-        //             RebuildChunk(chunkData);
-        //         }
-        //     }
-        // }
-    }
-    private void RebuildChunk(ChunkData chunkData)
-    {
-        foreach (var record in chunkData.objects)
-        {
-            DungeonObjectPool.Instance.GetFromPool(record.prefab, record.position, record.rotation, record.parent);
-        }
-    }
-    [SerializeField] private int visibleChunkCount = 3;
-    private Dictionary<int, ChunkData> chunkRegistry = new Dictionary<int, ChunkData>();
     private GameObject SpawnObject(GameObject prefab, Vector3 position, Quaternion rotation, Transform parent, ChunkData chunkData)
     {
         GameObject obj = DungeonObjectPool.Instance.GetFromPool(prefab, position, rotation, parent);
         chunkData.objects.Add(new ObjectRecord { prefab = prefab, position = position, rotation = rotation, parent = parent });
         return obj;
     }
-    private void DespawnChunk(ChunkData chunkData)
-    {
-        foreach (var record in chunkData.objects)
-        {
-            // 查找对应已生成的物体
-            foreach (Transform child in record.parent)
-            {
-                if (Vector3.Distance(child.position, record.position) < 0.01f)
-                {
-                    DungeonObjectPool.Instance.ReturnToPool(child.gameObject, record.prefab);
-                }
-            }
-        }
-    }
-    // public void GenerateDungeon3D_WithOffset(Vector3 worldOffset)
-    // {
-    //     dungeonGenerator2D.GenerateDungeon();
-    //     // 不清空已有模型，因为我们在无限生成模式中要叠加
-    //     // BUT: 如果原版调用了 ClearDungeon3D()，这里要去掉
-    //     // ClearDungeon3D(); ❌ 这一行不能在无限模式中清空
 
-    //     // 下面是原版 GenerateDungeon3D 的流程，但在所有 GridToWorld 调用里加上 worldOffset
-
-    //     // 在开始生成前，先计算并缓存过滤后的prefab列表
-    //     CalculateFilteredPrefabLists();
-    //     ValidateLayerHeights();
-    //     CreateParentObjects(); // 如果是无限生成，可以把每个 chunk 放自己父对象里
-    //                            // 计算当前chunk的边界（在世界坐标系里）
-    //     Vector2Int minBound = new Vector2Int(
-    //         Mathf.RoundToInt(worldOffset.x / gridSize) + localMinX,
-    //         Mathf.RoundToInt(worldOffset.z / gridSize) + localMinY
-    //     );
-
-    //     Vector2Int maxBound = new Vector2Int(
-    //         Mathf.RoundToInt(worldOffset.x / gridSize) + localMaxX,
-    //         Mathf.RoundToInt(worldOffset.z / gridSize) + localMaxY
-    //     );
-
-    //     // 对当前chunk的2D数据裁剪
-    //     dungeon3DData.roomPositions.Clear();
-    //     dungeon3DData.corridorPositions.Clear();
-    //     dungeon3DData.wallPositions.Clear();
-    //     dungeon3DData.mountainPositions.Clear();
-
-    //     ExtractDungeonDataFrom2D();
-    //     CalculateBaseMountainArea();
-    //     ExpandMountainAreaWithNoise();
-    //     ClampDungeonBounds(new Vector2Int(-50, -22), new Vector2Int(50, 22));
-    //     // 不裁切 - ClampDungeonBounds(); 可以省略（因为每个 chunk 的数据本身是局部 2D 数据）
-
-    //     // 然后生成各种模型，注意: 在 GridToWorld() 的结果上加 worldOffset
-    //     GenerateGroundModels_WithOffset(worldOffset);
-    //     GenerateWallModels_WithOffset(worldOffset);
-    //     GenerateAllMountainLayers_WithOffset(worldOffset);
-
-    //     if (ivyGenerator != null)
-    //         GenerateVinesOnCaveBottom();
-
-    //     DecorateMountainsWithProps_WithOffset(worldOffset);
-    //     DecorateFloorsWithProps_WithOffset(worldOffset);
-    //     DecorateFloorMountainEdges_WithOffset(worldOffset);
-    // }
     Vector3 GridToWorldOffset(int gridX, int gridY, float height, Vector3 offset)
     {
         return new Vector3(gridX * gridSize, height, gridY * gridSize) + offset;
@@ -724,32 +655,8 @@ public class Dungeon3DGenerator : MonoBehaviour
             }
         }
     }
-    // public void GenerateDungeon3D()
-    // {
-    //     ClearDungeon3D();
-    //     // 在开始生成前，先计算并缓存过滤后的prefab列表
-    //     CalculateFilteredPrefabLists();
 
-    //     ValidateLayerHeights();
-    //     CreateParentObjects();
-    //     ExtractDungeonDataFrom2D();
-    //     CalculateBaseMountainArea();
-    //     ExpandMountainAreaWithNoise();
-    //     ClampDungeonBounds(new Vector2Int(-50, -22), new Vector2Int(50, 22));
-    //     GenerateGroundModels();
-    //     GenerateWallModels();
-    //     GenerateAllMountainLayers();
-    //     if (ivyGenerator != null)
-    //     {
-    //         GenerateVinesOnCaveBottom();
-    //     }
-    //     DecorateMountainsWithProps();
-    //     DecorateFloorsWithProps();
-    //     DecorateFloorMountainEdges(); // ✅修改：在地板与山体接触边缘生成植物
-    //                                   // ✅ 最后生成藤蔓
 
-    // }
-    [SerializeField] private bool debugVinePositions = true;  // ✅是否可视化调试
     private List<Vector3> vineRayStartPoints = new List<Vector3>();
     private List<Vector3> vineHitPoints = new List<Vector3>();
     void GenerateVinesOnCaveBottom()
@@ -831,7 +738,6 @@ public class Dungeon3DGenerator : MonoBehaviour
 
         return boundarySet;
     }
-    // 新增：计算并缓存过滤后的prefab列表
     private void CalculateFilteredPrefabLists()
     {
         isFilteredPrefabsCached = true;
@@ -897,28 +803,6 @@ public class Dungeon3DGenerator : MonoBehaviour
 
         propsParent = new GameObject("Props");
         propsParent.transform.SetParent(transform);
-    }
-
-    void ValidateLayerHeights()
-    {
-        if (!useCustomLayerHeights)
-        {
-            layerHeights.Clear();
-            return;
-        }
-        int requiredLayers = maxMountainLayers + 1;
-        if (layerHeights.Count < requiredLayers)
-        {
-            for (int i = layerHeights.Count; i < requiredLayers; i++)
-            {
-                float defaultOffset = (i == 0) ? baseMountainHeight : mountainLayerHeight;
-                layerHeights.Add(defaultOffset);
-            }
-        }
-        else if (layerHeights.Count > requiredLayers)
-        {
-            layerHeights = layerHeights.GetRange(0, requiredLayers);
-        }
     }
 
     void ExtractDungeonDataFrom2D(Dungeon3DData targetData)
@@ -1062,51 +946,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         return groundPrefabsWithProbabilities;
     }
 
-    void GenerateGroundModels()
-    {
-        // 确保已计算过滤列表
-        if (!isFilteredPrefabsCached)
-        {
-            CalculateFilteredPrefabLists();
-        }
-
-        HashSet<Vector2Int> allGroundPositions = new HashSet<Vector2Int>(dungeon3DData.roomPositions);
-        allGroundPositions.UnionWith(dungeon3DData.corridorPositions);
-
-        foreach (var pos in allGroundPositions)
-        {
-            float noiseValue = Mathf.PerlinNoise(
-                pos.x * groundNoiseScale + noiseSeed * 0.01f,
-                pos.y * groundNoiseScale + noiseSeed * 0.01f + 200
-            );
-
-            // 获取过滤后的prefab列表（使用缓存的列表）
-            List<PrefabProbability> availablePrefabs = GetFilteredGroundPrefabsForPosition(pos);
-            if (availablePrefabs == null || availablePrefabs.Count == 0)
-            {
-                // 如果列表为空，使用原始列表
-                availablePrefabs = groundPrefabsWithProbabilities;
-            }
-
-            GameObject prefab = ChoosePrefabByNoiseValue(availablePrefabs, noiseValue);
-            if (prefab == null)
-            {
-                // 如果选择失败，使用原始列表的第一个prefab
-                if (groundPrefabsWithProbabilities != null && groundPrefabsWithProbabilities.Count > 0)
-                    prefab = groundPrefabsWithProbabilities[0].prefab;
-                else
-                    continue; // 没有可用的prefab，跳过
-            }
-
-            Vector3 worldPos = GridToWorld(pos.x, pos.y, floorHeight);
-            GameObject groundTile = Instantiate(prefab, worldPos, Quaternion.identity, floorsParent.transform);
-            if (setObjectsStatic) groundTile.isStatic = true;
-            spawnedModels.Add(groundTile);
-            spawnedFloors.Add(groundTile);
-            generatedFloorPositions.Add(pos);
-        }
-    }
-
     GameObject ChoosePrefabByNoiseValue(List<PrefabProbability> list, float noiseValue)
     {
         if (list == null || list.Count == 0) return null;
@@ -1135,7 +974,6 @@ public class Dungeon3DGenerator : MonoBehaviour
 
         return list.Last().prefab;
     }
-
     GameObject ChoosePrefabByProbability(List<PrefabProbability> list)
     {
         if (list == null || list.Count == 0) return null;
@@ -1164,45 +1002,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         return list.Last().prefab;
     }
 
-    void GenerateWallModels()
-    {
-        foreach (var pos in dungeon3DData.wallPositions)
-        {
-            Vector3 worldPos = GridToWorld(pos.x, pos.y, floorHeight);
-            GameObject wallPrefab = roomWallPrefab;
-            foreach (var corridorPos in dungeon3DData.corridorPositions)
-            {
-                if (Vector2Int.Distance(pos, corridorPos) <= 1)
-                {
-                    wallPrefab = corridorWallPrefab;
-                    break;
-                }
-            }
-            GameObject wall = Instantiate(wallPrefab, worldPos, Quaternion.identity, wallsParent.transform);
-            if (setObjectsStatic) wall.isStatic = true;
-            spawnedModels.Add(wall);
-            spawnedWalls.Add(wall);
-        }
-    }
-
-    void GenerateAllMountainLayers()
-    {
-        dungeon3DData.mountainLayers.Clear();
-        List<Vector2Int> baseLayerPositions = new List<Vector2Int>(dungeon3DData.mountainPositions);
-        dungeon3DData.mountainLayers.Add(baseLayerPositions);
-        GenerateMountainLayer(0, baseLayerPositions);
-
-        for (int layer = 1; layer <= maxMountainLayers; layer++)
-        {
-            List<Vector2Int> previousLayer = dungeon3DData.mountainLayers[layer - 1];
-            if (previousLayer.Count == 0) break;
-            List<Vector2Int> currentLayerPositions = CalculateHigherMountainLayer(layer, previousLayer);
-            if (currentLayerPositions.Count == 0) break;
-            dungeon3DData.mountainLayers.Add(currentLayerPositions);
-            GenerateMountainLayer(layer, currentLayerPositions);
-        }
-    }
-
     List<Vector2Int> CalculateHigherMountainLayer(int layer, List<Vector2Int> previousLayer)
     {
         List<Vector2Int> currentLayer = new List<Vector2Int>();
@@ -1218,7 +1017,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         }
         return currentLayer;
     }
-
     List<Vector2Int> CalculateLayerEdgePositions(List<Vector2Int> layerPositions)
     {
         List<Vector2Int> edges = new List<Vector2Int>();
@@ -1238,27 +1036,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         return edges;
     }
 
-    void GenerateMountainLayer(int layer, List<Vector2Int> positions)
-    {
-        float currentHeight = GetLayerHeight(layer);
-        GameObject prefabToUse = GetMountainPrefabForLayer(layer);
-        foreach (var pos in positions)
-        {
-            Vector3 worldPos = GridToWorld(pos.x, pos.y, currentHeight);
-            GameObject mountain = Instantiate(prefabToUse, worldPos, Quaternion.identity, mountainsParent.transform);
-            if (setObjectsStatic) mountain.isStatic = true;
-            mountain.layer = 14;
-            if (randomizeRotation)
-            {
-                float rotationNoise = CalculateNoiseForRotation(pos.x, pos.y, layer);
-                int rotationIndex = Mathf.FloorToInt(rotationNoise * 4) % 4;
-                mountain.transform.rotation = Quaternion.Euler(0, rotationIndex * 90, 0);
-            }
-            spawnedModels.Add(mountain);
-            spawnedMountains.Add(mountain);
-        }
-    }
-
     float GetLayerHeight(int layer)
     {
         if (useCustomLayerHeights && layer < layerHeights.Count)
@@ -1272,7 +1049,6 @@ public class Dungeon3DGenerator : MonoBehaviour
             return baseMountainHeight + (layer * mountainLayerHeight);
         }
     }
-
     GameObject GetMountainPrefabForLayer(int layer)
     {
         if (layer == 0) return mountainPrefab;
@@ -1280,7 +1056,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         else if (layer >= 2 && mountainLayer3PlusPrefab != null) return mountainLayer3PlusPrefab;
         else return mountainPrefab;
     }
-
     float CalculateLayerNoiseValue(int x, int y, int layer)
     {
         float seedOffset = (noiseSeed + layer * 100) * 0.01f;
@@ -1290,7 +1065,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         combinedNoise = Mathf.Clamp01(combinedNoise * layerDensity);
         return combinedNoise;
     }
-
     float CalculateNoiseForRotation(int x, int y, int layer)
     {
         float seedOffset = (noiseSeed + layer * 1000) * 0.01f;
@@ -1307,77 +1081,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         );
     }
 
-    void DecorateFloorsWithProps()
-    {
-        if (floorPropsPrefabsWithProbabilities == null || floorPropsPrefabsWithProbabilities.Count == 0) return;
-        HashSet<Vector2Int> usedPositions = new HashSet<Vector2Int>();
-
-        // 缓存走廊位置以提高性能
-        HashSet<Vector2Int> corridorPositionsSet = new HashSet<Vector2Int>(dungeon3DData.corridorPositions);
-
-        foreach (var floorPos in generatedFloorPositions)
-        {
-            bool isEdge = dungeon3DData.mountainPositions.Any(m => Vector2Int.Distance(m, floorPos) <= 1);
-            float noiseValue = Mathf.PerlinNoise(floorPos.x * floorPropsNoiseScale + noiseSeed * 0.01f, floorPos.y * floorPropsNoiseScale + noiseSeed * 0.01f + 300);
-            float finalProbabilityBonus = isEdge ? floorPropsEdgeBonus : 0f;
-
-            if (noiseValue + finalProbabilityBonus > floorPropsTH)
-            {
-                for (int i = 0; i < floorPropsClusterDensity; i++)
-                {
-                    Vector2 randomOffset = Random.insideUnitCircle * floorPropsClusterRadius;
-                    Vector2Int clusterPos = new Vector2Int(Mathf.RoundToInt(floorPos.x + randomOffset.x), Mathf.RoundToInt(floorPos.y + randomOffset.y));
-
-                    if (usedPositions.Contains(clusterPos)) continue;
-                    usedPositions.Add(clusterPos);
-
-                    // 检查当前集群位置是否是走廊
-                    bool isClusterInCorridor = corridorPositionsSet.Contains(clusterPos);
-
-                    // 获取可用的prefab列表
-                    List<PrefabProbability> availablePrefabs = null;
-                    if (isClusterInCorridor)
-                    {
-                        // 使用缓存的过滤列表
-                        if (isFilteredPrefabsCached && filteredFloorPropsPrefabsForCorridor != null)
-                        {
-                            availablePrefabs = filteredFloorPropsPrefabsForCorridor;
-                        }
-                        else
-                        {
-                            // 如果未缓存，则使用原始列表
-                            availablePrefabs = floorPropsPrefabsWithProbabilities;
-                        }
-                    }
-                    else
-                    {
-                        availablePrefabs = floorPropsPrefabsWithProbabilities;
-                    }
-
-                    if (availablePrefabs == null || availablePrefabs.Count == 0)
-                    {
-                        continue; // 没有可用的prefabs，跳过这个位置
-                    }
-
-                    GameObject prefab = ChoosePrefabByProbability(availablePrefabs);
-                    if (prefab == null) continue;
-
-                    Vector3 worldPos = GridToWorld(clusterPos.x, clusterPos.y, floorHeight + 0.05f);
-                    GameObject propInstance = Instantiate(prefab, worldPos,
-    Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
-    propsParent.transform);
-                    if (randomizePropsRotation) propInstance.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
-                    float scaleFactor = Random.Range(propsScaleRange.x, propsScaleRange.y);
-                    propInstance.transform.localScale *= scaleFactor;
-                    if (setObjectsStatic) propInstance.isStatic = true;
-                    spawnedModels.Add(propInstance);
-                    spawnedProps.Add(propInstance);
-                }
-            }
-        }
-    }
-
-    // 优化：使用缓存的过滤列表
     List<PrefabProbability> GetFilteredFloorPropsPrefabsForPosition(Vector2Int pos)
     {
         if (floorPropsPrefabsWithProbabilities == null || floorPropsPrefabsWithProbabilities.Count == 0)
@@ -1397,120 +1100,6 @@ public class Dungeon3DGenerator : MonoBehaviour
         return floorPropsPrefabsWithProbabilities;
     }
 
-    void DecorateMountainsWithProps()
-    {
-        if (propsPrefabsWithProbabilities == null || propsPrefabsWithProbabilities.Count == 0) return;
-        float rayHeight = 50f;
-        HashSet<Vector2Int> usedPositions = new HashSet<Vector2Int>();
-
-        foreach (var layerPositions in dungeon3DData.mountainLayers)
-        {
-            foreach (var pos in layerPositions)
-            {
-                float noiseValue = Mathf.PerlinNoise(pos.x * propsNoiseScale + noiseSeed * 0.01f, pos.y * propsNoiseScale + noiseSeed * 0.01f + 500);
-                if (noiseValue > 0.5f)
-                {
-                    if (usedPositions.Contains(pos)) continue;
-                    Vector3 rayStart = new Vector3(pos.x * gridSize, rayHeight, pos.y * gridSize);
-                    Ray ray = new Ray(rayStart, Vector3.down);
-                    RaycastHit hit;
-                    int layerMask = 1 << 14;
-                    if (Physics.Raycast(ray, out hit, rayHeight * 2f, layerMask))
-                    {
-                        GameObject prefab = ChoosePrefabByProbability(propsPrefabsWithProbabilities);
-                        if (prefab == null) continue;
-                        GameObject propInstance = Instantiate(prefab, hit.point, Quaternion.identity, propsParent.transform);
-                        if (randomizePropsRotation) propInstance.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
-                        float scaleFactor = Random.Range(propsScaleRange.x, propsScaleRange.y);
-                        propInstance.transform.localScale *= scaleFactor;
-                        if (setObjectsStatic) propInstance.isStatic = true;
-                        spawnedModels.Add(propInstance);
-                        spawnedProps.Add(propInstance);
-                        usedPositions.Add(pos);
-                    }
-                }
-            }
-        }
-    }
-
-    // ✅ 修改：在地板与山体相邻的地块边缘生成装饰物
-    void DecorateFloorMountainEdges()
-    {
-        if (floorPropsPrefabsWithProbabilities == null || floorPropsPrefabsWithProbabilities.Count == 0) return;
-
-        // 缓存山体位置以提高性能
-        HashSet<Vector2Int> mountainPosSet = new HashSet<Vector2Int>(dungeon3DData.mountainPositions);
-        HashSet<Vector2Int> usedPositions = new HashSet<Vector2Int>();
-
-        foreach (var floorPos in generatedFloorPositions)
-        {
-            // 检查这个位置是否已经被使用
-            if (usedPositions.Contains(floorPos)) continue;
-
-            // 检查当前位置是否是走廊
-            bool isCorridor = dungeon3DData.corridorPositions.Contains(floorPos);
-
-            // 获取可用的prefab列表
-            List<PrefabProbability> availablePrefabs = GetFilteredFloorPropsPrefabsForPosition(floorPos);
-            if (availablePrefabs == null || availablePrefabs.Count == 0)
-            {
-                continue; // 没有可用的prefabs，跳过这个位置
-            }
-
-            // 找与山体相邻的地板，使用可配置的距离参数
-            bool touchesMountain = false;
-            foreach (var mountainPos in mountainPosSet)
-            {
-                float distance = Vector2Int.Distance(mountainPos, floorPos);
-                if (distance <= floorEdgeDetectionDistance)
-                {
-                    touchesMountain = true;
-                    break;
-                }
-            }
-
-            if (!touchesMountain) continue;
-
-            // 计算噪声值
-            float noiseValue = CalculateFloorEdgeNoise(floorPos.x, floorPos.y);
-
-            // 基于噪声调整最终概率
-            float noiseInfluence = Mathf.Lerp(1f, noiseValue, floorEdgeNoiseInfluence);
-
-            // 噪声阈值过滤
-            if (noiseValue < floorEdgeNoiseThreshold) continue;
-
-            // 计算最终概率：基础概率 × 噪声影响
-            float finalProbability = floorEdgeDecorationProbability * noiseInfluence;
-
-            // 概率判断
-            if (Random.value < finalProbability)
-            {
-                GameObject prefab = ChoosePrefabByProbability(availablePrefabs);
-                if (prefab == null) continue;
-
-                Vector3 worldPos = GridToWorld(floorPos.x, floorPos.y, floorHeight + floorEdgeDecorationHeightOffset);
-                GameObject instance = Instantiate(prefab, worldPos, Quaternion.Euler(0, Random.Range(0f, 360f), 0), propsParent.transform);
-
-                // 可选的旋转变化
-                if (floorEdgeRotationVariation > 0f)
-                {
-                    float randomRotation = Random.Range(-floorEdgeRotationVariation, floorEdgeRotationVariation);
-                    instance.transform.rotation = Quaternion.Euler(0, randomRotation, 0);
-                }
-
-                // 随机缩放
-                float scaleFactor = Random.Range(propsScaleRange.x, propsScaleRange.y);
-                instance.transform.localScale *= scaleFactor;
-
-                if (setObjectsStatic) instance.isStatic = true;
-                spawnedProps.Add(instance);
-                spawnedModels.Add(instance);
-                usedPositions.Add(floorPos);
-            }
-        }
-    }
-    // 新增方法：裁切/补齐地形到固定范围
     void ClampDungeonBounds(Vector2Int minBound, Vector2Int maxBound, Dungeon3DData targetData)
     {
         // 1. 把所有位置都裁切到范围内（删除范围外的数据）
@@ -1549,9 +1138,7 @@ public class Dungeon3DGenerator : MonoBehaviour
             }
         }
     }
-    /// <summary>
-    /// 清空所有已生成的3D地牢对象，恢复原状
-    /// </summary>
+
     public void ClearDungeon3D()
     {
         // 销毁已生成的模型
