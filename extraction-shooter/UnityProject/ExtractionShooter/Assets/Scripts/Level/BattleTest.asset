@@ -15,10 +15,10 @@ MonoBehaviour:
   plantPrefabs:
   - prefab: {fileID: 4645857536683069197, guid: afac1b56e1e33b04380f97bb2eb1ac35,
       type: 3}
-    spawnProbability: 0.436
+    spawnProbability: 0.852
     minScale: 1.5
     maxScale: 1.5
-    heightRange: {x: -10, y: 0.5}
+    heightRange: {x: -100, y: 0.5}
     maxGroundAngle: 60
     preferredNoiseMin: 0.229
     preferredNoiseMax: 1
@@ -28,12 +28,13 @@ MonoBehaviour:
     allowRegeneration: 1
     regenerationProbabilityMultiplier: 2
     regenerationTargetCount: 40
+    RandomRotation: 1
   - prefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
       type: 3}
-    spawnProbability: 0.5
+    spawnProbability: 0.93
     minScale: 1
     maxScale: 1
-    heightRange: {x: -10, y: 0.5}
+    heightRange: {x: -100, y: 0.5}
     maxGroundAngle: 60
     preferredNoiseMin: 0.316
     preferredNoiseMax: 1
@@ -43,6 +44,23 @@ MonoBehaviour:
     allowRegeneration: 1
     regenerationProbabilityMultiplier: 1
     regenerationTargetCount: 20
+    RandomRotation: 1
+  - prefab: {fileID: 1775908985360060008, guid: 9d46c7a9cc9d1ec4eb4f2aa60dcbad23,
+      type: 3}
+    spawnProbability: 0.063
+    minScale: 1
+    maxScale: 1
+    heightRange: {x: -100, y: 0.5}
+    maxGroundAngle: 60
+    preferredNoiseMin: 0.316
+    preferredNoiseMax: 1
+    allowClustering: 0
+    clusterMin: 1
+    clusterMax: 2
+    allowRegeneration: 0
+    regenerationProbabilityMultiplier: 1
+    regenerationTargetCount: 20
+    RandomRotation: 0
   generationAreaCenter: {x: 0, y: 0, z: 0}
   generationAreaSize: {x: 200, y: 0, z: 88}
   noiseScale: 0.5
@@ -51,7 +69,7 @@ MonoBehaviour:
   persistence: 0.572
   lacunarity: 2.31
   regenerationNoiseOffset: {x: 1000, y: 1000}
-  baseDensity: 1
+  baseDensity: 0.088
   densityCurve:
     serializedVersion: 2
     m_Curve:

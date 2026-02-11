@@ -44166,7 +44166,7 @@ GameObject:
   - component: {fileID: 820308867722905730}
   - component: {fileID: 632669296158162573}
   - component: {fileID: 7503732548496160609}
-  - component: {fileID: 2872858008453094019}
+  - component: {fileID: 7606400682403366748}
   m_Layer: 8
   m_Name: EnemtMush
   m_TagString: Untagged
@@ -44276,10 +44276,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7da26db5fe99cc4b9b05e0a2a276a6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  navMeshAgent: {fileID: 2872858008453094019}
+  moveSpeed: 3.5
   patrolRadius: 10
   minPatrolDistance: 3
   stoppingDistance: 0.5
+  raycastDistance: 1
+  walkableLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  obstacleLayer:
+    serializedVersion: 2
+    m_Bits: 16384
   animator: {fileID: 6002249354541012665}
   idleAnimationState: Idle
   walkAnimationState: JumpForwardInPlace
@@ -44292,8 +44299,9 @@ MonoBehaviour:
   hitRecoveryTime: 0.2
   showDebugInfo: 1
   patrolPointColor: {r: 0, g: 0, b: 1, a: 1}
-  currentPathColor: {r: 0, g: 1, b: 0, a: 1}
-  agentWarpDistanceThreshold: 3
+  raycastColor: {r: 0, g: 1, b: 0, a: 1}
+  blockedRayColor: {r: 1, g: 0, b: 0, a: 1}
+  raycastHeight: 0.5
 --- !u!65 &7503732548496160609
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -44315,28 +44323,33 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.6233243, y: 2.1399002, z: 1.5872139}
   m_Center: {x: 0.01907003, y: 1.3395314, z: 0.017861484}
---- !u!195 &2872858008453094019
-NavMeshAgent:
+--- !u!54 &7606400682403366748
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8759403367147227741}
-  m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.86
-  m_Speed: 3.5
-  m_Acceleration: 16
-  avoidancePriority: 50
-  m_AngularSpeed: 1000
-  m_StoppingDistance: 0
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 1
-  m_AutoRepath: 1
-  m_Height: 2.53
-  m_BaseOffset: 0
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 1
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 80
+  m_CollisionDetection: 0
 --- !u!1001 &6051769689580568770
 PrefabInstance:
   m_ObjectHideFlags: 0

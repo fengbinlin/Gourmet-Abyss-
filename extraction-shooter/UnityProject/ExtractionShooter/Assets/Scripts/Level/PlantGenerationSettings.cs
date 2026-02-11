@@ -43,6 +43,7 @@ public class PlantGenerationSettings : ScriptableObject
         [Header("再生目标数量")]
         [Tooltip("该植物的目标数量（0表示不限制）")]
         [Min(0)] public int regenerationTargetCount = 0;
+        public bool RandomRotation=true;
     }
     
     [Header("=== 植物列表 ===")]

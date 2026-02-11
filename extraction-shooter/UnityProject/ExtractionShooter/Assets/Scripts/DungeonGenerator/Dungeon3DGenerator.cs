@@ -27,7 +27,7 @@ public class ChunkData
     public Vector3 worldOffset; // Chunk的世界偏移量
     public HashSet<Vector2Int> generatedFloorPositions = new HashSet<Vector2Int>();
     public Dungeon3DData dungeon3DData = new Dungeon3DData();  // 把数据放这里
-    public bool isMountainOver=false;
+    public bool isMountainOver = false;
 }
 
 public class ObjectRecord
@@ -211,7 +211,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         int prewarmChunkCount = 3; // 要提前生成的 Chunk 数
         for (int i = 0; i < prewarmChunkCount; i++)
         {
-            
+
             nextChunkTriggerZ -= dungeonChunkLength;
             Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
             chunkIndex++;
@@ -284,7 +284,7 @@ public class Dungeon3DGenerator : MonoBehaviour
     private IEnumerator GenerateChunk(int chunkIndex, Vector3 worldOffset, int BaseSpeed = 1)
     {
         //创建基石
-        GameObject.Instantiate(ChunkBaseObject,worldOffset,Quaternion.identity);
+        GameObject.Instantiate(ChunkBaseObject, worldOffset, Quaternion.identity);
         // 1. 创建 ChunkData
         ChunkData chunkData = new ChunkData();
         chunkData.worldOffset = worldOffset;
@@ -320,6 +320,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         yield return StartCoroutine(DecorateMountainsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorMountainEdges_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
+        PlantGenerator.instance.GeneratePlantsWithOffset(worldOffset);
         // 5. 存入字典
         chunkRegistry[chunkIndex] = chunkData;
     }
@@ -330,7 +331,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         // 判断生成新chunk
         if (cameraTransform.position.z - 3 * dungeonChunkLength < nextChunkTriggerZ - dungeonChunkLength / 2f)
         {
-            
+
             nextChunkTriggerZ -= dungeonChunkLength;
             Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
             chunkIndex++;
@@ -388,7 +389,7 @@ public class Dungeon3DGenerator : MonoBehaviour
                 {
                     //生成连接点
                     Vector3 worldPos = GridToWorldOffset(exit.x, dy, floorHeight, offset);
-                    worldPos.z-=1;
+                    worldPos.z -= 1;
                     GameObject.Instantiate(chunkConnector, worldPos, Quaternion.identity);
                 }
             }
@@ -443,6 +444,8 @@ public class Dungeon3DGenerator : MonoBehaviour
 
             Vector3 worldPos = GridToWorldOffset(pos.x, pos.y, floorHeight, offset);
             GameObject groundTile = SpawnObject(prefab, worldPos, Quaternion.identity, floorsParent.transform, chunkData);
+            // 正确：获取层的索引（0-31之间的数字）
+            groundTile.layer = LayerMask.NameToLayer("Floor");
             if (setObjectsStatic) groundTile.isStatic = true;
             spawnedModels.Add(groundTile);
             spawnedFloors.Add(groundTile);
@@ -490,16 +493,16 @@ public class Dungeon3DGenerator : MonoBehaviour
             List<Vector2Int> currentLayerPositions = CalculateHigherMountainLayer(layer, previousLayer);
             if (currentLayerPositions.Count == 0) break;
             chunkData.dungeon3DData.mountainLayers.Add(currentLayerPositions);
-            
-            yield return StartCoroutine(GenerateMountainLayer_WithOffset(layer, currentLayerPositions, offset, chunkData,batchSize));
+
+            yield return StartCoroutine(GenerateMountainLayer_WithOffset(layer, currentLayerPositions, offset, chunkData, batchSize));
             counter++;
             if (counter % batchSize == 0)
                 yield return null; // 等待下一帧
         }
         Debug.Log("山体生成完毕");
-        chunkData.isMountainOver=true;
+        chunkData.isMountainOver = true;
     }
-    IEnumerator GenerateMountainLayer_WithOffset(int layer, List<Vector2Int> positions, Vector3 offset, ChunkData chunkData, int batchSize = 50, bool isLast=false)
+    IEnumerator GenerateMountainLayer_WithOffset(int layer, List<Vector2Int> positions, Vector3 offset, ChunkData chunkData, int batchSize = 50, bool isLast = false)
     {
         float currentHeight = GetLayerHeight(layer);
         GameObject prefabToUse = GetMountainPrefabForLayer(layer);
@@ -537,7 +540,7 @@ public class Dungeon3DGenerator : MonoBehaviour
                     pos.x * propsNoiseScale + noiseSeed * 0.01f,
                     pos.y * propsNoiseScale + noiseSeed * 0.01f + 500
                 );
-                if (noiseValue > 0.5f)
+                if (noiseValue > 0.8f)
                 {
                     if (usedPositions.Contains(pos)) continue;
 
@@ -735,7 +738,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         {
             Debug.Log("山体没生成完毕");
             yield return null;
-        } 
+        }
 
 
         Debug.Log($"开始边缘加权随机生成藤蔓：{vineRayCount} 条射线...");
@@ -748,7 +751,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         int maxX = chunkData.dungeon3DData.mountainPositions.Max(p => p.x);
         int minY = chunkData.dungeon3DData.mountainPositions.Min(p => p.y);
         int maxY = chunkData.dungeon3DData.mountainPositions.Max(p => p.y);
-        int counter=0;
+        int counter = 0;
         //print(edgePositions.Count);
         for (int i = 0; i < vineRayCount; i++)
         {
@@ -770,13 +773,13 @@ public class Dungeon3DGenerator : MonoBehaviour
             {
                 float rx = Random.Range(minX, maxX);
                 float ry = Random.Range(minY, maxY);
-                rayStart = new Vector3(rx * gridSize, 50, ry * gridSize+offset.z);
+                rayStart = new Vector3(rx * gridSize, 50, ry * gridSize + offset.z);
             }
 
             Ray ray = new Ray(rayStart, Vector3.down);
             // vineRayStartPoints.Add(rayStart);
 
-            if (Physics.Raycast(ray, out RaycastHit hit, 100000,layerMask))
+            if (Physics.Raycast(ray, out RaycastHit hit, 100000, layerMask))
             {
                 //print($"射线 {i + 1}: 起点 {rayStart} 命中 {hit.point}（距离：{hit.distance}）");
                 //vineHitPoints.Add(hit.point);

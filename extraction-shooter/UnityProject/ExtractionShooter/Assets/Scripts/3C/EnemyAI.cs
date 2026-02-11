@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -14,11 +13,16 @@ public enum EnemyState
 
 public class EnemyAI : MonoBehaviour
 {
-    [Header("导航设置")]
-    [SerializeField] private NavMeshAgent navMeshAgent;
+    [Header("移动设置")]
+    [SerializeField] private float moveSpeed = 3.5f;           // 移动速度
     [SerializeField] private float patrolRadius = 10f;           // 巡逻半径
     [SerializeField] private float minPatrolDistance = 3f;      // 最小巡逻距离
     [SerializeField] private float stoppingDistance = 0.5f;     // 停止距离
+    [SerializeField] private float raycastDistance = 5f;        // 射线检测距离
+    
+    [Header("层设置")]
+    [SerializeField] private LayerMask walkableLayer;           // 可行走的地板层
+    [SerializeField] private LayerMask obstacleLayer;          // 障碍物层
     
     [Header("动画设置")]
     [SerializeField] private Animator animator;
@@ -37,22 +41,37 @@ public class EnemyAI : MonoBehaviour
     [Header("调试设置")]
     [SerializeField] private bool showDebugInfo = true;         // 显示调试信息
     [SerializeField] private Color patrolPointColor = Color.blue;
-    [SerializeField] private Color currentPathColor = Color.green;
+    [SerializeField] private Color raycastColor = Color.green;
+    [SerializeField] private Color blockedRayColor = Color.red;
     
     [Header("AI设置")]
-    [SerializeField] private float agentWarpDistanceThreshold = 0.5f; // 如果离地面太远，强制Warp的距离阈值
+    [SerializeField] private float raycastHeight = 0.2f;       // 射线发射的高度偏移
     
+    // 八个方向向量
+    private static readonly Vector3[] Directions = new Vector3[]
+    {
+        Vector3.forward,           // 前
+        Vector3.back,              // 后
+        Vector3.left,              // 左
+        Vector3.right,             // 右
+        (Vector3.forward + Vector3.left).normalized,    // 左前
+        (Vector3.forward + Vector3.right).normalized,   // 右前
+        (Vector3.back + Vector3.left).normalized,      // 左后
+        (Vector3.back + Vector3.right).normalized       // 右后
+    };
+
     // 私有变量
     private EnemyState currentState = EnemyState.Idle;
     private Vector3 currentPatrolPoint = Vector3.zero;
+    private Vector3 moveDirection = Vector3.zero;
     private float lookAroundTimer = 0f;
     private float idleTimer = 0f;
     private float hitTimer = 0f;
+    private float patrolTimer = 0f;
+    private float patrolDuration = 0f;
     private bool hasReachedDestination = false;
     private EnemyHealth enemyHealth;
     private Vector3 spawnPosition; // 记录生成位置
-    private float lastNavMeshCheckTime = 0f;
-    private const float NAVMESH_CHECK_INTERVAL = 2f; // 每2秒检查一次是否在NavMesh上
     
     // 动画参数哈希
     private int isWalkingHash;
@@ -61,9 +80,6 @@ public class EnemyAI : MonoBehaviour
     private void Awake()
     {
         // 获取组件
-        if (navMeshAgent == null)
-            navMeshAgent = GetComponent<NavMeshAgent>();
-            
         if (animator == null)
             animator = GetComponent<Animator>();
             
@@ -72,14 +88,6 @@ public class EnemyAI : MonoBehaviour
         // 记录生成位置
         spawnPosition = transform.position;
         
-        // 初始化导航代理
-        if (navMeshAgent != null)
-        {
-            navMeshAgent.stoppingDistance = stoppingDistance;
-            navMeshAgent.autoBraking = true;
-            navMeshAgent.autoRepath = true;
-        }
-        
         // 缓存动画参数哈希
         isWalkingHash = Animator.StringToHash("IsWalking");
         isLookingAroundHash = Animator.StringToHash("IsLookingAround");
@@ -87,22 +95,12 @@ public class EnemyAI : MonoBehaviour
     
     private void Start()
     {
-        // 确保敌人在NavMesh上
-        EnsureOnNavMesh();
-        
         // 初始状态为闲置
         SetState(EnemyState.Idle);
     }
     
     private void Update()
     {
-        // 定期检查是否在NavMesh上
-        if (Time.time - lastNavMeshCheckTime > NAVMESH_CHECK_INTERVAL)
-        {
-            EnsureOnNavMesh();
-            lastNavMeshCheckTime = Time.time;
-        }
-        
         // 根据当前状态执行对应逻辑
         switch (currentState)
         {
@@ -149,37 +147,33 @@ public class EnemyAI : MonoBehaviour
     
     private void UpdatePatrolState()
     {
-        if (navMeshAgent == null || !navMeshAgent.enabled || !navMeshAgent.isOnNavMesh)
+        patrolTimer += Time.deltaTime;
+        
+        // 检查是否到达巡逻时间
+        if (patrolTimer >= patrolDuration)
         {
-            // 如果代理无效或不在NavMesh上，返回闲置状态
-            if (currentState == EnemyState.Patrol)
-            {
-                SetState(EnemyState.Idle);
-            }
+            // 巡逻时间结束，到达目标点
+            hasReachedDestination = true;
+            SetState(EnemyState.LookAround);
             return;
         }
         
-        // 检查是否已到达目标点
-        if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+        // 移动敌人
+        MoveTowardsDestination();
+        
+        // 检查是否提前到达目标点（如果目标点很近）
+        float distanceToTarget = Vector3.Distance(transform.position, currentPatrolPoint);
+        if (distanceToTarget <= stoppingDistance)
         {
-            if (!hasReachedDestination)
-            {
-                hasReachedDestination = true;
-                
-                // 到达目标点，切换到张望状态
-                SetState(EnemyState.LookAround);
-            }
-        }
-        else
-        {
-            hasReachedDestination = false;
+            hasReachedDestination = true;
+            SetState(EnemyState.LookAround);
         }
         
-        // 额外检查：如果代理停止移动但未到达目的地，重新计算路径
-        if (navMeshAgent.hasPath && !navMeshAgent.pathPending && navMeshAgent.velocity.sqrMagnitude < 0.1f)
+        // 检查是否卡住了
+        if (patrolTimer > 1f && Vector3.Distance(transform.position, currentPatrolPoint) > patrolRadius)
         {
-            // 检查是否卡住了
-            StartCoroutine(CheckIfStuck());
+            // 如果移动了1秒但离目标点还是很远，可能卡住了，重新选择方向
+            SetState(EnemyState.Patrol);
         }
     }
     
@@ -219,13 +213,6 @@ public class EnemyAI : MonoBehaviour
         if (currentState == newState)
             return;
         
-        // 如果新状态是巡逻状态，确保在NavMesh上
-        if (newState == EnemyState.Patrol && !IsAgentValid())
-        {
-            Debug.LogWarning($"无法切换到巡逻状态，NavMeshAgent无效或不在NavMesh上: {gameObject.name}");
-            return;
-        }
-        
         // 退出当前状态
         ExitState(currentState);
         
@@ -237,7 +224,7 @@ public class EnemyAI : MonoBehaviour
         
         if (showDebugInfo)
         {
-            //Debug.Log($"{gameObject.name} 状态切换: {currentState}");
+            Debug.Log($"{gameObject.name} 状态切换: {currentState}");
         }
     }
     
@@ -293,12 +280,6 @@ public class EnemyAI : MonoBehaviour
     {
         idleTimer = 0f;
         hasReachedDestination = false;
-        
-        // 停止导航
-        if (IsAgentValid())
-        {
-            navMeshAgent.isStopped = true;
-        }
     }
     
     private void ExitIdleState()
@@ -309,40 +290,36 @@ public class EnemyAI : MonoBehaviour
     private void EnterPatrolState()
     {
         hasReachedDestination = false;
+        patrolTimer = 0f;
         
-        // 确保代理在NavMesh上
-        if (!EnsureOnNavMesh())
+        // 获取可行走的方向
+        Vector3[] walkableDirections = GetWalkableDirections();
+        
+        if (walkableDirections.Length == 0)
         {
-            //Debug.LogError($"{gameObject.name} 无法进入巡逻状态，因为不在NavMesh上");
+            // 如果没有可行走的方向，进入闲置状态
+            Debug.LogWarning($"{gameObject.name} 没有找到可行走的方向，进入闲置状态");
             SetState(EnemyState.Idle);
             return;
         }
         
-        // 设置巡逻目标点
-        if (navMeshAgent != null && navMeshAgent.enabled && navMeshAgent.isOnNavMesh)
+        // 从可行走方向中随机选择一个
+        int randomIndex = Random.Range(0, walkableDirections.Length);
+        //print("随机序号"+randomIndex);
+        moveDirection = walkableDirections[randomIndex];
+        
+        // 计算移动距离（在最小巡逻距离和巡逻半径之间随机）
+        float moveDistance = Random.Range(minPatrolDistance, patrolRadius);
+        
+        // 计算目标点
+        currentPatrolPoint = transform.position + moveDirection * moveDistance;
+        
+        // 计算预计的巡逻时间
+        patrolDuration = moveDistance / moveSpeed;
+        
+        if (showDebugInfo)
         {
-            Vector3 randomPoint = GetRandomPointOnNavMesh();
-            if (randomPoint != Vector3.zero)
-            {
-                currentPatrolPoint = randomPoint;
-                navMeshAgent.isStopped = false;
-                navMeshAgent.SetDestination(currentPatrolPoint);
-                
-                if (showDebugInfo)
-                {
-                    //Debug.Log($"{gameObject.name} 巡逻目标点: {currentPatrolPoint}");
-                }
-            }
-            else
-            {
-                // 如果找不到有效点，返回闲置状态
-                SetState(EnemyState.Idle);
-            }
-        }
-        else
-        {
-            // 代理无效，返回闲置状态
-            SetState(EnemyState.Idle);
+            //Debug.Log($"{gameObject.name} 巡逻目标点: {currentPatrolPoint}, 方向: {moveDirection}, 距离: {moveDistance}");
         }
     }
     
@@ -354,12 +331,6 @@ public class EnemyAI : MonoBehaviour
     private void EnterLookAroundState()
     {
         lookAroundTimer = 0f;
-        
-        // 停止导航
-        if (IsAgentValid())
-        {
-            navMeshAgent.isStopped = true;
-        }
     }
     
     private void ExitLookAroundState()
@@ -370,15 +341,6 @@ public class EnemyAI : MonoBehaviour
     private void EnterHitState()
     {
         hitTimer = 0f;
-        
-        // 停止导航
-        if (IsAgentValid())
-        {
-            navMeshAgent.isStopped = true;
-        }
-        
-        // 停止所有协程
-        StopAllCoroutines();
         
         if (showDebugInfo)
         {
@@ -393,16 +355,6 @@ public class EnemyAI : MonoBehaviour
     
     private void EnterDeadState()
     {
-        // 停止导航
-        if (navMeshAgent != null)
-        {
-            navMeshAgent.isStopped = true;
-            navMeshAgent.enabled = false;
-        }
-        
-        // 停止所有协程
-        StopAllCoroutines();
-        
         if (showDebugInfo)
         {
             Debug.Log($"{gameObject.name} 进入死亡状态");
@@ -411,46 +363,53 @@ public class EnemyAI : MonoBehaviour
     
     #endregion
     
-    #region 工具方法
+    #region 移动和检测方法
     
-    private Vector3 GetRandomPointOnNavMesh()
+    // 获取所有可行走的方向
+    private Vector3[] GetWalkableDirections()
     {
-        Vector3 randomPoint = Vector3.zero;
+        List<Vector3> walkableDirs = new List<Vector3>();
+        Vector3 rayOrigin = transform.position + Vector3.up * raycastHeight;
         
-        for (int i = 0; i < 30; i++)  // 最多尝试30次
+        foreach (Vector3 dir in Directions)
         {
-            // 在巡逻半径内随机一个点
-            Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
-            randomDirection += transform.position;
+            // 发射射线检测障碍物
+            if (!Physics.Raycast(rayOrigin, dir, raycastDistance, obstacleLayer))
+            {
             
-            // 尝试在NavMesh上找到最近的点
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, NavMesh.AllAreas))
-            {
-                // 计算到目标点的距离
-                float distance = Vector3.Distance(transform.position, hit.position);
-                
-                // 如果距离大于最小巡逻距离，返回这个点
-                if (distance >= minPatrolDistance)
-                {
-                    randomPoint = hit.position;
-                    break;
-                }
+                walkableDirs.Add(dir);
             }
         }
-        
-        // 如果找不到有效点，尝试在生成位置附近寻找
-        if (randomPoint == Vector3.zero)
-        {
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(spawnPosition, out hit, patrolRadius, NavMesh.AllAreas))
-            {
-                randomPoint = hit.position;
-            }
-        }
-        
-        return randomPoint;
+        print(walkableDirs.Count);
+        return walkableDirs.ToArray();
     }
+    
+    // 向目标点移动
+    private void MoveTowardsDestination()
+    {
+        if (currentPatrolPoint == Vector3.zero)
+            return;
+        
+        // 计算移动方向
+        Vector3 direction = (currentPatrolPoint - transform.position).normalized;
+        
+        // 保持Y轴不变
+        direction.y = 0;
+        
+        if (direction.magnitude > 0.1f)
+        {
+            // 移动
+            transform.position += direction * moveSpeed * Time.deltaTime;
+            
+            // 转向移动方向
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
+        }
+    }
+    
+    #endregion
+    
+    #region 工具方法
     
     private void UpdateAnimations()
     {
@@ -487,89 +446,6 @@ public class EnemyAI : MonoBehaviour
         }
     }
     
-    // 检查代理是否有效且在NavMesh上
-    private bool IsAgentValid()
-    {
-        return navMeshAgent != null && navMeshAgent.enabled && navMeshAgent.isOnNavMesh;
-    }
-    
-    // 确保敌人在NavMesh上
-    private bool EnsureOnNavMesh()
-    {
-        if (navMeshAgent == null)
-        {
-            Debug.LogError($"{gameObject.name} NavMeshAgent为空");
-            return false;
-        }
-        
-        if (!navMeshAgent.enabled)
-        {
-            navMeshAgent.enabled = true;
-        }
-        
-        // 如果已经在NavMesh上，直接返回true
-        if (navMeshAgent.isOnNavMesh)
-        {
-            return true;
-        }
-        
-        // 尝试将代理放置到NavMesh上
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(transform.position, out hit, agentWarpDistanceThreshold, NavMesh.AllAreas))
-        {
-            navMeshAgent.Warp(hit.position);
-            //Debug.Log($"{gameObject.name} 已被Warp到NavMesh上: {hit.position}");
-            return true;
-        }
-        else
-        {
-            // 如果当前位置不行，尝试在生成位置附近寻找
-            if (NavMesh.SamplePosition(spawnPosition, out hit, agentWarpDistanceThreshold * 2f, NavMesh.AllAreas))
-            {
-                navMeshAgent.Warp(hit.position);
-                transform.position = hit.position;
-                //Debug.Log($"{gameObject.name} 已被Warp到生成位置附近的NavMesh上: {hit.position}");
-                return true;
-            }
-            else
-            {
-                //Debug.LogError($"{gameObject.name} 无法放置在NavMesh上，请检查NavMesh烘焙和敌人位置");
-                return false;
-            }
-        }
-    }
-    
-    // 检查是否卡住
-    private IEnumerator CheckIfStuck()
-    {
-        Vector3 startPosition = transform.position;
-        yield return new WaitForSeconds(2f); // 等待2秒
-        
-        if (currentState == EnemyState.Patrol && navMeshAgent != null && navMeshAgent.enabled)
-        {
-            float distanceMoved = Vector3.Distance(startPosition, transform.position);
-            if (distanceMoved < 0.5f && navMeshAgent.remainingDistance > navMeshAgent.stoppingDistance)
-            {
-                // 如果移动距离很小但仍有剩余距离，重新计算路径
-                Debug.Log($"{gameObject.name} 可能卡住了，重新计算路径");
-                navMeshAgent.isStopped = true;
-                navMeshAgent.ResetPath();
-                
-                // 重新设置目标点
-                Vector3 newRandomPoint = GetRandomPointOnNavMesh();
-                if (newRandomPoint != Vector3.zero)
-                {
-                    navMeshAgent.SetDestination(newRandomPoint);
-                    navMeshAgent.isStopped = false;
-                }
-                else
-                {
-                    SetState(EnemyState.Idle);
-                }
-            }
-        }
-    }
-    
     #endregion
     
     #region 公共方法
@@ -599,10 +475,10 @@ public class EnemyAI : MonoBehaviour
     // 强制设置巡逻点（调试用）
     public void SetPatrolPoint(Vector3 point)
     {
-        if (navMeshAgent != null && navMeshAgent.enabled && navMeshAgent.isOnNavMesh && currentState == EnemyState.Patrol)
+        if (currentState == EnemyState.Patrol)
         {
             currentPatrolPoint = point;
-            navMeshAgent.SetDestination(point);
+            moveDirection = (point - transform.position).normalized;
         }
     }
     
@@ -627,15 +503,32 @@ public class EnemyAI : MonoBehaviour
             Gizmos.DrawLine(transform.position, currentPatrolPoint);
         }
         
-        // 绘制导航路径
-        if (navMeshAgent != null && navMeshAgent.hasPath)
+        // 绘制射线检测
+        Vector3 rayOrigin = transform.position + Vector3.up * raycastHeight;
+        
+        foreach (Vector3 dir in Directions)
         {
-            Gizmos.color = currentPathColor;
-            for (int i = 0; i < navMeshAgent.path.corners.Length - 1; i++)
+            // 检查是否为可行走方向
+            bool isWalkable = false;
+            
+            if (!Physics.Raycast(rayOrigin, dir, raycastDistance, obstacleLayer))
             {
-                Gizmos.DrawLine(navMeshAgent.path.corners[i], navMeshAgent.path.corners[i + 1]);
-                Gizmos.DrawSphere(navMeshAgent.path.corners[i], 0.1f);
+                Vector3 targetPos = transform.position + dir * raycastDistance;
+                RaycastHit groundHit;
+                
+                if (Physics.Raycast(targetPos + Vector3.up * 2f, Vector3.down, out groundHit, 3f, walkableLayer))
+                {
+                    float angle = Vector3.Angle(groundHit.normal, Vector3.up);
+                    if (angle < 45f)
+                    {
+                        isWalkable = true;
+                    }
+                }
             }
+            
+            // 根据是否可行走设置颜色
+            Gizmos.color = isWalkable ? raycastColor : blockedRayColor;
+            Gizmos.DrawRay(rayOrigin, dir * raycastDistance);
         }
         
         // 绘制状态标签
@@ -647,15 +540,6 @@ public class EnemyAI : MonoBehaviour
         #if UNITY_EDITOR
         UnityEditor.Handles.Label(labelPosition, $"状态: {currentState}", style);
         #endif
-    }
-    
-    // 调试方法：在Inspector中显示当前是否在NavMesh上
-    private void OnValidate()
-    {
-        if (navMeshAgent != null && Application.isPlaying)
-        {
-            Debug.Log($"{gameObject.name} 在NavMesh上: {navMeshAgent.isOnNavMesh}");
-        }
     }
     
     #endregion
