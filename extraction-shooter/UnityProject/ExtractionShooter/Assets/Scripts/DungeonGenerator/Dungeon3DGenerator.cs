@@ -27,6 +27,7 @@ public class ChunkData
     public Vector3 worldOffset; // Chunk的世界偏移量
     public HashSet<Vector2Int> generatedFloorPositions = new HashSet<Vector2Int>();
     public Dungeon3DData dungeon3DData = new Dungeon3DData();  // 把数据放这里
+    public bool isMountainOver=false;
 }
 
 public class ObjectRecord
@@ -50,6 +51,8 @@ public class Dungeon3DGenerator : MonoBehaviour
     public int localMaxY = 22;
     public int dungeoHeight = 30;
     public static Dungeon3DGenerator instance;
+    public GameObject chunkConnector;
+    public GameObject ChunkBaseObject;
 
     // ================================
     [Header("Dungeon 2D 数据源")]
@@ -208,9 +211,10 @@ public class Dungeon3DGenerator : MonoBehaviour
         int prewarmChunkCount = 3; // 要提前生成的 Chunk 数
         for (int i = 0; i < prewarmChunkCount; i++)
         {
-            chunkIndex++;
+            
             nextChunkTriggerZ -= dungeonChunkLength;
             Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
+            chunkIndex++;
             StartCoroutine(GenerateChunk(chunkIndex, chunkOffset, 50));
         }
 
@@ -279,6 +283,8 @@ public class Dungeon3DGenerator : MonoBehaviour
     }
     private IEnumerator GenerateChunk(int chunkIndex, Vector3 worldOffset, int BaseSpeed = 1)
     {
+        //创建基石
+        GameObject.Instantiate(ChunkBaseObject,worldOffset,Quaternion.identity);
         // 1. 创建 ChunkData
         ChunkData chunkData = new ChunkData();
         chunkData.worldOffset = worldOffset;
@@ -304,11 +310,13 @@ public class Dungeon3DGenerator : MonoBehaviour
         CalculateBaseMountainArea(chunkData.dungeon3DData);
         ExpandMountainAreaWithNoise(chunkData.dungeon3DData);
         ClampDungeonBounds(new Vector2Int(localMinX, localMinY), new Vector2Int(localMaxX, localMaxY), chunkData.dungeon3DData);
+        LeaveEntranceExitGaps(chunkData.dungeon3DData, worldOffset);
 
         // 4. 生成物体（全部走 SpawnObject）
         yield return StartCoroutine(GenerateGroundModels_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
         yield return StartCoroutine(GenerateWallModels_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
-        yield return StartCoroutine(GenerateAllMountainLayers_WithOffset(worldOffset, chunkData, 30 * BaseSpeed));
+        yield return StartCoroutine(GenerateAllMountainLayers_WithOffset(worldOffset, chunkData, 300 * BaseSpeed));
+        yield return StartCoroutine(GenerateVinesOnCaveBottom(worldOffset, chunkData, 30 * BaseSpeed));
         yield return StartCoroutine(DecorateMountainsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorMountainEdges_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
@@ -322,13 +330,70 @@ public class Dungeon3DGenerator : MonoBehaviour
         // 判断生成新chunk
         if (cameraTransform.position.z - 3 * dungeonChunkLength < nextChunkTriggerZ - dungeonChunkLength / 2f)
         {
-            chunkIndex++;
+            
             nextChunkTriggerZ -= dungeonChunkLength;
             Vector3 chunkOffset = new Vector3(0, -dungeoHeight * chunkIndex, -dungeonChunkLength * chunkIndex);
+            chunkIndex++;
             StartCoroutine(GenerateChunk(chunkIndex, chunkOffset));
         }
     }
+    void LeaveEntranceExitGaps(Dungeon3DData targetData, Vector3 offset)
+    {
+        int gapHalfWidth = 2; // 半宽=1，总宽=3
+        HashSet<Vector2Int> mountainSet = new HashSet<Vector2Int>(targetData.mountainPositions);
+        HashSet<Vector2Int> roomSet = new HashSet<Vector2Int>(targetData.roomPositions);
+        // 找入口（标记点 y > 0）
+        var entrances = markerPositions.Where(m => m.y > 0).ToList();
+        foreach (var entrance in entrances)
+        {
+            for (int dy = entrance.y; dy <= localMaxY + 1; dy++)
+            {
+                for (int dx = -gapHalfWidth; dx <= gapHalfWidth; dx++)
+                {
+                    Vector2Int gapPos = new Vector2Int(entrance.x + dx, dy);
+                    if (mountainSet.Contains(gapPos))
+                    {
+                        targetData.mountainPositions.Remove(gapPos);
+                        targetData.roomPositions.Add(gapPos);
+                    }
+                    else
+                    {
+                        targetData.roomPositions.Add(gapPos);
+                    }
+                }
+            }
+        }
 
+        // 找出口（标记点 y < 0）
+        var exits = markerPositions.Where(m => m.y < 0).ToList();
+        foreach (var exit in exits)
+        {
+            for (int dy = exit.y; dy >= localMinY - 1; dy--)
+            {
+                for (int dx = -gapHalfWidth; dx <= gapHalfWidth; dx++)
+                {
+                    Vector2Int gapPos = new Vector2Int(exit.x + dx, dy);
+                    if (mountainSet.Contains(gapPos))
+                    {
+                        targetData.mountainPositions.Remove(gapPos);
+                        targetData.roomPositions.Add(gapPos);
+                    }
+                    else
+                    {
+                        targetData.roomPositions.Add(gapPos);
+                    }
+
+                }
+                if (dy == localMinY - 1)
+                {
+                    //生成连接点
+                    Vector3 worldPos = GridToWorldOffset(exit.x, dy, floorHeight, offset);
+                    worldPos.z-=1;
+                    GameObject.Instantiate(chunkConnector, worldPos, Quaternion.identity);
+                }
+            }
+        }
+    }
     private GameObject SpawnObject(GameObject prefab, Vector3 position, Quaternion rotation, Transform parent, ChunkData chunkData)
     {
         GameObject obj = DungeonObjectPool.Instance.GetFromPool(prefab, position, rotation, parent);
@@ -416,7 +481,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         chunkData.dungeon3DData.mountainLayers.Clear();
         List<Vector2Int> baseLayerPositions = new List<Vector2Int>(chunkData.dungeon3DData.mountainPositions);
         chunkData.dungeon3DData.mountainLayers.Add(baseLayerPositions);
-        StartCoroutine(GenerateMountainLayer_WithOffset(0, baseLayerPositions, offset, chunkData));
+        yield return StartCoroutine(GenerateMountainLayer_WithOffset(0, baseLayerPositions, offset, chunkData));
         int counter = 0;
         for (int layer = 1; layer <= maxMountainLayers; layer++)
         {
@@ -425,13 +490,16 @@ public class Dungeon3DGenerator : MonoBehaviour
             List<Vector2Int> currentLayerPositions = CalculateHigherMountainLayer(layer, previousLayer);
             if (currentLayerPositions.Count == 0) break;
             chunkData.dungeon3DData.mountainLayers.Add(currentLayerPositions);
-            StartCoroutine(GenerateMountainLayer_WithOffset(layer, currentLayerPositions, offset, chunkData));
+            
+            yield return StartCoroutine(GenerateMountainLayer_WithOffset(layer, currentLayerPositions, offset, chunkData,batchSize));
             counter++;
             if (counter % batchSize == 0)
                 yield return null; // 等待下一帧
         }
+        Debug.Log("山体生成完毕");
+        chunkData.isMountainOver=true;
     }
-    IEnumerator GenerateMountainLayer_WithOffset(int layer, List<Vector2Int> positions, Vector3 offset, ChunkData chunkData, int batchSize = 50)
+    IEnumerator GenerateMountainLayer_WithOffset(int layer, List<Vector2Int> positions, Vector3 offset, ChunkData chunkData, int batchSize = 50, bool isLast=false)
     {
         float currentHeight = GetLayerHeight(layer);
         GameObject prefabToUse = GetMountainPrefabForLayer(layer);
@@ -659,11 +727,15 @@ public class Dungeon3DGenerator : MonoBehaviour
 
     private List<Vector3> vineRayStartPoints = new List<Vector3>();
     private List<Vector3> vineHitPoints = new List<Vector3>();
-    void GenerateVinesOnCaveBottom()
+    IEnumerator GenerateVinesOnCaveBottom(Vector3 offset, ChunkData chunkData, int batchSize = 50)
     {
-        if (ivyGenerator == null) return;
-        if (spawnedMountains.Count == 0) return;
-
+        if (ivyGenerator == null) yield break;
+        if (spawnedMountains.Count == 0) yield break;
+        if (chunkData.isMountainOver == false)
+        {
+            Debug.Log("山体没生成完毕");
+            yield return null;
+        } 
 
 
         Debug.Log($"开始边缘加权随机生成藤蔓：{vineRayCount} 条射线...");
@@ -672,11 +744,11 @@ public class Dungeon3DGenerator : MonoBehaviour
         HashSet<Vector2Int> edgePositions = CalculateMountainEdges();
 
         // 统计整体区域范围（用于随机分布）
-        int minX = dungeon3DData.mountainPositions.Min(p => p.x);
-        int maxX = dungeon3DData.mountainPositions.Max(p => p.x);
-        int minY = dungeon3DData.mountainPositions.Min(p => p.y);
-        int maxY = dungeon3DData.mountainPositions.Max(p => p.y);
-
+        int minX = chunkData.dungeon3DData.mountainPositions.Min(p => p.x);
+        int maxX = chunkData.dungeon3DData.mountainPositions.Max(p => p.x);
+        int minY = chunkData.dungeon3DData.mountainPositions.Min(p => p.y);
+        int maxY = chunkData.dungeon3DData.mountainPositions.Max(p => p.y);
+        int counter=0;
         //print(edgePositions.Count);
         for (int i = 0; i < vineRayCount; i++)
         {
@@ -698,17 +770,23 @@ public class Dungeon3DGenerator : MonoBehaviour
             {
                 float rx = Random.Range(minX, maxX);
                 float ry = Random.Range(minY, maxY);
-                rayStart = new Vector3(rx * gridSize, vineRayHeight, ry * gridSize);
+                rayStart = new Vector3(rx * gridSize, 50, ry * gridSize+offset.z);
             }
 
             Ray ray = new Ray(rayStart, Vector3.down);
             // vineRayStartPoints.Add(rayStart);
 
-            if (Physics.Raycast(ray, out RaycastHit hit, vineRayHeight * 2f))
+            if (Physics.Raycast(ray, out RaycastHit hit, 100000,layerMask))
             {
                 //print($"射线 {i + 1}: 起点 {rayStart} 命中 {hit.point}（距离：{hit.distance}）");
                 //vineHitPoints.Add(hit.point);
                 ivyGenerator.generateIvy(hit);
+            }
+
+            counter++;
+            if (counter % batchSize == 0)
+            {
+                yield return null; // 等待下一帧
             }
         }
 

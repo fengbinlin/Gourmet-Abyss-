@@ -44345,6 +44345,11 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2810452848005793207}
     m_Modifications:
+    - target: {fileID: 49664409920935547, guid: 82dd4b3e48ff1974f92d0019f58a4f24,
+        type: 3}
+      propertyPath: m_CullingMode
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 49664409928230331, guid: 82dd4b3e48ff1974f92d0019f58a4f24,
         type: 3}
       propertyPath: m_Name

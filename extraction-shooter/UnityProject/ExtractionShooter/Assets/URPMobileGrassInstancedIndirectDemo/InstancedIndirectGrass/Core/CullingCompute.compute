@@ -13,8 +13,9 @@ float3 _CameraPosWS;
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
 	float3 prePos=_AllInstancesPosWSBuffer[id.x + _StartOffset];
-	int cameraXDiv = (int)((prePos.z-_CameraPosWS.z) / 125);
-	prePos.z -= ceil(cameraXDiv*0.5) * 250;
+	int cameraXDiv = (int)((prePos.z-_CameraPosWS.z) / 47);
+	prePos.z -= ceil(cameraXDiv*0.5) * 94;
+	prePos.y -= ceil(cameraXDiv*0.5) * 5;
 	//posWS -> posCS
 	float4 absPosCS = abs(mul(_VPMatrix,float4(prePos,1.0)));
 

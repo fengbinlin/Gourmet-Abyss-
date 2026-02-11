@@ -89,9 +89,9 @@ public class InstancedIndirectGrassRenderer : MonoBehaviour
             centerPosWS.x = Mathf.Lerp(minX, maxX, centerPosWS.x / cellCountX);
             centerPosWS.z = Mathf.Lerp(minZ, maxZ, centerPosWS.z / cellCountZ);
             //Camera Offerset
-            int cameraXDiv = (int)((centerPosWS.z - Camera.main.transform.position.z) / 125);
-            centerPosWS.z -= math.ceil(cameraXDiv*0.5f) * 250;
-
+            int cameraXDiv = (int)((centerPosWS.z - Camera.main.transform.position.z) / 47);
+            centerPosWS.z -= math.ceil(cameraXDiv * 0.5f) * 94;
+            centerPosWS.y -= math.ceil(cameraXDiv * 0.5f) * 5;
             Vector3 sizeWS = new Vector3(Mathf.Abs(maxX - minX) / cellCountX, 0, Mathf.Abs(maxX - minX) / cellCountX);
             Bounds cellBound = new Bounds(centerPosWS, sizeWS);
             //visibleCellIDList.Add(i);

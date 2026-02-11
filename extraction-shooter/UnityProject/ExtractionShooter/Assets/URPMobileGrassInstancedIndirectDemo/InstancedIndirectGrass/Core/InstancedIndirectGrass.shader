@@ -165,9 +165,9 @@
                 float3 cameraPosWS = _WorldSpaceCameraPos;
                 
                 // 计算偏移
-                int cameraXDiv = (int)((perGrassPivotPosWS.z-cameraPosWS.z) / 125);
-                perGrassPivotPosWS.z -= ceil(cameraXDiv * 0.5) * 250;
-
+                int cameraXDiv = (int)((perGrassPivotPosWS.z-cameraPosWS.z) / 47);
+                perGrassPivotPosWS.z -= ceil(cameraXDiv * 0.5) * 94;
+                perGrassPivotPosWS.y -=ceil(cameraXDiv * 0.5) * 5;
                 // 高度 & 宽度噪声控制
                 // 草覆盖噪声（用于控制哪些地方长草，以及过渡）
                 float coverNoise = noise(perGrassPivotPosWS.xz * _HeightNoiseScale);

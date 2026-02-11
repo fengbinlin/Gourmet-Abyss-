@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09a6471690d45214ebab0dd5812ed836, type: 3}
+  m_Name: BattleTest
+  m_EditorClassIdentifier: 
+  plantPrefabs:
+  - prefab: {fileID: 4645857536683069197, guid: afac1b56e1e33b04380f97bb2eb1ac35,
+      type: 3}
+    spawnProbability: 0.436
+    minScale: 1.5
+    maxScale: 1.5
+    heightRange: {x: -10, y: 0.5}
+    maxGroundAngle: 60
+    preferredNoiseMin: 0.229
+    preferredNoiseMax: 1
+    allowClustering: 0
+    clusterMin: 1
+    clusterMax: 1
+    allowRegeneration: 1
+    regenerationProbabilityMultiplier: 2
+    regenerationTargetCount: 40
+  - prefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+      type: 3}
+    spawnProbability: 0.5
+    minScale: 1
+    maxScale: 1
+    heightRange: {x: -10, y: 0.5}
+    maxGroundAngle: 60
+    preferredNoiseMin: 0.316
+    preferredNoiseMax: 1
+    allowClustering: 1
+    clusterMin: 1
+    clusterMax: 2
+    allowRegeneration: 1
+    regenerationProbabilityMultiplier: 1
+    regenerationTargetCount: 20
+  generationAreaCenter: {x: 0, y: 0, z: 0}
+  generationAreaSize: {x: 200, y: 0, z: 88}
+  noiseScale: 0.5
+  noiseOffset: {x: 0, y: 0}
+  octaves: 1
+  persistence: 0.572
+  lacunarity: 2.31
+  regenerationNoiseOffset: {x: 1000, y: 1000}
+  baseDensity: 1
+  densityCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  noiseInfluence: 1
+  minNoiseThreshold: 0.44
+  maxNoiseThreshold: 0.551
+  generationMode: 0
+  gridSpacing: 1
+  gridJitter: 0.5
+  poissonRadius: 1.2
+  poissonSamples: 30
+  pointsPer100SquareMeters: 100
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  raycastHeight: 50
+  raycastDistance: 200
+  alignToGroundNormal: 1
+  enableRegeneration: 1
+  regenerationCheckInterval: 5
+  regenerationAttemptsPerCycle: 1000
+  regenerationDensityMultiplier: 1
+  regenerationMinDistance: 0.78
+  seed: 0
+  useRandomSeed: 1
+  maxPlantsPerFrame: 20
+  useClusterOptimization: 0
+  showNoisePreview: 0
+  showGenerationPoints: 0
+  lowDensityColor: {r: 1, g: 0, b: 0, a: 1}
+  highDensityColor: {r: 0, g: 1, b: 0, a: 1}
+  densityPreset: 4
