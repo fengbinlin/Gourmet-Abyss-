@@ -30,19 +30,27 @@ public enum ResourceType
     LootPumkin,
     None
 }
-
+public enum ResourceKind
+{
+    Food,
+    Others
+}
 [System.Serializable]
 public class ResourceItem
 {
     public ResourceType type;
+    public ResourceKind resourceKind=ResourceKind.Others;
     public int count;
     public int maxCapacity = 9999; // 可选：资源最大容量
-
+    public string name;
+    public string description;
+    public Sprite Icon;
     public ResourceItem(ResourceType type, int count = 0, int maxCapacity = 9999)
     {
         this.type = type;
         this.count = count;
         this.maxCapacity = maxCapacity;
+
     }
     
     public bool CanAdd(int amount)
@@ -76,7 +84,7 @@ public class GameValManager : MonoBehaviour
     public static GameValManager Instance { get; private set; }
     
     [Header("资源配置")]
-    [SerializeField] private List<ResourceItem> resources = new List<ResourceItem>();
+    [SerializeField] public List<ResourceItem> resources = new List<ResourceItem>();
     
     [Header("资源事件")]
     public ResourceChangedEvent OnResourceAdded = new ResourceChangedEvent();
