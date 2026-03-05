@@ -38,6 +38,8 @@ public class BattleValManager : MonoBehaviour
     [SerializeField] private ResourceBarController oxygenBarController;
     [SerializeField] private ResourceBarController primaryAmmoBarController;
     [SerializeField] private ResourceBarController secondaryAmmoBarController;
+
+    [SerializeField] private GameObject healthTips;
     #region 公共属性
     public float OxygenCurrent => oxygenCurrent;
     public float OxygenMax => oxygenMax;
@@ -103,6 +105,10 @@ public class BattleValManager : MonoBehaviour
             secondaryAmmoBarController.UpdateProgress(secondaryPercent);
 
         ConsumeOxygen();
+        if (oxygenCurrent / oxygenMax < oxygenBarController.pulseThreshold)
+        {
+            healthTips.SetActive(true);
+        }
     }
 
     #region 氧气管理
@@ -112,7 +118,7 @@ public class BattleValManager : MonoBehaviour
     private void ConsumeOxygen()
     {
         if (oxygenCurrent <= 0) return;
-        if(SceneTitle.instance==null)return;
+        if (SceneTitle.instance == null) return;
         float consumeAmount = oxygenConsumeRate * SceneTitle.instance.SceneOxygenCostSpeedMultiplier * Time.deltaTime;
         oxygenCurrent = Mathf.Max(0, oxygenCurrent - consumeAmount);
 
@@ -163,7 +169,15 @@ public class BattleValManager : MonoBehaviour
         OnPrimaryAmmoChanged?.Invoke();
         return true;
     }
+    public bool CanConsumePrimaryAmmo()
+    {
+        if (primaryAmmoCurrent < primaryAmmoConsumePerShot)
+        {
+            return false;
+        }
 
+        return true;
+    }
     /// <summary>
     /// 添加主武器弹药
     /// </summary>
@@ -190,7 +204,7 @@ public class BattleValManager : MonoBehaviour
     /// </summary>
     public bool TryConsumeSecondaryAmmo()
     {
-        print("消耗副武器弹药");
+
         if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
         {
             OnSecondaryAmmoEmpty?.Invoke();
@@ -203,15 +217,26 @@ public class BattleValManager : MonoBehaviour
         OnSecondaryAmmoChanged?.Invoke();
         return true;
     }
+    public bool CanConsumeSecondaryAmmo()
+    {
+
+        if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
+        {
+
+            return false;
+        }
+
+        return true;
+    }
     public bool CheckConsumeSecondaryAmmo()
     {
         print("消耗副武器弹药");
         if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
         {
-            
+
             return false;
         }
-        
+
         return true;
     }
     /// <summary>
@@ -259,17 +284,17 @@ public class BattleValManager : MonoBehaviour
     {
         mainUIAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
         // 从WeaponStatsManager获取最新的数值
-        oxygenMax =WeaponStatsManager.Instance.oxygenMax;
-        oxygenConsumeRate=WeaponStatsManager.Instance.oxygenConsumeRate;
-        primaryAmmoMax=WeaponStatsManager.Instance.primaryAmmoMax;
-        primaryAmmoConsumePerShot=WeaponStatsManager.Instance.primaryAmmoConsumePerShot;
-        secondaryAmmoMax=WeaponStatsManager.Instance.secondaryAmmoMax;
-        secondaryAmmoConsumePerShot=WeaponStatsManager.Instance.secondaryAmmoConsumePerShot;
+        oxygenMax = WeaponStatsManager.Instance.oxygenMax;
+        oxygenConsumeRate = WeaponStatsManager.Instance.oxygenConsumeRate;
+        primaryAmmoMax = WeaponStatsManager.Instance.primaryAmmoMax;
+        primaryAmmoConsumePerShot = WeaponStatsManager.Instance.primaryAmmoConsumePerShot;
+        secondaryAmmoMax = WeaponStatsManager.Instance.secondaryAmmoMax;
+        secondaryAmmoConsumePerShot = WeaponStatsManager.Instance.secondaryAmmoConsumePerShot;
         oxygenCurrent = oxygenMax;
         primaryAmmoCurrent = primaryAmmoMax;
         secondaryAmmoCurrent = secondaryAmmoMax;
 
-
+        healthTips.SetActive(false);
         // 重置进度条到初始状态
         if (oxygenBarController != null)
             oxygenBarController.ResetBar();

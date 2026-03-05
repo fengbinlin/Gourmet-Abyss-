@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UI;
+using System.Collections;
+
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Animator))]
 public class TopDownController : MonoBehaviour
@@ -49,6 +52,9 @@ public class TopDownController : MonoBehaviour
     [Header("武器引用")]
     [SerializeField] private PrimaryWeapon primaryWeapon;
     [SerializeField] private SecondaryWeapon secondaryWeapon;
+    [SerializeField] private Text weaponTipsUI;
+    [SerializeField] private float weaponTipsDuration = 1.5f; // 提示持续时间
+    private Coroutine weaponTipsCoroutine;
     #endregion
 
     #region --- 4. 瞄准系统 ---
@@ -457,14 +463,19 @@ public class TopDownController : MonoBehaviour
 
             if (isFiring)
             {
-                //print("主武器开火");
+                // 如果没子弹
+                if (!BattleValManager.Instance.CanConsumePrimaryAmmo())
+                {
+                    ShowWeaponTips("主武器弹药不足");
+                    return;
+                }
+
                 primaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
             }
         }
+
         if (WeaponStatsManager.Instance.isSecondaryEnable)
         {
-            //secondaryWeapon.gameObject.SetActive(true);
-            // 副武器开火
             if (secondaryWeapon != null)
             {
                 bool isFiringSecondary = Input.GetButton("Fire2");
@@ -472,15 +483,16 @@ public class TopDownController : MonoBehaviour
 
                 if (isFiringSecondary)
                 {
+                    if (!BattleValManager.Instance.CanConsumeSecondaryAmmo())
+                    {
+                        ShowWeaponTips("副武器弹药不足");
+                        return;
+                    }
+
                     secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
                 }
             }
         }
-        else
-        {
-            //secondaryWeapon.gameObject.SetActive(false);
-        }
-
     }
     #endregion
 
@@ -760,4 +772,25 @@ public class TopDownController : MonoBehaviour
         }
     }
     #endregion
+
+    private void ShowWeaponTips(string message)
+    {
+        if (weaponTipsUI == null) return;
+
+        // 停止上一个协程
+        if (weaponTipsCoroutine != null)
+            StopCoroutine(weaponTipsCoroutine);
+
+        weaponTipsUI.text = message;
+        weaponTipsUI.gameObject.SetActive(true);
+
+        weaponTipsCoroutine = StartCoroutine(HideWeaponTipsAfterDelay(weaponTipsDuration));
+    }
+
+    private IEnumerator HideWeaponTipsAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        weaponTipsUI.gameObject.SetActive(false);
+        weaponTipsCoroutine = null;
+    }
 }

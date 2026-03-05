@@ -320,7 +320,7 @@ public class Dungeon3DGenerator : MonoBehaviour
         yield return StartCoroutine(DecorateMountainsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorsWithProps_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
         yield return StartCoroutine(DecorateFloorMountainEdges_WithOffset(worldOffset, chunkData, 10 * BaseSpeed));
-        PlantGenerator.instance.GeneratePlantsWithOffset(worldOffset);
+        //PlantGenerator.instance.GeneratePlantsWithOffset(worldOffset);
         // 5. 存入字典
         chunkRegistry[chunkIndex] = chunkData;
     }

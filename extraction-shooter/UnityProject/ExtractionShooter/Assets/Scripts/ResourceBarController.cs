@@ -23,7 +23,7 @@ public class ResourceBarController : MonoBehaviour
     [SerializeField] private float pulseSpeed = 8f;      // �����ٶ�
     [SerializeField] private float minPulseScale = 0.9f; // ��С����
     [SerializeField] private float maxPulseScale = 1.1f; // �������
-    [SerializeField] [Range(0f, 1f)] private float pulseThreshold = 0.2f; // ���ڴ���ֵ��ʼ����
+    [SerializeField] [Range(0f, 1f)] public float pulseThreshold = 0.2f; // ���ڴ���ֵ��ʼ����
 
     [Header("״̬")]
     [SerializeField] private float currentPercentage = 1f;

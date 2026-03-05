@@ -1,7 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-
 public class RestaurantPanel : MonoBehaviour
 {
     public static RestaurantPanel instance;
@@ -22,6 +22,13 @@ public class RestaurantPanel : MonoBehaviour
 
     private List<GameObject> currentFoodItems = new List<GameObject>();
     private List<GameObject> currentDishes = new List<GameObject>();
+    [Header("锅数据")]
+    public List<Pot> potsList = new List<Pot>(); //餐厅有的锅
+    [Header("食材实例效果")]
+    public GameObject ingredientInstancePrefab;  // 食材实例预制体
+    public Transform ingredientSpawnParent;      // 生成父物体
+    [Header("菜碟配置")]
+    public List<Plate> platesList = new List<Plate>(); //餐厅有的菜碟
     void Awake()
     {
         instance = this;
@@ -109,8 +116,9 @@ public class RestaurantPanel : MonoBehaviour
     {
         ClearDishList();
 
-        foreach (DishRecipe recipe in dishRecipes)
+        for (int i = 0; i < dishRecipes.Count; i++)
         {
+            DishRecipe recipe = dishRecipes[i];
             GameObject dishGO = Instantiate(dishItemPrefabs, dishParent);
             dishItemPrefabs script = dishGO.GetComponent<dishItemPrefabs>();
             if (script == null)
@@ -123,10 +131,23 @@ public class RestaurantPanel : MonoBehaviour
             script.disName.text = recipe.dishName;
             script.dishItem.sprite = recipe.dishIcon;
 
-            // 清空旧的食材UI（如果有）
-            for (int i = script.dishFoodParent.childCount - 1; i >= 0; i--)
+            // 设置菜谱数据
+            script.SetRecipeData(recipe);
+            // 打印食材信息
+            Debug.Log($"  - 所需食材数量: {script.recipeData.ingredients.Count}");
+            for (int j = 0; j < script.recipeData.ingredients.Count; j++)
             {
-                Destroy(script.dishFoodParent.GetChild(i).gameObject);
+                DishIngredient ingredient = script.recipeData.ingredients[j];
+                Debug.Log($"    - 食材 {j}: 类型={ingredient.resourceType}, 需要数量={ingredient.requiredCount}");
+
+                // 检查GameValManager中是否有对应的资源
+                ResourceItem resItem = GameValManager.Instance.resources.Find(r => r.type == ingredient.resourceType);
+                Debug.Log($"      当前拥有数量: {(resItem != null ? resItem.count.ToString() : "资源未找到")}");
+            }
+            // 清空旧的食材UI（如果有）
+            for (int j = script.dishFoodParent.childCount - 1; j >= 0; j--)
+            {
+                Destroy(script.dishFoodParent.GetChild(j).gameObject);
             }
 
             // 生成所需食材列表
@@ -173,5 +194,101 @@ public class RestaurantPanel : MonoBehaviour
         {
             Destroy(dishParent.GetChild(i).gameObject);
         }
+    }
+
+    // 生成食材实例效果
+    public IEnumerator SpawnIngredientInstances(DishRecipe recipe, Pot pot)
+    {
+
+        if (RestaurantPanel.instance == null || RestaurantPanel.instance.ingredientInstancePrefab == null)
+        {
+            Debug.LogWarning("食材实例预制体未设置！");
+            yield break;
+        }
+
+        foreach (DishIngredient ingredient in recipe.ingredients)
+        {
+            print("AAA");
+            // 获取食材的图标
+            ResourceItem resource = GameValManager.Instance.resources.Find(r => r.type == ingredient.resourceType);
+            if (resource == null || resource.Icon == null)
+            {
+                Debug.LogWarning($"找不到食材 {ingredient.resourceType} 的图标");
+                continue;
+            }
+
+            // 根据需求数量生成多个实例
+            for (int i = 0; i < ingredient.requiredCount; i++)
+            {
+                print("BBB");
+                // 实例化食材预制体
+                Transform spawnParent = RestaurantPanel.instance.ingredientSpawnParent != null ?
+                    RestaurantPanel.instance.ingredientSpawnParent : pot.transform;
+
+                GameObject instance = Instantiate(
+                    RestaurantPanel.instance.ingredientInstancePrefab
+
+                );
+
+                // 获取控制器并初始化
+                IngredientInstanceController controller = instance.GetComponent<IngredientInstanceController>();
+                if (controller != null)
+                {
+                    controller.Initialize(ingredient.resourceType, pot, resource.Icon);
+                }
+
+                // 添加随机延迟，让食材依次下落
+                yield return new WaitForSeconds(Random.Range(0.1f, 0.3f));
+            }
+        }
+    }
+
+    // 在 RestaurantPanel 类中添加以下方法
+
+    /// <summary>
+    /// 初始化菜碟UI
+    /// </summary>
+    public void InitializePlates()
+    {
+        foreach (Plate plate in platesList)
+        {
+            if (plate != null)
+            {
+                // 可以在这里添加菜碟的初始化逻辑
+                // 例如：设置菜碟的UI引用、按钮事件等
+            }
+        }
+    }
+
+    /// <summary>
+    /// 查找可以容纳指定菜肴的菜碟
+    /// </summary>
+    public Plate FindAvailablePlateForDish(DishRecipe recipe)
+    {
+        foreach (Plate plate in platesList)
+        {
+            if (plate != null && plate.CanAddDish(recipe))
+            {
+                return plate;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 手动装盘（玩家交互）
+    /// </summary>
+    public bool ManualTransferToPlate(Pot pot, Plate plate)
+    {
+        if (pot == null || plate == null)
+        {
+            Debug.LogWarning("锅或菜碟为空");
+            return false;
+        }
+
+        // 检查锅是否有烹饪完成的菜肴
+        // 这里需要一个方法来检查锅的完成状态
+
+        return false;
     }
 }
