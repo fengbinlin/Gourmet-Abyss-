@@ -37,7 +37,7 @@ public class CustomerData
     public string customerName;
     public bool isMan;
     public float buyprobability = 0.2f;
-    public int AffectionLevel=0;
+    public int AffectionLevel = 0;
     public List<float> AffectionLevelNeed;
     public List<int> likePeopleList;
     public List<int> dislikePeopleList;
@@ -48,7 +48,7 @@ public class CustomerData
     public List<string> InsideRestaurantConsumingWords;
     public List<string> LeavingRestaurantWords;
     public List<string> noPlateFoodWords;
-    public List<DishRecipe> favouriteFood;
+    public List<int> favouriteFood;
     //Todo爱心事件
     //TODO 喜欢的物品
     //TODO 喜欢的家具
@@ -372,7 +372,7 @@ public class CustomerNPC : MonoBehaviour
         {
             cost = targetPlate.currentDish.recipe.baseDishPrice;
         }
-        targetPlate.StartConsume();
+
 
 
         StartCoroutine(FinishConsumeInteractionCoroutine(cost));
@@ -398,26 +398,68 @@ public class CustomerNPC : MonoBehaviour
         float jumpHeight = 1.2f;
         float jumpDuration = 0.6f;
         float jumpElapsed = 0f;
-        ShowCustomBubble("太好吃了！", jumpDuration);
-        // 3️⃣ 爆金币逻辑 —— 菜价换金币特效
-        // 3️⃣ 爆金币逻辑
-        int goldAmount = Mathf.RoundToInt(cost);
-        Transform moneyBox = CustomerManager.instance.moneyBoxTransform;
+        if (data.favouriteFood.Contains(targetPlate.currentDish.recipe.dishID)&&targetPlate.currentDish.currentAmount>=2)
+        {
+            ShowCustomBubble("这是我的最爱！", jumpDuration * 2 + 1f); // 气泡显示时间要长一些
 
-        if (moneyBox != null)
-        {
-            StartCoroutine(SpawnMoneySmoothly(goldAmount, coinSpawnPoint, moneyBox));
+            // 跳两次
+            for (int i = 0; i < 2; i++)
+            {
+                jumpElapsed = 0f; // 重置时间
+                while (jumpElapsed < jumpDuration/2)
+                {
+                    float progress = jumpElapsed / (jumpDuration/2);
+                    float yOffset = Mathf.Sin(progress * Mathf.PI) * jumpHeight;
+                    transform.position = new Vector3(originalPos.x, originalPos.y + yOffset, originalPos.z);
+                    jumpElapsed += Time.deltaTime;
+                    yield return null;
+                }
+                transform.position = originalPos;
+
+                // 每次跳跃后爆金币
+                int goldAmount = Mathf.RoundToInt(cost);
+                Transform moneyBox = CustomerManager.instance.moneyBoxTransform;
+                if (moneyBox != null)
+                {
+                    StartCoroutine(SpawnMoneySmoothly(goldAmount, coinSpawnPoint, moneyBox));
+                }
+
+                // 如果不是最后一次跳跃，等待一下
+                if (i < 1)
+                {
+                    yield return new WaitForSeconds(0.5f);
+                }
+                targetPlate.StartConsume();
+            }
         }
-        while (jumpElapsed < jumpDuration)
+        else
         {
-            float progress = jumpElapsed / jumpDuration;
-            float yOffset = Mathf.Sin(progress * Mathf.PI) * jumpHeight;
-            transform.position = new Vector3(originalPos.x, originalPos.y + yOffset, originalPos.z);
-            jumpElapsed += Time.deltaTime;
-            yield return null;
+            // 非最爱菜品，只跳一次
+            ShowCustomBubble("太好吃了！", jumpDuration);
+            while (jumpElapsed < jumpDuration)
+            {
+                float progress = jumpElapsed / jumpDuration;
+                float yOffset = Mathf.Sin(progress * Mathf.PI) * jumpHeight;
+                transform.position = new Vector3(originalPos.x, originalPos.y + yOffset, originalPos.z);
+                jumpElapsed += Time.deltaTime;
+                yield return null;
+            }
+            transform.position = originalPos;
+
+            // 爆金币
+            int goldAmount = Mathf.RoundToInt(cost);
+            Transform moneyBox = CustomerManager.instance.moneyBoxTransform;
+            if (moneyBox != null)
+            {
+                StartCoroutine(SpawnMoneySmoothly(goldAmount, coinSpawnPoint, moneyBox));
+            }
+            targetPlate.StartConsume();
         }
-        transform.position = originalPos;
-        yield return new WaitForSeconds(jumpDuration + 0.5f);
+        yield return new WaitForSeconds(0.5f);
+
+
+        // 3️⃣ 爆金币逻辑 —— 菜价换金币特效
+
 
 
 

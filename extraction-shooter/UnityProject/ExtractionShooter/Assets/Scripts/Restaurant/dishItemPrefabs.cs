@@ -14,9 +14,11 @@ public enum potType
     skillet, //平底煎锅
     hotpot //火锅
 }
+
 [System.Serializable]
 public class DishRecipe
 {
+    public int dishID;                      //菜ID
     public string dishName;                 // 菜名
     public Sprite dishIcon;                 // 菜图标
     public List<DishIngredient> ingredients = new List<DishIngredient>();  // 所需食材

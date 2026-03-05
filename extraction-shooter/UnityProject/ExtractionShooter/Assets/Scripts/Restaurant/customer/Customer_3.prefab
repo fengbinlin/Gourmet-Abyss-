@@ -55,6 +55,8 @@ MonoBehaviour:
     customerName: C
     isMan: 1
     buyprobability: 1
+    AffectionLevel: 0
+    AffectionLevelNeed: []
     likePeopleList: 
     dislikePeopleList: 
     SpawningWords:
@@ -80,13 +82,11 @@ MonoBehaviour:
     - "\"\u771F\u597D\u5403\uFF01\""
     - "\"\u592A\u7F8E\u5473\u4E86\""
     - "\"\u5C31\u662F\u8FD9\u4E2A\u5473\u9053\""
-    - "\"\u5C31\u662F\u8FD9\u4E2A\u5473\u9053\""
     LeavingRestaurantWords:
     - "\"\u5403\u9971\u56DE\u5BB6\u54AF~\""
     noPlateFoodWords:
     - "\u6CA1\u83DC\u4E86(\u3112o\u3112)"
-    favouriteFood: []
-    money: 0
+    favouriteFood: 00000000
     wantToBuyDish: 0
     moveSpeed: 3
   state: 0

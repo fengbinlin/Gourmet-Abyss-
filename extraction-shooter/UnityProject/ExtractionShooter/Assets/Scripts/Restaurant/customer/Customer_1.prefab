@@ -55,6 +55,8 @@ MonoBehaviour:
     customerName: A
     isMan: 1
     buyprobability: 1
+    AffectionLevel: 0
+    AffectionLevelNeed: []
     likePeopleList: 
     dislikePeopleList: 
     SpawningWords:
@@ -86,7 +88,6 @@ MonoBehaviour:
     noPlateFoodWords:
     - "\u6CA1\u83DC\u4E86(\u3112o\u3112)"
     favouriteFood: []
-    money: 0
     wantToBuyDish: 0
     moveSpeed: 3
   state: 0
