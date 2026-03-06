@@ -88,6 +88,7 @@ MonoBehaviour:
     noPlateFoodWords:
     - "\u6CA1\u83DC\u4E86(\u3112o\u3112)"
     favouriteFood: 00000000
+    favouriteItems: 00000000
     wantToBuyDish: 0
     moveSpeed: 3
   state: 0

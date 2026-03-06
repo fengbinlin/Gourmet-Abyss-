@@ -51,6 +51,7 @@ public class CustomerData
     public List<int> favouriteFood;
     //Todo爱心事件
     //TODO 喜欢的物品
+    public List<ResourceType> favouriteItems;
     //TODO 喜欢的家具
     //TODO 雇佣后能力
 
@@ -615,6 +616,16 @@ public class CustomerNPC : MonoBehaviour
     }
     public void onSendGift()
     {
+        if (data.favouriteItems.Contains(ItemBagManager.instance.giftResourceType))
+        {
+            ShowCustomBubble("谢谢你！我很喜欢", 1);
+            //增加好感度的逻辑写在这里
+        }
+        else
+        {
+            ShowCustomBubble("噢，是礼物！", 1);
+        }
+        
         ItemBagManager.instance.SendGift();
         GiftPanel.SetActive(false);
     }
