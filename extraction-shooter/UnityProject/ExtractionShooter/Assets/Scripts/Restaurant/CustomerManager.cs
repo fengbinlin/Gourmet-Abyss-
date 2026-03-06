@@ -39,6 +39,8 @@ public class CustomerManager : MonoBehaviour
     private float nextSpawnTime; // 下次生成的时间
     public ProjectileLauncher projectileLauncher;
     public Transform moneyBoxTransform;
+        // 🔹 当前正在与玩家交互的 NPC（全局唯一）
+    public CustomerNPC currentInteractingNPC = null;
     void Awake()
     {
         instance = this;

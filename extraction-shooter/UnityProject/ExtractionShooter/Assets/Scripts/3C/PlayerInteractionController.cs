@@ -50,7 +50,7 @@ public class PlayerInteractionController : MonoBehaviour
     void OnEnable()
     {
         isCanvasActive = false;
-        
+
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
         {
@@ -209,6 +209,32 @@ public class PlayerInteractionController : MonoBehaviour
         buildingCount = 1;
         ShowInteractionCanvas();
     }
+void Update()
+{
+    if (Input.GetMouseButtonDown(0))
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
+        // 👇 这个会返回所有被射线击中的碰撞体
+        RaycastHit[] hits = Physics.RaycastAll(ray, 10000f);
+
+        // 按距离排序（近到远）
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (var hit in hits)
+        {
+            CustomerNPC npc = hit.collider.GetComponent<CustomerNPC>();
+            if (npc != null)
+            {
+                npc.ClickCustomer();
+                break;
+                // ❌ 不要 break，让射线继续“穿透”后面的对象
+            }
+
+            //（可选）如果你只想检测特定 Layer，可以先过滤
+            // if (hit.collider.gameObject.layer != LayerMask.NameToLayer("NPC")) continue;
+        }
+    }
+}
     public bool IsCanvasActive => isCanvasActive;
 }

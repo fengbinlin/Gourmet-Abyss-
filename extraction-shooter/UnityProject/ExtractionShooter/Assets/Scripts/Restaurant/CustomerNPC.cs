@@ -68,6 +68,9 @@ public class CustomerData
 
 public class CustomerNPC : MonoBehaviour
 {
+    private bool isInteractingWithPlayer = false;  // 当前是否正与玩家互动
+    private float interactionDuration = 10f;      // 暂停持续时间（可自行调整）
+    private Transform playerTransform;             // 玩家对象（运行时获取）
     public CustomerData data;
     public CustomerState state = CustomerState.Spawning;
     public GameObject bubble;         // 气泡对象
@@ -115,7 +118,7 @@ public class CustomerNPC : MonoBehaviour
 
     void Update()
     {
-        if (!isConsuming)
+        if (!isConsuming && !isInteractingWithPlayer) // 🔸 如果正在互动则暂停
         {
             MoveToTarget();
 
@@ -127,11 +130,82 @@ public class CustomerNPC : MonoBehaviour
             }
         }
 
-        // 更新动画
-        animator.SetBool("isRunning", Vector3.Distance(transform.position, targetPosition) >= 0.1f);
+        animator.SetBool("isRunning", !isInteractingWithPlayer && Vector3.Distance(transform.position, targetPosition) >= 0.1f);
 
-        // 更新气泡位置（使其跟随角色）
         UpdateBubblePosition();
+    }
+
+    public void ClickCustomer()
+    {
+        print("点击");
+
+        if (state == CustomerState.InsideRestaurant)
+            return;
+
+        // 🔸 如果当前有正在交互的 NPC 且不是自己，则停止它
+        if (CustomerManager.instance.currentInteractingNPC != null &&
+            CustomerManager.instance.currentInteractingNPC != this)
+        {
+            CustomerManager.instance.currentInteractingNPC.ForceStopInteraction();
+        }
+
+        // 🔸 开始与自己交互
+        Transform player = GameObject.FindGameObjectWithTag("Player").transform;
+        if (player != null && Vector3.Distance(player.position, transform.position) < 5f)
+        {
+            playerTransform = player;
+            StartCoroutine(InteractWithPlayerCoroutine());
+        }
+        ItemBagManager.instance.customerGiftImage = customerGiftImage;
+    }
+    public void ForceStopInteraction()
+    {
+        if (!isInteractingWithPlayer) return;
+
+        StopAllCoroutines();  // 停止当前交互协程
+        isInteractingWithPlayer = false;
+        if (bubble != null) bubble.SetActive(false);
+        animator.SetBool("isRunning", true);
+
+        // 清空全局交互引用
+        if (CustomerManager.instance.currentInteractingNPC == this)
+            CustomerManager.instance.currentInteractingNPC = null;
+        ItemBagManager.instance.giftResourceType = ResourceType.None;
+        ItemBagManager.instance.customerGiftImage = null;
+    }
+    private IEnumerator InteractWithPlayerCoroutine()
+    {
+        isInteractingWithPlayer = true;
+        CustomerManager.instance.currentInteractingNPC = this; // ✅ 记录为当前交互 NPC
+
+        animator.SetBool("isRunning", false);
+        ShowCustomBubble("你好呀～",interactionDuration);
+
+        // 面向玩家方向
+        if (playerTransform != null)
+        {
+            Vector3 lookDir = playerTransform.position - transform.position;
+            lookDir.y = 0;
+            Quaternion targetRotation = Quaternion.LookRotation(lookDir);
+            float rotateTime = 0.3f;
+            float elapsed = 0f;
+
+            while (elapsed < rotateTime)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, elapsed / rotateTime);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        yield return new WaitForSeconds(interactionDuration);
+
+        // 🔸 结束交互
+        isInteractingWithPlayer = false;
+        if (CustomerManager.instance.currentInteractingNPC == this)
+            CustomerManager.instance.currentInteractingNPC = null;
+        ItemBagManager.instance.giftResourceType = ResourceType.None;
+        ItemBagManager.instance.customerGiftImage = null;
     }
 
     private void UpdateBubblePosition()
@@ -163,7 +237,8 @@ public class CustomerNPC : MonoBehaviour
 
     private void ShowThoughtBubble()
     {
-        if (bubble == null || bubbleText == null)
+
+        if (bubble == null || bubbleText == null || isInteractingWithPlayer)
             return;
 
         string thoughtText = "";
@@ -398,7 +473,7 @@ public class CustomerNPC : MonoBehaviour
         float jumpHeight = 1.2f;
         float jumpDuration = 0.6f;
         float jumpElapsed = 0f;
-        if (data.favouriteFood.Contains(targetPlate.currentDish.recipe.dishID)&&targetPlate.currentDish.currentAmount>=2)
+        if (data.favouriteFood.Contains(targetPlate.currentDish.recipe.dishID) && targetPlate.currentDish.currentAmount >= 2)
         {
             ShowCustomBubble("这是我的最爱！", jumpDuration * 2 + 1f); // 气泡显示时间要长一些
 
@@ -406,9 +481,9 @@ public class CustomerNPC : MonoBehaviour
             for (int i = 0; i < 2; i++)
             {
                 jumpElapsed = 0f; // 重置时间
-                while (jumpElapsed < jumpDuration/2)
+                while (jumpElapsed < jumpDuration / 2)
                 {
-                    float progress = jumpElapsed / (jumpDuration/2);
+                    float progress = jumpElapsed / (jumpDuration / 2);
                     float yOffset = Mathf.Sin(progress * Mathf.PI) * jumpHeight;
                     transform.position = new Vector3(originalPos.x, originalPos.y + yOffset, originalPos.z);
                     jumpElapsed += Time.deltaTime;
@@ -530,5 +605,17 @@ public class CustomerNPC : MonoBehaviour
 
         if (bubbleHideCoroutine != null)
             StopCoroutine(bubbleHideCoroutine);
+    }
+    public Image customerGiftImage;
+    public ResourceType giftResourceType;
+    public GameObject GiftPanel;
+    public void onGiftButtonDown()
+    {
+        ItemBagManager.instance.customerGiftImage = customerGiftImage;
+    }
+    public void onSendGift()
+    {
+        ItemBagManager.instance.SendGift();
+        GiftPanel.SetActive(false);
     }
 }
