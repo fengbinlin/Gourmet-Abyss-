@@ -23,7 +23,7 @@ public class BattleValManager : MonoBehaviour
     [SerializeField] private bool isActive = false;          // 是否启动消耗
 
     // 当前值
-    private float oxygenCurrent;
+    public float oxygenCurrent;
     private int primaryAmmoCurrent;
     private int secondaryAmmoCurrent;
 

@@ -45,7 +45,7 @@ public class ResourceBarController : MonoBehaviour
         if (progressBarImage != null)
         {
             originalColor = progressBarImage.color;
-            print("初始颜色"+originalColor);
+            //print("初始颜色"+originalColor);
         }
 
         if (barTransform != null)

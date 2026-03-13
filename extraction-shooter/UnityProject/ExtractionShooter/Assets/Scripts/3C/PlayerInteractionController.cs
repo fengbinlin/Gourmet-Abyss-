@@ -2,7 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-
+using UnityEngine.Events;
+using System;
 [RequireComponent(typeof(Collider))]
 public class PlayerInteractionController : MonoBehaviour
 {
@@ -21,20 +22,28 @@ public class PlayerInteractionController : MonoBehaviour
     [SerializeField] private LayerMask buildingLayer;          // 建筑层级
     [SerializeField] private string buildingTag = "InteractableBuilding"; // 建筑标签
 
+    [Header("Hold Progress Settings")]
+    [SerializeField] private Image holdProgress;               // 长按进度条
+    [SerializeField] private float holdTime = 2f;              // 需要长按的时间
+    [SerializeField] private float fillSpeed = 1f;            // 填充速度
+    [SerializeField] private float decreaseSpeed = 2f;         // 减少速度
+
+
+    // 1. 通用交互键按下事件（任何情况下按下E都会触发）
+    public event Action OnInteractionPressed;
     // 私有变量
     private Vector3 popupOriginalPosition;
     private Coroutine popupCoroutine;
     private bool isCanvasActive = false;
     private int buildingCount = 0;  // 追踪进入的建筑数量
+    private bool isHolding = false; // 是否正在长按
+    private float currentProgress = 0f; // 当前进度
+
+    // 当前宝箱引用
+    private Treasure currentTreasure = null;
 
     private void Awake()
     {
-        // // 确保Collider是Trigger
-        // if (TryGetComponent<Collider>(out var col))
-        // {
-        //     col.isTrigger = true;
-        // }
-
         // 初始化Canvas状态
         if (interactionCanvas != null)
         {
@@ -46,52 +55,89 @@ public class PlayerInteractionController : MonoBehaviour
         {
             popupOriginalPosition = popupImage.anchoredPosition;
         }
+
+        // 初始化进度条
+        if (holdProgress != null)
+        {
+            holdProgress.fillAmount = 0f;
+        }
     }
+
     void OnEnable()
     {
         isCanvasActive = false;
+        isHolding = false;
+        currentProgress = 0f;
 
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
         {
             StopCoroutine(popupCoroutine);
         }
-        Vector2 startPos = popupImage.anchoredPosition;
+
         Vector2 targetPos = popupOriginalPosition;
-
-
         popupImage.anchoredPosition = targetPos;
-
         interactionCanvas.gameObject.SetActive(false);
-
         popupCoroutine = null;
-        //HideInteractionCanvas();
+
+        // 重置进度条
+        if (holdProgress != null)
+        {
+            holdProgress.fillAmount = 0f;
+        }
     }
+
     void OnDisable()
     {
         isCanvasActive = false;
-        buildingCount--;
+        isHolding = false;
+        currentProgress = 0f;
+
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
         {
             StopCoroutine(popupCoroutine);
         }
-        Vector2 startPos = popupImage.anchoredPosition;
+
         Vector2 targetPos = popupOriginalPosition;
-
-
         popupImage.anchoredPosition = targetPos;
-
         interactionCanvas.gameObject.SetActive(false);
-
         popupCoroutine = null;
+
+        // 重置进度条
+        if (holdProgress != null)
+        {
+            holdProgress.fillAmount = 0f;
+        }
+
+        // 清除宝箱引用
+        currentTreasure = null;
     }
+
     private void OnTriggerEnter(Collider other)
     {
         // 检查是否是可交互建筑
         if (IsInteractableBuilding(other))
         {
             buildingCount++;
+            AudioManager.Instance.PlayAudio("3");
+            // 如果Canvas还未激活，激活并播放弹出动画
+            if (!isCanvasActive)
+            {
+                ShowInteractionCanvas();
+            }
+        }
+        // 靠近宝箱逻辑
+        Treasure treasure = other.gameObject.GetComponent<Treasure>();
+        if (treasure)
+        {
+            if (treasure.isOpen == true)
+            {
+                return;
+            }
+            print("进入宝箱");
+            currentTreasure = treasure;
+            holdTime = currentTreasure.timeNeedToHold;
             AudioManager.Instance.PlayAudio("3");
             // 如果Canvas还未激活，激活并播放弹出动画
             if (!isCanvasActive)
@@ -110,6 +156,25 @@ public class PlayerInteractionController : MonoBehaviour
 
             // 如果离开了所有建筑，隐藏Canvas
             if (buildingCount == 0 && isCanvasActive)
+            {
+                HideInteractionCanvas();
+            }
+        }
+        // 离开宝箱逻辑
+        if (other.gameObject.GetComponent<Treasure>())
+        {
+            // 重置长按状态
+            isHolding = false;
+            currentProgress = 0f;
+
+            if (holdProgress != null)
+            {
+                holdProgress.fillAmount = 0f;
+            }
+
+            currentTreasure = null;
+
+            if (isCanvasActive)
             {
                 HideInteractionCanvas();
             }
@@ -147,6 +212,8 @@ public class PlayerInteractionController : MonoBehaviour
         if (interactionCanvas == null || popupImage == null) return;
 
         isCanvasActive = false;
+        isHolding = false;
+        currentProgress = 0f;
 
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
@@ -209,32 +276,96 @@ public class PlayerInteractionController : MonoBehaviour
         buildingCount = 1;
         ShowInteractionCanvas();
     }
-void Update()
-{
-    if (Input.GetMouseButtonDown(0))
+
+    void Update()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-        // 👇 这个会返回所有被射线击中的碰撞体
-        RaycastHit[] hits = Physics.RaycastAll(ray, 10000f);
-
-        // 按距离排序（近到远）
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-        foreach (var hit in hits)
+        if (Input.GetMouseButtonDown(0))
         {
-            CustomerNPC npc = hit.collider.GetComponent<CustomerNPC>();
-            if (npc != null)
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 10000f);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+            foreach (var hit in hits)
             {
-                npc.ClickCustomer();
-                break;
-                // ❌ 不要 break，让射线继续“穿透”后面的对象
+                CustomerNPC npc = hit.collider.GetComponent<CustomerNPC>();
+                if (npc != null)
+                {
+                    npc.ClickCustomer();
+                    break;
+                }
+            }
+        }
+        
+        //通用的按下E的交互
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            OnInteractionPressed?.Invoke();
+        }
+
+        // 处理宝箱长按交互
+        if (currentTreasure != null && holdProgress != null)
+        {
+            if (currentTreasure.isOpen == true)
+            {
+                return;
+            }
+            // 检测按键按下
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                isHolding = true;
             }
 
-            //（可选）如果你只想检测特定 Layer，可以先过滤
-            // if (hit.collider.gameObject.layer != LayerMask.NameToLayer("NPC")) continue;
+            // 检测按键抬起
+            if (Input.GetKeyUp(KeyCode.E))
+            {
+                isHolding = false;
+            }
+
+            // 更新进度
+            if (isHolding)
+            {
+                // 增加进度
+                currentProgress += fillSpeed * Time.deltaTime;
+                currentProgress = Mathf.Clamp(currentProgress, 0f, holdTime);
+
+                // 更新UI
+                holdProgress.fillAmount = currentProgress / holdTime;
+
+                // 检查是否完成
+                if (currentProgress >= holdTime)
+                {
+                    // 打开宝箱
+                    currentTreasure.Open();
+
+                    // 重置状态
+                    isHolding = false;
+                    currentProgress = 0f;
+                    holdProgress.fillAmount = 0f;
+                }
+            }
+            else
+            {
+                // 减少进度
+                if (currentProgress > 0f)
+                {
+                    currentProgress -= decreaseSpeed * Time.deltaTime;
+                    currentProgress = Mathf.Clamp(currentProgress, 0f, holdTime);
+
+                    // 更新UI
+                    holdProgress.fillAmount = currentProgress / holdTime;
+                }
+            }
+        }
+        else if (holdProgress != null)
+        {
+            // 不在宝箱区域时重置进度
+            if (currentProgress > 0f)
+            {
+                currentProgress = 0f;
+                holdProgress.fillAmount = 0f;
+            }
         }
     }
-}
+
     public bool IsCanvasActive => isCanvasActive;
 }

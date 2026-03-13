@@ -51,46 +51,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa66078811e88da40b45ba4ab5e0379a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  data:
-    id: 3
-    customerName: C
-    isMan: 1
-    buyprobability: 1
-    AffectionLevel: 0
-    AffectionLevelNeed: []
-    likePeopleList: 
-    dislikePeopleList: 
-    SpawningWords:
-    - "\"\u809A\u5B50\u597D\u997F...\""
-    - "\"\u597D\u60F3\u5403\u996D\""
-    - "\"\u770B\u770B\u6709\u4EC0\u4E48\u597D\u5403\u7684\""
-    WalkingToQueueWords:
-    - "\"\u53BB\u6392\u961F\""
-    - "\"\u5E0C\u671B\u6709\u4F4D\u7F6E\""
-    - "\"\u6709\u70B9\u997F\u4E86\""
-    QueueingWords:
-    - "\"\u961F\u4F0D\u597D\u957F...\""
-    - "\"\u8FD8\u8981\u7B49\u591A\u4E45\uFF1F\""
-    - "\"\u524D\u9762\u7684\u4EBA\u5FEB\u70B9\""
-    - "\"\u597D\u6162\u554A\""
-    - "\"\u997F\u6241\u4E86\""
-    InsideRestaurantQueueingWords:
-    - "\"\u4E0A\u83DC\u5FEB\u70B9\""
-    - "\"\u627E\u4E2A\u4F4D\u7F6E\u5750\""
-    - "\"\u6EE1\u8DB3~\""
-    - "\"\u4E0B\u6B21\u8FD8\u8981\u6765\""
-    InsideRestaurantConsumingWords:
-    - "\"\u771F\u597D\u5403\uFF01\""
-    - "\"\u592A\u7F8E\u5473\u4E86\""
-    - "\"\u5C31\u662F\u8FD9\u4E2A\u5473\u9053\""
-    LeavingRestaurantWords:
-    - "\"\u5403\u9971\u56DE\u5BB6\u54AF~\""
-    noPlateFoodWords:
-    - "\u6CA1\u83DC\u4E86(\u3112o\u3112)"
-    favouriteFood: 00000000
-    favouriteItems: 00000000
-    wantToBuyDish: 0
-    moveSpeed: 3
+  hasChattedWithOtherCustomer: 0
+  affectionLevelText: {fileID: 5119713278159077674}
+  affectionProgressImage: {fileID: 7112007548563313658}
+  isInteractingWithPlayer: 0
+  data: {fileID: 11400000, guid: 5917c45ccb8457c43b3d529e7a17660b, type: 2}
   state: 0
   bubble: {fileID: 8324713685905298183}
   bubbleText: {fileID: 6523285036582081627}
@@ -101,6 +66,8 @@ MonoBehaviour:
   - {fileID: 7011032203586136829}
   animator: {fileID: 8884583241614765628}
   rotationSpeed: 15
+  guestOriginPosition: {x: 0, y: 0, z: 0}
+  isGuesting: 0
   customerGiftImage: {fileID: 7997417174089045725}
   giftResourceType: 0
   GiftPanel: {fileID: 2617510905543790079}
@@ -373,6 +340,26 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5195174219400788249}
     m_Modifications:
+    - target: {fileID: 336627961676633907, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 5042709691953307830}
+    - target: {fileID: 336627961676633907, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: onGuestButtonDown
+      objectReference: {fileID: 0}
+    - target: {fileID: 336627961676633907, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: CustomerNPC, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 336627961676633907, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
     - target: {fileID: 375818781608898466, guid: 749b41e1d4835a942b893335af6b7ef5,
         type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
@@ -412,6 +399,26 @@ PrefabInstance:
         type: 3}
       propertyPath: m_PresetInfoIsWorld
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255949590453156039, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 5042709691953307830}
+    - target: {fileID: 3255949590453156039, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: TryConvertToCook
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255949590453156039, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: CustomerNPC, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 3255949590453156039, guid: 749b41e1d4835a942b893335af6b7ef5,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 3831015668443111889, guid: 749b41e1d4835a942b893335af6b7ef5,
         type: 3}
@@ -540,6 +547,18 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 5092958262424646358}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &5119713278159077674 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 117430692483429372, guid: 749b41e1d4835a942b893335af6b7ef5,
+    type: 3}
+  m_PrefabInstance: {fileID: 5092958262424646358}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &6523285036582081627 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2029592514904630925, guid: 749b41e1d4835a942b893335af6b7ef5,
@@ -550,6 +569,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &7112007548563313658 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2602869072038551852, guid: 749b41e1d4835a942b893335af6b7ef5,
+    type: 3}
+  m_PrefabInstance: {fileID: 5092958262424646358}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!114 &7997417174089045725 stripped

@@ -28,48 +28,22 @@ public class ScenePoint
     public Transform pointTransform;
 }
 
-
-
-[System.Serializable]
-public class CustomerData
+public enum CookState
 {
-    public string id;
-    public string customerName;
-    public bool isMan;
-    public float buyprobability = 0.2f;
-    public int AffectionLevel = 0;
-    public List<float> AffectionLevelNeed;
-    public List<int> likePeopleList;
-    public List<int> dislikePeopleList;
-    public List<string> SpawningWords;
-    public List<string> WalkingToQueueWords;
-    public List<string> QueueingWords;
-    public List<string> InsideRestaurantQueueingWords;
-    public List<string> InsideRestaurantConsumingWords;
-    public List<string> LeavingRestaurantWords;
-    public List<string> noPlateFoodWords;
-    public List<int> favouriteFood;
-    //Todo爱心事件
-    //TODO 喜欢的物品
-    public List<ResourceType> favouriteItems;
-    //TODO 喜欢的家具
-    //TODO 雇佣后能力
-
-
-    public bool wantToBuyDish;
-    public float moveSpeed;
-
-    public CustomerData(string name, bool wantBuy, float speed)
-    {
-        customerName = name;
-        wantToBuyDish = wantBuy;
-        moveSpeed = speed;
-    }
+    Idle,       // 闲逛（在 Left / Right 间来回移动）
+    Cooking,    // 正在烹饪（跳动）
+    Returning   // 烹饪结束，回到巡逻状态
 }
 
 public class CustomerNPC : MonoBehaviour
 {
-    private bool isInteractingWithPlayer = false;  // 当前是否正与玩家互动
+    public bool isCookingNow = false;
+    private CookState cookState = CookState.Idle;
+    private Coroutine cookRoutineCoroutine;
+    public bool hasChattedWithOtherCustomer = false; // 是否已和其他顾客交谈过
+    public Text affectionLevelText; // 显示好感度等级（非 TMP）
+    public Image affectionProgressImage; // 环形进度条（使用 FillAmount）
+    public bool isInteractingWithPlayer = false;  // 当前是否正与玩家互动
     private float interactionDuration = 10f;      // 暂停持续时间（可自行调整）
     private Transform playerTransform;             // 玩家对象（运行时获取）
     public CustomerData data;
@@ -94,32 +68,55 @@ public class CustomerNPC : MonoBehaviour
 
     public float rotationSpeed = 5.0f; // 控制旋转平滑速度
 
+    public Vector3 guestOriginPosition;
+    public bool isGuesting;
+
     public void Init()
     {
-
         manager = CustomerManager.instance;
 
-        // 初始化气泡
         if (bubble != null)
-        {
             bubble.SetActive(false);
+
+        UpdateAffectionUI(); // 初始化好感度UI
+        StartBubbleRoutine();
+    }
+
+    private void UpdateAffectionUI()
+    {
+        if (data == null) return;
+
+        int level = data.affectionLevel;
+        float currentValue = data.affectionValue;
+        float needValue = 1f;
+
+        if (data.affectionLevelNeeds != null && data.affectionLevelNeeds.Count > 0)
+        {
+            if (level < data.affectionLevelNeeds.Count)
+                needValue = data.affectionLevelNeeds[level];
+            else
+                needValue = data.affectionLevelNeeds[data.affectionLevelNeeds.Count - 1];
         }
 
-        // 随机选择模型
-        // int activateModelIndex = Random.Range(0, playerModelList.Count);
-        // for (int i = 0; i < playerModelList.Count; i++)
-        // {
-        //     playerModelList[i].SetActive(i == activateModelIndex);
-        // }
-        // animator = playerModelList[activateModelIndex].GetComponent<Animator>();
+        float fill = needValue == 0 ? 1 : Mathf.Clamp01(currentValue / needValue);
 
-        // 启动气泡协程
-        StartBubbleRoutine();
+        if (affectionLevelText != null)
+            affectionLevelText.text = $"Lv.{level}";
+
+        if (affectionProgressImage != null)
+            affectionProgressImage.fillAmount = fill;
+    }
+
+    public void AddAffection(float amount)
+    {
+        if (data == null) return;
+        data.AddAffection(amount);
+        UpdateAffectionUI();
     }
 
     void Update()
     {
-        if (!isConsuming && !isInteractingWithPlayer) // 🔸 如果正在互动则暂停
+        if (!data.isCook && !isConsuming && !isInteractingWithPlayer && !isGuesting) // 🔸 如果正在互动则暂停
         {
             MoveToTarget();
 
@@ -180,7 +177,7 @@ public class CustomerNPC : MonoBehaviour
         CustomerManager.instance.currentInteractingNPC = this; // ✅ 记录为当前交互 NPC
 
         animator.SetBool("isRunning", false);
-        ShowCustomBubble("你好呀～",interactionDuration);
+        ShowCustomBubble("你好呀～", interactionDuration);
 
         // 面向玩家方向
         if (playerTransform != null)
@@ -477,7 +474,7 @@ public class CustomerNPC : MonoBehaviour
         if (data.favouriteFood.Contains(targetPlate.currentDish.recipe.dishID) && targetPlate.currentDish.currentAmount >= 2)
         {
             ShowCustomBubble("这是我的最爱！", jumpDuration * 2 + 1f); // 气泡显示时间要长一些
-
+            AddAffection(5f);
             // 跳两次
             for (int i = 0; i < 2; i++)
             {
@@ -620,13 +617,230 @@ public class CustomerNPC : MonoBehaviour
         {
             ShowCustomBubble("谢谢你！我很喜欢", 1);
             //增加好感度的逻辑写在这里
+            AddAffection(5f); // ✅ 增加好感度
         }
         else
         {
             ShowCustomBubble("噢，是礼物！", 1);
         }
-        
+
         ItemBagManager.instance.SendGift();
         GiftPanel.SetActive(false);
     }
+
+    public void onGuestButtonDown()
+    {
+        StartCoroutine(GuestWithPlayer());
+    }
+    private IEnumerator GuestWithPlayer()
+    {
+        isGuesting = true;
+        guestOriginPosition = transform.position;
+        Vector3 originPlayerPostion = GameObject.FindGameObjectWithTag("Player").transform.position;
+        TopDownController player = GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>();
+        player.GetComponent<Rigidbody>().isKinematic = true;
+        player.canPlayerMove = false;
+
+        GameObject.FindGameObjectWithTag("Player").transform.position = HomeManager.instance.myChair.transform.position;
+        Vector3 playerRotation = -1 * (player.gameObject.transform.position - HomeManager.instance.table.transform.position);
+        playerRotation.y = 0;
+        Quaternion playertargetRotation = Quaternion.LookRotation(playerRotation);
+        player.gameObject.transform.rotation = playertargetRotation;
+
+
+        transform.position = HomeManager.instance.guestChair.transform.position;
+        Vector3 NPCRotation = -1 * (transform.position - HomeManager.instance.table.transform.position);
+        NPCRotation.y = 0;
+        Quaternion NPCtargetRotation = Quaternion.LookRotation(NPCRotation);
+        transform.rotation = NPCtargetRotation;
+
+
+        ShowCustomBubble("承蒙招待，前来拜访。", 1);
+        yield return new WaitForSeconds(1);
+        ShowCustomBubble("好茶，好茶", 1);
+        yield return new WaitForSeconds(1);
+        ShowCustomBubble("吃茶点！", 1);
+        yield return new WaitForSeconds(1);
+        player.gameObject.transform.position = originPlayerPostion;
+        player.canPlayerMove = true;
+        transform.position = guestOriginPosition;
+        isGuesting = false;
+        player.GetComponent<Rigidbody>().isKinematic = false;
+        ForceStopInteraction();
+        AddAffection(10f);
+    }
+
+    //TODO，检查好感度是否满足转换成厨师需要的等级，如果满足则转换成厨师，立即中断当前行为和状态，转成厨师的状态，需要做菜时移动到锅旁上下跳动，做完菜则回到闲逛模式，在CookManager的Left和Right的Point之间移动
+    // =================== 厨师系统逻辑 ===================
+
+    // 检查是否满足招募条件
+    public bool CanBeRecruitedAsCook()
+    {
+        // 满足好感度等级阈值，例如至少 Lv3
+        int requiredLevel = 3;
+        return data != null && data.affectionLevel >= requiredLevel && !data.isCook;
+    }
+
+    // 由外部或NPC自身调用：尝试转职为厨师
+    public void TryConvertToCook()
+    {
+        //if (!CanBeRecruitedAsCook()) return;
+        ConvertToCook();
+    }
+
+    // 立即转职为厨师
+    public void ConvertToCook()
+    {
+        // 中断原有顾客行为
+        StopAllCoroutines();
+        isInteractingWithPlayer = false;
+        isConsuming = false;
+        state = CustomerState.Spawning;
+
+        // 状态转为厨师
+        data.isCook = true;
+        cookState = CookState.Idle;
+
+        if (!CookManager.cookManager.curCookList.Contains(this))
+            CookManager.cookManager.curCookList.Add(this);
+
+        ShowCustomBubble("我愿意帮忙做菜！", 2f);
+
+        cookRoutineCoroutine = StartCoroutine(CookRoutine());
+    }
+
+    // 厨师工作主循环：在Left与Right之间巡逻，当被要求做菜时去锅旁上下跳动
+    private IEnumerator CookRoutine()
+    {
+        Transform left = CookManager.cookManager.kitchenLeftPoint;
+        Transform right = CookManager.cookManager.kitchenRightPoint;
+
+        // 当前巡逻目标
+        Transform currentTarget = right;
+        float waitBetween = Random.Range(1f, 2f);
+        Debug.Log("AAA");
+        while (data.isCook)
+        {
+
+            // 🔸 如果在烹饪状态中，则暂停闲逛
+            if (cookState == CookState.Cooking)
+            {
+                yield return null;
+                continue;
+            }
+
+            // 🔸 实时判断往哪个方向走
+            if (Vector3.Distance(transform.position, right.position) < 0.2f)
+            {
+                Debug.Log("切换坐标为左");
+                // 已经到达右端，下一个目标改为左端
+                currentTarget = left;
+            }
+            else if (Vector3.Distance(transform.position, left.position) < 0.2f)
+            {
+                Debug.Log("切换坐标为右");
+                // 到达左端，下一个目标改为右端
+                currentTarget = right;
+            }
+            Debug.Log("当前目标" + currentTarget);
+            // 🔸 移动到目标点
+            Vector3 dest = new Vector3(currentTarget.position.x, currentTarget.position.y, currentTarget.position.z);
+            transform.position = Vector3.MoveTowards(transform.position, dest, data.moveSpeed * Time.deltaTime);
+            Debug.Log("目的地" + dest);
+            Debug.Log("当前坐标" + transform.position);
+            // 🔸 面向移动方向
+            Vector3 dir = dest - transform.position;
+            if (dir.sqrMagnitude > 0.001f)
+            {
+                Quaternion rot = Quaternion.LookRotation(dir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * rotationSpeed);
+            }
+
+            // 🔸 如果到达目标点则停顿一下
+            // if (Vector3.Distance(transform.position, dest) < 0.2f)
+            // {
+            //     yield return new WaitForSeconds(waitBetween);
+            //     waitBetween = Random.Range(1f, 2f);
+            // }
+
+            yield return null;
+        }
+    }
+
+
+
+    // 解雇厨师（从CookManager移除）
+    public void FireCook()
+    {
+        StopAllCoroutines();
+        if (CookManager.cookManager != null)
+        {
+            CookManager.cookManager.curCookList.Remove(this);
+        }
+        data.isCook = false;
+        ShowCustomBubble("离开厨房……", 2f);
+        LeaveRestaurant();  // 恢复离开状态
+        Destroy(gameObject, 2f);
+    }
+
+    // 被锅调用的协同函数：锅请求厨师帮忙烹饪
+    public IEnumerator HelpPotCooking(Pot pot)
+    {
+        if (!data.isCook || pot == null || isCookingNow)
+            yield break;
+
+        // 标记为工作中
+        isCookingNow = true;
+        cookState = CookState.Cooking;
+
+        ShowCustomBubble($"帮忙煮 {pot.currentRecipe?.dishName ?? "菜"}！", 2f);
+
+        // 移动到锅旁逻辑……
+        Vector3 workPos = pot.transform.position + new Vector3(0, 0, -2f);
+        while (Vector3.Distance(transform.position, workPos) > 0.1f)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, workPos, data.moveSpeed * Time.deltaTime);
+            yield return null;
+        }
+
+        // 上下跳动逻辑……
+        float jumpHeight = 0.6f;
+        float cookDuration = pot.currentRecipe != null ? pot.currentRecipe.cookTime * 0.5f : 3f;
+        float elapsed = 0f;
+        while (elapsed < cookDuration)
+        {
+            float yOffset = Mathf.Sin((elapsed % 0.4f) / 0.4f * Mathf.PI) * jumpHeight;
+            transform.position = new Vector3(workPos.x, workPos.y + yOffset, workPos.z);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = workPos;
+
+        //ApplyCookingBuffToPot(pot);
+        ShowCustomBubble("加速烹饪！", 1.5f);
+
+        // 返回闲逛区
+        Transform left = CookManager.cookManager.kitchenLeftPoint;
+        Transform right = CookManager.cookManager.kitchenRightPoint;
+        Vector3 backPos = Random.value > 0.5f ? left.position : right.position;
+        while (Vector3.Distance(transform.position, backPos) > 0.1f)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, backPos, data.moveSpeed * Time.deltaTime);
+            yield return null;
+        }
+
+        cookState = CookState.Idle;
+        isCookingNow = false;  // ✅ 标记为空闲
+    }
+
+    // 实际Buff逻辑：减少时间、增加产出与价格
+    public void ApplyCookingBuffToPot(Pot pot)
+    {
+        if (pot.currentRecipe == null) return;
+
+        pot.currentRecipe.cookTime *= data.timeReductionRate;
+        pot.currentRecipe.baseDishPrice *= data.priceIncreaseRate;
+        // 若有产出数量概念，可记录在菜对象上
+    }
+
 }

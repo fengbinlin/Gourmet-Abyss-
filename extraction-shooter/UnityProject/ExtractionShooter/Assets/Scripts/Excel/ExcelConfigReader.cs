@@ -166,7 +166,7 @@ public class ExcelConfigReader : MonoBehaviour
         string[] lines = skillConfigCSV.text.Split('\n');
         for (int i = 1; i < lines.Length; i++)
         {
-            print("解析行");
+            //print("解析行");
             if (string.IsNullOrEmpty(lines[i].Trim())) continue;
 
             string[] values = ParseCSVLine(lines[i]);
@@ -182,11 +182,11 @@ public class ExcelConfigReader : MonoBehaviour
                 if (int.TryParse(values[5], out int isRare)) data.isRare = isRare;
                 data.description = values[6];
                 data.buffEffects = values[7];
-                print("解析资源");
+                //print("解析资源");
                 data.levelCosts = ParseLevelCosts(values[8]);
                 // if (int.TryParse(values[8], out int costType)) data.costType = costType;
                 // if (int.TryParse(values[9], out int cost)) data.costAmount = cost;
-                print("路径"+values[9]);
+                //print("路径"+values[9]);
                 data.iconPath = values[9];
 
                 skillConfigs.Add(data);

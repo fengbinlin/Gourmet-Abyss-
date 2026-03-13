@@ -102,7 +102,7 @@ public class SkillTreeInitializer : MonoBehaviour
 
             // 解析等级消耗字符串到 List<SkillLevelCost>
             skillData.levelCosts = config.levelCosts;
-            print("Config路径" + config.iconPath);
+            //print("Config路径" + config.iconPath);
             // 图标
             Sprite icon = LoadSkillIcon(config.iconPath);
             skillData.icon = icon;
@@ -193,10 +193,10 @@ public class SkillTreeInitializer : MonoBehaviour
         }
 
         // 调试信息
-        Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
-        Debug.Log($"路径长度: {pathWithoutExtension.Length}");
-        Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
-        Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
+        //Debug.Log($"清理后的图标路径: '{pathWithoutExtension}'");
+        //Debug.Log($"路径长度: {pathWithoutExtension.Length}");
+        //Debug.Log($"第一个字符: {(int)pathWithoutExtension[0]}");
+        //Debug.Log($"最后一个字符: {(int)pathWithoutExtension[pathWithoutExtension.Length - 1]}");
 
         // 直接尝试加载，不使用 Path.Combine
         try

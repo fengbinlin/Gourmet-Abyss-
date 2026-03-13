@@ -82,14 +82,14 @@ public class Plate : MonoBehaviour
         if (currentState == plateState.isUsed &&
             (currentDish == null || currentDish.recipe.dishName != recipe.dishName))
         {
-            Debug.LogWarning($"菜碟已装有其他菜：{currentDish?.recipe.dishName}");
+            //Debug.LogWarning($"菜碟已装有其他菜：{currentDish?.recipe.dishName}");
             return false;
         }
 
         // 检查容量
         if (currentDish != null && currentDish.currentAmount >= maxCapacity)
         {
-            Debug.LogWarning($"菜碟容量已满：{currentDish.currentAmount}/{maxCapacity}");
+            //Debug.LogWarning($"菜碟容量已满：{currentDish.currentAmount}/{maxCapacity}");
             return false;
         }
 
@@ -111,7 +111,7 @@ public class Plate : MonoBehaviour
         }
 
         UpdateUI();
-        Debug.Log($"成功添加菜肴到菜碟：{recipe.dishName}，当前数量：{currentDish.currentAmount}");
+        //Debug.Log($"成功添加菜肴到菜碟：{recipe.dishName}，当前数量：{currentDish.currentAmount}");
 
         return true;
     }
@@ -121,13 +121,13 @@ public class Plate : MonoBehaviour
     {
         if (currentState == plateState.unUsed || currentDish == null || currentDish.IsEmpty())
         {
-            Debug.LogWarning("菜碟为空，无法消耗");
+            //Debug.LogWarning("菜碟为空，无法消耗");
             return;
         }
 
         if (isConsuming)
         {
-            Debug.LogWarning("正在消耗中...");
+            //Debug.LogWarning("正在消耗中...");
             return;
         }
 
@@ -138,7 +138,7 @@ public class Plate : MonoBehaviour
     private IEnumerator ConsumeCoroutine()
     {
         isConsuming = true;
-        Debug.Log($"开始消耗菜肴：{currentDish.recipe.dishName}");
+        //Debug.Log($"开始消耗菜肴：{currentDish.recipe.dishName}");
 
         float elapsedTime = 0f;
 
@@ -167,7 +167,7 @@ public class Plate : MonoBehaviour
             float goldEarned = currentDish.recipe.baseDishPrice * consumedAmount;
             EarnGold(goldEarned);
 
-            Debug.Log($"消耗成功！获得金币：{goldEarned}");
+            //Debug.Log($"消耗成功！获得金币：{goldEarned}");
 
             // 如果菜肴已空，清空菜碟
             if (currentDish.IsEmpty())
@@ -190,7 +190,7 @@ public class Plate : MonoBehaviour
     {
         // 这里需要根据你的金币系统来实现
         // 例如：GameValManager.Instance.AddGold(amount);
-        Debug.Log($"获得金币：{amount}");
+       // Debug.Log($"获得金币：{amount}");
 
         // 触发金币获得事件
         // EventManager.Instance.TriggerEvent("GoldEarned", amount);
@@ -209,7 +209,7 @@ public class Plate : MonoBehaviour
 
 
 
-        Debug.Log("取消消耗菜肴");
+        //Debug.Log("取消消耗菜肴");
     }
 
     // 更新UI显示

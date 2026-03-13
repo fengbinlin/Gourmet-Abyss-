@@ -88,6 +88,84 @@ public class TopDownController : MonoBehaviour
     [Tooltip("停止移动后延迟关闭粒子的时间")]
     [SerializeField] private float stopParticleDelay = 0.2f;
 
+
+    #region --- 临时效果系统: 减伤、加速、加攻击距离 ---
+    private Coroutine damageReduceCoroutine;
+    private Coroutine speedBuffCoroutine;
+    private Coroutine rangeBuffCoroutine;
+    private float damageReduceEndTime;
+    private float speedBuffEndTime;
+    private float rangeBuffEndTime;
+
+    private float currentDamageReducePct = 0f;
+    private float currentSpeedBonus = 0f;
+    private float currentAttackRangeBonus = 0f;
+
+    // 1. 在时间 s 内减免伤害百分比 a (0.3f 表示减少30%伤害)
+    public void ApplyDamageReduction(float s, float a)
+    {
+        // 刷新计时
+        damageReduceEndTime = Time.time + s;
+        currentDamageReducePct = a;
+        if (damageReduceCoroutine == null)
+        {
+            damageReduceCoroutine = StartCoroutine(DamageReduceRoutine());
+        }
+    }
+
+    private IEnumerator DamageReduceRoutine()
+    {
+        while (Time.time < damageReduceEndTime)
+        {
+            yield return null;
+        }
+        currentDamageReducePct = 0f;
+        damageReduceCoroutine = null;
+    }
+
+    // 2. 在时间 s 内增加移动速度 b
+    public void ApplySpeedBuff(float s, float b)
+    {
+        speedBuffEndTime = Time.time + s;
+        currentSpeedBonus = b;
+        if (speedBuffCoroutine == null)
+        {
+            speedBuffCoroutine = StartCoroutine(SpeedBuffRoutine());
+        }
+    }
+
+    private IEnumerator SpeedBuffRoutine()
+    {
+        while (Time.time < speedBuffEndTime)
+        {
+            yield return null;
+        }
+        currentSpeedBonus = 0f;
+        speedBuffCoroutine = null;
+    }
+
+    // 3. 在时间 s 内增加攻击距离 c
+    public void ApplyRangeBuff(float s, float c)
+    {
+        rangeBuffEndTime = Time.time + s;
+        currentAttackRangeBonus = c;
+        if (rangeBuffCoroutine == null)
+        {
+            rangeBuffCoroutine = StartCoroutine(RangeBuffRoutine());
+        }
+    }
+
+    private IEnumerator RangeBuffRoutine()
+    {
+        while (Time.time < rangeBuffEndTime)
+        {
+            yield return null;
+        }
+        currentAttackRangeBonus = 0f;
+        rangeBuffCoroutine = null;
+    }
+    #endregion
+
     private ParticleSystem.EmissionModule particleEmission;
     private float currentEmissionRate = 0f;
     private float stopTimer = 0f;
@@ -104,6 +182,7 @@ public class TopDownController : MonoBehaviour
     private Vector3 lastMousePosition;
     private float mouseInactiveTimer = 0f;
     public bool isDead = false;
+    public bool canPlayerMove = true;
     [SerializeField] private float mouseInactiveThreshold = 0.1f; // 鼠标静止多久后算不活动
 
     void Awake()
@@ -473,26 +552,29 @@ public class TopDownController : MonoBehaviour
                 primaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
             }
         }
-
-        if (WeaponStatsManager.Instance.isSecondaryEnable)
+        if (WeaponStatsManager.Instance)
         {
-            if (secondaryWeapon != null)
+            if (WeaponStatsManager.Instance.isSecondaryEnable)
             {
-                bool isFiringSecondary = Input.GetButton("Fire2");
-                secondaryWeapon.SetShooting(isFiringSecondary);
-
-                if (isFiringSecondary)
+                if (secondaryWeapon != null)
                 {
-                    if (!BattleValManager.Instance.CanConsumeSecondaryAmmo())
-                    {
-                        ShowWeaponTips("副武器弹药不足");
-                        return;
-                    }
+                    bool isFiringSecondary = Input.GetButton("Fire2");
+                    secondaryWeapon.SetShooting(isFiringSecondary);
 
-                    secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                    if (isFiringSecondary)
+                    {
+                        if (!BattleValManager.Instance.CanConsumeSecondaryAmmo())
+                        {
+                            ShowWeaponTips("副武器弹药不足");
+                            return;
+                        }
+
+                        secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                    }
                 }
             }
         }
+
     }
     #endregion
 
@@ -635,32 +717,41 @@ public class TopDownController : MonoBehaviour
     // --- 移动逻辑 ---
     private void HandleMovementInput()
     {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-
-        // 非战斗状态下，只允许水平移动
-        if (!isInCombat)
+        if (canPlayerMove)
         {
-            v = 0f;
+            float h = Input.GetAxisRaw("Horizontal");
+            float v = Input.GetAxisRaw("Vertical");
+
+            // 非战斗状态下，只允许水平移动
+            if (!isInCombat)
+            {
+                v = 0f;
+            }
+
+            // 让移动方向相对于摄像机视角，而不是世界坐标
+            Vector3 camForward = mainCamera.transform.forward;
+            Vector3 camRight = mainCamera.transform.right;
+            camForward.y = 0;
+            camRight.y = 0;
+
+            moveInput = (camForward.normalized * v + camRight.normalized * h).normalized;
         }
 
-        // 让移动方向相对于摄像机视角，而不是世界坐标
-        Vector3 camForward = mainCamera.transform.forward;
-        Vector3 camRight = mainCamera.transform.right;
-        camForward.y = 0;
-        camRight.y = 0;
-
-        moveInput = (camForward.normalized * v + camRight.normalized * h).normalized;
     }
 
     private void Move()
     {
-        rb.MovePosition(rb.position + moveInput * moveSpeed * Time.fixedDeltaTime);
+        float finalMoveSpeed = moveSpeed * (1f + currentSpeedBonus);
+        rb.MovePosition(rb.position + moveInput * finalMoveSpeed * Time.fixedDeltaTime);
     }
 
     // --- 旋转与瞄准逻辑 (核心 3D 修正) ---
     private void Turn()
     {
+        if (!canPlayerMove)
+        {
+            return;
+        }
         // 计算鼠标的世界位置
         Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;

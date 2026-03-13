@@ -57,11 +57,13 @@ public class RestaurantPanel : MonoBehaviour
         foreach (var item in GameValManager.Instance.resources)
         {
             // 只显示食物类资源
-            if (item.resourceKind != ResourceKind.Food) continue;
+            if (item.resourceKind != ResourceKind.Food || item.type==ResourceType.None) continue;
 
             // 实例化预制体
             GameObject foodGO = Instantiate(foodItemPrefabs, foodItemParent);
             foodItemPrefabs script = foodGO.GetComponent<foodItemPrefabs>();
+            //print("EEEAAA");
+            //print(item.type);
             foodGO.GetComponent<foodItemPrefabs>().resourceType = item.type;
             if (script != null)
             {

@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-
+using System.Collections;
 public class CustomerManager : MonoBehaviour
 {
     public static CustomerManager instance;
@@ -39,7 +39,7 @@ public class CustomerManager : MonoBehaviour
     private float nextSpawnTime; // 下次生成的时间
     public ProjectileLauncher projectileLauncher;
     public Transform moneyBoxTransform;
-        // 🔹 当前正在与玩家交互的 NPC（全局唯一）
+    // 🔹 当前正在与玩家交互的 NPC（全局唯一）
     public CustomerNPC currentInteractingNPC = null;
     void Awake()
     {
@@ -77,9 +77,16 @@ public class CustomerManager : MonoBehaviour
         UpdateQueueTargets();    // 更新所有顾客的队列目标
         HandleQueueEntry();      // 处理顾客加入队列
         HandleQueueAdvancement(); // 处理队列推进
+
+
+        // 🔹 检测是否有两位喜欢的顾客可以聊天
+        if (Time.frameCount % 50 == 0) // 每隔几秒检查一次
+        {
+            //print("DA测试相互喜欢的顾客");
+            CheckForLikedPairChat();
+        }
     }
 
-    // 生成顾客
     // 生成顾客
     public void SpawnCustomer()
     {
@@ -95,7 +102,22 @@ public class CustomerManager : MonoBehaviour
             return;
         }
 
-        // 1. 筛选可用的预制体（场景中还不存在的类型）
+        // ✅ 先清理：把已经转化成厨师的顾客从活跃顾客列表移除
+        for (int i = activeCustomers.Count - 1; i >= 0; i--)
+        {
+            CustomerNPC npc = activeCustomers[i];
+            if (npc == null || npc.data == null)        // 已销毁或无数据
+            {
+                activeCustomers.RemoveAt(i);
+            }
+            else if (npc.data.isCook)                   // 已成为厨师
+            {
+                activeCustomers.RemoveAt(i);
+                Debug.Log($"顾客 {npc.data.customerName} 已成为厨师，从顾客列表中移除。");
+            }
+        }
+
+        // 1️⃣ 筛选可生成的预制体：跳过已经是厨师的类型
         List<GameObject> availablePrefabs = new List<GameObject>();
         foreach (var prefab in customerPrefabs)
         {
@@ -104,7 +126,14 @@ public class CustomerManager : MonoBehaviour
             CustomerNPC prefabNPC = prefab.GetComponent<CustomerNPC>();
             if (prefabNPC == null || prefabNPC.data == null) continue;
 
-            string npcType = prefabNPC.data.id;  // 使用ID作为NPC类型标识
+            // 👇 跳过已经被转成厨师的顾客类型
+            if (prefabNPC.data.isCook)
+            {
+                //Debug.Log($"跳过厨师类型顾客: {prefabNPC.data.customerName}");
+                continue;
+            }
+
+            string npcType = prefabNPC.data.id.ToString();
             if (!activeNPCTypes.Contains(npcType))
             {
                 availablePrefabs.Add(prefab);
@@ -113,37 +142,48 @@ public class CustomerManager : MonoBehaviour
 
         if (availablePrefabs.Count == 0)
         {
-            Debug.Log("所有NPC类型都已经在场景中，跳过生成");
+            //Debug.Log("没有可生成的顾客类型（可能都转成厨师了）。");
             return;
         }
 
-        // 2. 随机选择一个可用预制体
+        // 2️⃣ 随机选择一个预制体
         GameObject selectedPrefab = availablePrefabs[Random.Range(0, availablePrefabs.Count)];
         CustomerNPC prefabNPCComponent = selectedPrefab.GetComponent<CustomerNPC>();
-        string selectedType = prefabNPCComponent.data.id;
+        string selectedType = prefabNPCComponent.data.id.ToString();
 
-        // 3. 记录这个NPC类型
+        // 3️⃣ 记录这个NPC类型
         activeNPCTypes.Add(selectedType);
 
-        // 4. 生成NPC
+        // 4️⃣ 生成并初始化
         Transform randomSpawn = spawnPoints[Random.Range(0, spawnPoints.Count)];
         GameObject go = Instantiate(selectedPrefab, randomSpawn.position, Quaternion.identity);
-        CustomerNPC npc = go.GetComponent<CustomerNPC>();
+        CustomerNPC npcInstance = go.GetComponent<CustomerNPC>();
 
-        // 5. 初始化NPC（使用预制体上预设的data）
-        // 注意：这里不再创建新的CustomerData，而是使用预制体上预设的
-        npc.Init();  // 传入类型用于销毁时清理
+        npcInstance.Init();
 
-        if (Random.Range(0,1)>npc.data.buyprobability)
+        // 👇 按你原先逻辑判断要不要吃饭
+        bool dislikeAround = HasDislikedPersonAround(npcInstance);
+        bool likeAround = HasLikedPersonAround(npcInstance);
+
+        if (dislikeAround)
         {
-            npc.donotWantToEat();
+            npcInstance.donotWantToEat();
+        }
+        else if (likeAround)
+        {
+            npcInstance.ShowCustomBubble("呀，遇见喜欢的人了～");
+            HandleEntrance(npcInstance);
         }
         else
         {
-            HandleEntrance(npc);
+            if (Random.value > npcInstance.data.buyprobability)
+                npcInstance.donotWantToEat();
+            else
+                HandleEntrance(npcInstance);
         }
 
-        activeCustomers.Add(npc);
+        // ✅ 最后加入顾客列表
+        activeCustomers.Add(npcInstance);
     }
     // 处理顾客到入口
     // 所有顾客都先排队进入餐厅
@@ -301,9 +341,9 @@ public class CustomerManager : MonoBehaviour
         if (customer == null) return;
 
         // 从类型记录中移除
-        if (!string.IsNullOrEmpty(customer.data.id))
+        if (!string.IsNullOrEmpty(customer.data.id.ToString()))
         {
-            activeNPCTypes.Remove(customer.data.id);
+            activeNPCTypes.Remove(customer.data.id.ToString());
         }
         activeCustomers.Remove(customer);
         walkingToQueue.Remove(customer);
@@ -321,7 +361,7 @@ public class CustomerManager : MonoBehaviour
     {
         if (spawnPoints.Count == 0)
         {
-            Debug.LogWarning("没有配置生成点！");
+            //Debug.LogWarning("没有配置生成点！");
             return null;
         }
         return spawnPoints[Random.Range(0, spawnPoints.Count)];
@@ -351,10 +391,162 @@ public class CustomerManager : MonoBehaviour
             // 只有一个点，那就用它
             if (spawnPoints.Count == 0)
             {
-                Debug.LogWarning("没有配置生成点或离开点！");
+                //Debug.LogWarning("没有配置生成点或离开点！");
                 return transform; // 返回Manager自身位置作为备选
             }
             return spawnPoints[0];
         }
+    }
+
+    private bool HasDislikedPersonAround(CustomerNPC npc)
+    {
+        foreach (var other in activeCustomers)
+        {
+            if (other == null || other == npc) continue;
+            if (npc.data.dislikePeopleList.Contains(other.data.id.GetHashCode())) // 用id区分
+            {
+                if (other.state == CustomerState.Queueing || other.state == CustomerState.InsideRestaurant)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private bool HasLikedPersonAround(CustomerNPC npc)
+    {
+        foreach (var other in activeCustomers)
+        {
+            if (other == null || other == npc) continue;
+            if (npc.data.likePeopleList.Contains(other.data.id.GetHashCode()))
+            {
+                if (other.state == CustomerState.Queueing || other.state == CustomerState.InsideRestaurant)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private bool chatting = false;
+    [SerializeField] private float likeChatDistance = 3f; // 触发聊天的距离
+                                                          // 聊天发生的概率（0~1）
+    [SerializeField, Range(0f, 1f)]
+    private float chatProbability = 0.5f;
+    private void CheckForLikedPairChat()
+    {
+        if (chatting) return;
+
+        List<(CustomerNPC a, CustomerNPC b)> likedPairs = new List<(CustomerNPC, CustomerNPC)>();
+
+        foreach (var npc in activeCustomers)
+        {
+            if (npc == null || npc.hasChattedWithOtherCustomer) continue; // 跳过已聊过的
+
+            foreach (var other in activeCustomers)
+            {
+                if (other == null || npc == other || other.hasChattedWithOtherCustomer) continue;
+
+                // 双方互相喜欢
+                bool likeEachOther =
+                    npc.data.likePeopleList.Contains(other.data.id) &&
+                    other.data.likePeopleList.Contains(npc.data.id);
+
+                if (!likeEachOther) continue;
+
+                // 距离判定
+                float dist = Vector3.Distance(npc.transform.position, other.transform.position);
+                if (dist <= likeChatDistance)
+                {
+                    likedPairs.Add((npc, other));
+                }
+            }
+        }
+
+        if (likedPairs.Count > 0)
+        {
+            // 随机选一对
+            var pair = likedPairs[Random.Range(0, likedPairs.Count)];
+            if (Random.value <= chatProbability)
+            {
+                chatting = true;
+
+                pair.a.hasChattedWithOtherCustomer = true;
+                pair.b.hasChattedWithOtherCustomer = true;
+
+                StartCoroutine(LikedPairChatCoroutine(pair.a, pair.b));
+            }
+        }
+    }
+
+    private IEnumerator LikedPairChatCoroutine(CustomerNPC npcA, CustomerNPC npcB)
+    {
+        print("DA-开始交谈");
+        if (npcA == null || npcB == null)
+        {
+            chatting = false;
+            yield break;
+        }
+
+        npcA.isInteractingWithPlayer = npcB.isInteractingWithPlayer = true;
+
+        // ➤ 让他们面对面
+        Vector3 dirAtoB = (npcB.transform.position - npcA.transform.position).normalized;
+        dirAtoB.y = 0;
+        Quaternion rotA = Quaternion.LookRotation(dirAtoB);
+        Quaternion rotB = Quaternion.LookRotation(-dirAtoB);
+
+        // 旋转动画
+        float rotateTime = 0.4f;
+        float elapsed = 0f;
+        while (elapsed < rotateTime)
+        {
+            if (npcA != null)
+                npcA.transform.rotation = Quaternion.Slerp(npcA.transform.rotation, rotA, elapsed / rotateTime);
+            if (npcB != null)
+                npcB.transform.rotation = Quaternion.Slerp(npcB.transform.rotation, rotB, elapsed / rotateTime);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // 小幅靠近一点
+        Vector3 midPoint = (npcA.transform.position + npcB.transform.position) / 2f;
+        Vector3 targetPosA = midPoint - dirAtoB * 1.5f;
+        Vector3 targetPosB = midPoint + dirAtoB * 1.5f;
+
+        float moveTime = 0.5f;
+        elapsed = 0f;
+        Vector3 startPosA = npcA.transform.position;
+        Vector3 startPosB = npcB.transform.position;
+        while (elapsed < moveTime)
+        {
+            if (npcA != null)
+                npcA.transform.position = Vector3.Lerp(startPosA, targetPosA, elapsed / moveTime);
+            if (npcB != null)
+                npcB.transform.position = Vector3.Lerp(startPosB, targetPosB, elapsed / moveTime);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // ➤ 聊天序列
+        npcA.ShowCustomBubble("嗨～好久不见！");
+        npcB.ShowCustomBubble("哈哈，真巧呀～");
+        yield return new WaitForSeconds(2f);
+
+        npcA.ShowCustomBubble("最近在忙什么呢？");
+        yield return new WaitForSeconds(2f);
+
+        npcB.ShowCustomBubble("还在那家餐厅工作～哈哈～");
+        yield return new WaitForSeconds(2f);
+
+        npcA.ShowCustomBubble("改天一起吃饭呀！");
+        yield return new WaitForSeconds(2f);
+
+        // 聊天结束
+        npcA.isInteractingWithPlayer = npcB.isInteractingWithPlayer = false;
+        chatting = false;
     }
 }
