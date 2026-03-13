@@ -361,7 +361,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccf74e5356b07bf40be908e100460d6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  propType: 0
+  propType: 1
   EffectImmediate: 0
   isPlayerEnter: 0
 --- !u!114 &-8392925096937997308

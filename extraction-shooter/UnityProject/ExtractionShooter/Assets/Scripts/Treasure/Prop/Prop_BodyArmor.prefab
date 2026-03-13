@@ -359,7 +359,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccf74e5356b07bf40be908e100460d6a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  propType: 3
+  propType: 4
   EffectImmediate: 0
   isPlayerEnter: 0
 --- !u!65 &1283306252864959379

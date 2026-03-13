@@ -769,7 +769,7 @@ public class PrimaryWeapon : MonoBehaviour
                 finalDamage,
                 finalSize,
                 penetrationCount,
-                maxTravelDistance,
+                maxTravelDistance*(1+controller.currentAttackRangeRate),
                 criticalChance,
                 criticalMultiplier
             );

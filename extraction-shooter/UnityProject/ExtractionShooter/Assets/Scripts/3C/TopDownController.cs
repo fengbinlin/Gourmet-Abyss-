@@ -97,9 +97,9 @@ public class TopDownController : MonoBehaviour
     private float speedBuffEndTime;
     private float rangeBuffEndTime;
 
-    private float currentDamageReducePct = 0f;
-    private float currentSpeedBonus = 0f;
-    private float currentAttackRangeBonus = 0f;
+    public float currentDamageReducePct = 0f;
+    public float currentSpeedBonus = 0f;
+    public float currentAttackRangeRate = 0f;
 
     // 1. 在时间 s 内减免伤害百分比 a (0.3f 表示减少30%伤害)
     public void ApplyDamageReduction(float s, float a)
@@ -148,7 +148,7 @@ public class TopDownController : MonoBehaviour
     public void ApplyRangeBuff(float s, float c)
     {
         rangeBuffEndTime = Time.time + s;
-        currentAttackRangeBonus = c;
+        currentAttackRangeRate = c;
         if (rangeBuffCoroutine == null)
         {
             rangeBuffCoroutine = StartCoroutine(RangeBuffRoutine());
@@ -161,7 +161,7 @@ public class TopDownController : MonoBehaviour
         {
             yield return null;
         }
-        currentAttackRangeBonus = 0f;
+        currentAttackRangeRate = 0f;
         rangeBuffCoroutine = null;
     }
     #endregion
