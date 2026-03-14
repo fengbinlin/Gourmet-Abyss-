@@ -32,6 +32,22 @@ public class SecondaryWeapon : MonoBehaviour
     [Tooltip("多条激光之间的扇形角度")]
     [SerializeField] private float laserFanAngle = 15f;
 
+    [Header("暴击功能")]
+    [SerializeField] private bool enableCrit = true;
+    [Tooltip("暴击时生成的特效预制体")]
+    [SerializeField] private GameObject critEffectPrefab;
+
+    [Header("AOE 功能")]
+    [SerializeField] private bool enableAOE = false;
+    [Tooltip("AOE 半径")]
+    [SerializeField] private float aoeRadius = 3f;
+    [Tooltip("AOE 触发概率（0-1）")]
+    [SerializeField][Range(0f, 1f)] private float aoeTriggerChance = 0.3f;
+    [Tooltip("AOE 边缘伤害系数（0-1，1 为中心伤害）")]
+    [SerializeField][Range(0f, 1f)] private float aoeMinDamageRate = 0.2f;
+    [Tooltip("AOE 触发时生成的特效预制体")]
+    [SerializeField] private GameObject aoeEffectPrefab;
+
     [Header("贯穿设置")]
     [SerializeField] private bool enablePenetration = true;
     [SerializeField] private int maxPenetrations = 3;
@@ -339,6 +355,17 @@ public class SecondaryWeapon : MonoBehaviour
                 laserComponent.SetDamageTickInterval(damageTickInterval);
                 laserComponent.SetLaserWidth(laserWidth);
                 laserComponent.SetCritParams(critChance, critMultiplier);
+                laserComponent.ConfigureCritAndAOE(
+                    enableCrit,
+                    critChance,
+                    critMultiplier,
+                    critEffectPrefab,
+                    enableAOE,
+                    aoeRadius,
+                    aoeTriggerChance,
+                    aoeMinDamageRate,
+                    aoeEffectPrefab,
+                    enemyLayer);
 
                 // 从激光组件获取所有命中点
                 List<RaycastHit> allHits = laserComponent.GetAllHits();
@@ -461,6 +488,17 @@ public class SecondaryWeapon : MonoBehaviour
                 laserComponent.SetLaserDamage(damageValue);
                 laserComponent.SetDamageTickInterval(damageTickInterval);
                 laserComponent.SetCritParams(critChance, critMultiplier);
+                laserComponent.ConfigureCritAndAOE(
+                    enableCrit,
+                    critChance,
+                    critMultiplier,
+                    critEffectPrefab,
+                    enableAOE,
+                    aoeRadius,
+                    aoeTriggerChance,
+                    aoeMinDamageRate,
+                    aoeEffectPrefab,
+                    enemyLayer);
 
                 // 如果是连锁激光预制体，可能需要不同的设置
                 if (laserInstance != secondaryLaserPrefab)

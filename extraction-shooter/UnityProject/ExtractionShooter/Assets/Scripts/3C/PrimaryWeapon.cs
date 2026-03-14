@@ -98,6 +98,33 @@ public class PrimaryWeapon : MonoBehaviour
     [SerializeField] private bool debugMode = false;
     [SerializeField] private float debugRayDuration = 2f;
 
+    [Header("击杀分裂（主武器子弹）")]
+    [Tooltip("子弹击杀敌人后是否分裂")]
+    [SerializeField] private bool enableKillSplit = false;
+    [Tooltip("分裂产生的小子弹数量（均匀分布在 XZ 平面）")]
+    [Min(1)]
+    [SerializeField] private int killSplitCount = 4;
+    [Tooltip("分裂迭代次数上限（小子弹击杀后还能分裂的剩余层数）")]
+    [Min(0)]
+    [SerializeField] private int killSplitMaxIterations = 1;
+    [Tooltip("小子弹伤害占比（相对于父子弹的伤害）")]
+    [Range(0f, 1f)]
+    [SerializeField] private float killSplitChildDamageRatio = 0.5f;
+    [Tooltip("小子弹预制体（需挂 Projectile 脚本）")]
+    [SerializeField] private GameObject killSplitChildProjectilePrefab;
+
+    [Header("AOE 伤害（主武器子弹）")]
+    [Tooltip("命中敌人后是否对周围造成 AOE 伤害")]
+    [SerializeField] private bool enableAOE = false;
+    [Tooltip("AOE 作用半径")]
+    [Min(0f)]
+    [SerializeField] private float aoeRadius = 3f;
+    [Tooltip("AOE 边缘处的最低伤害比例（中心为 1，边缘为该比例）")]
+    [Range(0f, 1f)]
+    [SerializeField] private float aoeEdgeMinDamageRatio = 0.3f;
+    [Tooltip("AOE 触发时在命中点生成的特效预制体")]
+    [SerializeField] private GameObject aoeEffectPrefab;
+
     // 内部变量
     private Animator animator;
     private Camera mainCamera;
@@ -776,6 +803,23 @@ public class PrimaryWeapon : MonoBehaviour
 
             // 设置伤害衰减
             projectile.SetDamageFalloff(useDamageFalloff, damageFalloffCurve, maxFalloffDistance);
+
+            // 注入“击杀分裂”配置
+            projectile.ConfigureKillSplit(
+                enableKillSplit,
+                killSplitCount,
+                killSplitMaxIterations,
+                killSplitChildDamageRatio,
+                killSplitChildProjectilePrefab
+            );
+
+            // 注入 AOE 配置
+            projectile.ConfigureAOE(
+                enableAOE,
+                aoeRadius,
+                aoeEdgeMinDamageRatio,
+                aoeEffectPrefab
+            );
 
             if (debugMode)
             {

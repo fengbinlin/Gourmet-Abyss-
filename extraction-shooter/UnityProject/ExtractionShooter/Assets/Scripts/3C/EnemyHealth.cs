@@ -372,6 +372,49 @@ public class EnemyHealth : MonoBehaviour
             Die();
         }
     }
+
+    /// <summary>
+    /// 子弹伤害（带结果返回）：返回 true 表示这一发子弹造成了击杀。
+    /// </summary>
+    public bool TakeDamageFromProjectileWithResult(float damage, Vector3 hitPoint, Vector3 hitNormal, Vector3 bulletPosition, Vector3 bulletDirection)
+    {
+        if (currentHealth <= 0 || isDead)
+        {
+            HideHealthBar();
+            return false;
+        }
+
+        bool wasAlive = currentHealth > 0 && !isDead;
+
+        currentHealth -= damage;
+
+        // 更新进度条
+        UpdateHealthBar();
+
+        // 记录子弹方向
+        lastHitDirection = bulletDirection.normalized;
+        lastHitPoint = hitPoint;
+
+        // 调试：绘制子弹方向
+        Debug.DrawRay(bulletPosition, bulletDirection * 2f, Color.red, 2f);
+        Debug.DrawRay(hitPoint, lastHitDirection * 2f, Color.blue, 2f);
+
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal));
+
+        if (enemyAI != null)
+        {
+            enemyAI.OnHit();
+        }
+
+        bool killedThisHit = false;
+        if (currentHealth <= 0)
+        {
+            killedThisHit = wasAlive; // 只要这次从活着变成 <=0，就算击杀
+            Die();
+        }
+
+        return killedThisHit;
+    }
     
     private IEnumerator HitFeedbackCoroutine(Vector3 hitPoint, Vector3 hitNormal)
     {

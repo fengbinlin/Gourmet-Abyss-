@@ -224,7 +224,7 @@ public class EnemyAI : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"{gameObject.name} 状态切换: {currentState}");
+            //Debug.Log($"{gameObject.name} 状态切换: {currentState}");
         }
     }
     

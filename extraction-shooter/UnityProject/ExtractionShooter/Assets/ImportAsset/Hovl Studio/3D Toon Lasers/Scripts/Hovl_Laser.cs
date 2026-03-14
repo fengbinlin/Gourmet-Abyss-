@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Hovl_Laser : MonoBehaviour
@@ -37,6 +37,16 @@ public class Hovl_Laser : MonoBehaviour
     [Header("暴击设置")]
     [SerializeField][Range(0f, 1f)] private float critChance = 0.1f;
     [SerializeField] private float critMultiplier = 2f;
+    [SerializeField] private bool enableCrit = true;
+    [SerializeField] private GameObject critEffectPrefab;
+
+    [Header("AOE 设置")]
+    [SerializeField] private bool enableAOE = false;
+    [SerializeField] private float aoeRadius = 3f;
+    [SerializeField][Range(0f, 1f)] private float aoeTriggerChance = 0.3f;
+    [SerializeField][Range(0f, 1f)] private float aoeMinDamageRate = 0.2f;
+    [SerializeField] private GameObject aoeEffectPrefab;
+    [SerializeField] private LayerMask aoeEnemyLayer = ~0;
 
     [Header("冲击力设置")]
     [SerializeField] private float impactForce = 5f;
@@ -234,7 +244,7 @@ public class Hovl_Laser : MonoBehaviour
     private (float finalDamage, bool isCrit) CalculateCritDamage(float baseDamage)
     {
         float randomValue = Random.Range(0f, 1f);
-        if (randomValue <= critChance)
+        if (enableCrit && randomValue <= critChance)
         {
             return (baseDamage * critMultiplier, true);
         }
@@ -287,6 +297,39 @@ public class Hovl_Laser : MonoBehaviour
                         hitEnemies.Add(hit.collider.gameObject);
 
                     lastHitEnemy = hit.collider.gameObject;
+
+                    // 暴击特效
+                    if (enableCrit && isCrit && critEffectPrefab != null)
+                    {
+                        Instantiate(critEffectPrefab, hit.point, Quaternion.identity);
+                    }
+
+                    // AOE 伤害
+                    if (enableAOE && Random.value <= aoeTriggerChance)
+                    {
+                        if (aoeEffectPrefab != null)
+                        {
+                            Instantiate(aoeEffectPrefab, hit.point, Quaternion.identity);
+                        }
+
+                        Collider[] cols = Physics.OverlapSphere(hit.point, aoeRadius, aoeEnemyLayer);
+                        foreach (var col in cols)
+                        {
+                            if (col == null || col.gameObject == hit.collider.gameObject) continue;
+
+                            EnemyHealth otherEnemy = col.GetComponent<EnemyHealth>();
+                            if (otherEnemy == null) continue;
+
+                            Vector3 closestPoint = col.ClosestPoint(hit.point);
+                            float dist = Vector3.Distance(hit.point, closestPoint);
+                            float t = Mathf.Clamp01(dist / Mathf.Max(aoeRadius, 0.01f));
+                            float damageRate = Mathf.Lerp(1f, aoeMinDamageRate, t);
+                            float aoeDamage = finalDamage * damageRate;
+
+                            Vector3 dir = (closestPoint - hit.point).normalized;
+                            otherEnemy.TakeDamageFromProjectile(aoeDamage, closestPoint, -dir, transform.position, laserDirection);
+                        }
+                    }
                 }
             }
 
@@ -373,6 +416,31 @@ public class Hovl_Laser : MonoBehaviour
     {
         critChance = Mathf.Clamp01(chance);
         critMultiplier = Mathf.Max(1f, multiplier);
+    }
+
+    public void ConfigureCritAndAOE(
+        bool enableCritFeature,
+        float chance,
+        float multiplier,
+        GameObject critFx,
+        bool enableAOEFeature,
+        float radius,
+        float triggerChance,
+        float minDamageRate,
+        GameObject aoeFx,
+        LayerMask enemyLayerForAOE)
+    {
+        enableCrit = enableCritFeature;
+        critChance = Mathf.Clamp01(chance);
+        critMultiplier = Mathf.Max(1f, multiplier);
+        critEffectPrefab = critFx;
+
+        enableAOE = enableAOEFeature;
+        aoeRadius = Mathf.Max(0f, radius);
+        aoeTriggerChance = Mathf.Clamp01(triggerChance);
+        aoeMinDamageRate = Mathf.Clamp01(minDamageRate);
+        aoeEffectPrefab = aoeFx;
+        aoeEnemyLayer = enemyLayerForAOE;
     }
 
     public List<GameObject> GetHitEnemies()

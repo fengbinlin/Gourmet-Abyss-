@@ -36,6 +36,21 @@ public class Projectile : MonoBehaviour
     [Header("调试设置")]
     [SerializeField] private bool debugMode = false;
 
+    [Header("击杀分裂设置（运行时由武器注入）")]
+    [SerializeField] private bool enableKillSplit = false;
+    [SerializeField] private int killSplitCount = 0;
+    [SerializeField] private int killSplitRemainingIterations = 0;
+    [Range(0f, 1f)]
+    [SerializeField] private float killSplitChildDamageRatio = 0.5f;
+    [SerializeField] private GameObject killSplitChildProjectilePrefab;
+
+    [Header("AOE 设置（运行时由武器注入）")]
+    [SerializeField] private bool enableAOE = false;
+    [SerializeField] private float aoeRadius = 0f;
+    [Range(0f, 1f)]
+    [SerializeField] private float aoeEdgeMinDamageRatio = 0.3f;
+    [SerializeField] private GameObject aoeEffectPrefab;
+
     // 私有变量
     private Rigidbody rb;
     private Vector3 previousPosition;
@@ -326,7 +341,15 @@ public class Projectile : MonoBehaviour
         EnemyHealth enemyHealth = hitObject.GetComponent<EnemyHealth>();
         if (enemyHealth != null)
         {
-            enemyHealth.TakeDamageFromProjectile(finalDamage, hitPoint, hitNormal, previousPosition, bulletDirection);
+            bool killed = enemyHealth.TakeDamageFromProjectileWithResult(finalDamage, hitPoint, hitNormal, previousPosition, bulletDirection);
+
+            // 命中敌人后触发 AOE（包含击杀和非击杀情况）
+            TryApplyAOEDamage(hitObject, hitPoint, hitNormal, bulletDirection, finalDamage);
+
+            if (killed)
+            {
+                TrySpawnKillSplitBullets(enemyHealth.transform.position);
+            }
 
             if (impactForce > 0)
             {
@@ -370,6 +393,115 @@ public class Projectile : MonoBehaviour
         {
             if (debugMode) Debug.Log("销毁子弹（碰撞）");
             Destroy(gameObject);
+        }
+    }
+
+    /// <summary>
+    /// 由武器在生成子弹后注入分裂参数。
+    /// </summary>
+    public void ConfigureKillSplit(bool enable, int splitCount, int maxIterations, float childDamageRatio, GameObject childProjectilePrefab)
+    {
+        enableKillSplit = enable;
+        killSplitCount = Mathf.Max(0, splitCount);
+        killSplitRemainingIterations = Mathf.Max(0, maxIterations);
+        killSplitChildDamageRatio = Mathf.Clamp01(childDamageRatio);
+        killSplitChildProjectilePrefab = childProjectilePrefab;
+    }
+
+    /// <summary>
+    /// 由武器在生成子弹后注入 AOE 参数。
+    /// </summary>
+    public void ConfigureAOE(bool enable, float radius, float edgeMinDamageRatio, GameObject effectPrefab)
+    {
+        enableAOE = enable;
+        aoeRadius = Mathf.Max(0f, radius);
+        aoeEdgeMinDamageRatio = Mathf.Clamp01(edgeMinDamageRatio);
+        aoeEffectPrefab = effectPrefab;
+    }
+
+    private void TryApplyAOEDamage(GameObject primaryTarget, Vector3 hitPoint, Vector3 hitNormal, Vector3 bulletDirection, float baseHitDamage)
+    {
+        if (!enableAOE) return;
+        if (aoeRadius <= 0f) return;
+
+        // 生成 AOE 特效
+        if (aoeEffectPrefab != null)
+        {
+            Vector3 effectPos = hitPoint;
+            if (effectPos == Vector3.zero) effectPos = primaryTarget.transform.position;
+            Instantiate(aoeEffectPrefab, effectPos, Quaternion.identity);
+        }
+
+        // 在范围内查找所有可命中的对象
+        Collider[] hits = Physics.OverlapSphere(hitPoint, aoeRadius, hitLayers);
+        foreach (Collider col in hits)
+        {
+            GameObject obj = col.gameObject;
+            if (obj == primaryTarget) continue; // 避免对主目标再打一次 AOE
+
+            EnemyHealth eh = obj.GetComponent<EnemyHealth>();
+            if (eh == null) continue;
+
+            Vector3 targetPos = col.ClosestPoint(hitPoint);
+            float dist = Vector3.Distance(hitPoint, targetPos);
+            float t = Mathf.Clamp01(dist / aoeRadius);
+
+            // 距离越远，伤害从 1 线性衰减到 aoeEdgeMinDamageRatio
+            float damageRatio = Mathf.Lerp(1f, aoeEdgeMinDamageRatio, t);
+            float aoeDamage = baseHitDamage * damageRatio;
+            if (aoeDamage <= 0f) continue;
+
+            Vector3 aoeHitNormal = (targetPos - hitPoint).sqrMagnitude > 0.0001f
+                ? (targetPos - hitPoint).normalized
+                : hitNormal;
+
+            eh.TakeDamageFromProjectile(aoeDamage, targetPos, aoeHitNormal, hitPoint, bulletDirection);
+        }
+    }
+
+    private void TrySpawnKillSplitBullets(Vector3 enemyPosition)
+    {
+        if (!enableKillSplit) return;
+        if (killSplitCount <= 0) return;
+        if (killSplitRemainingIterations <= 0) return;
+        if (killSplitChildProjectilePrefab == null) return;
+
+        int childIterations = killSplitRemainingIterations - 1;
+        float childDamage = damage * killSplitChildDamageRatio;
+        float childSpeed = speed;
+        float childSize = currentSize;
+
+        // 均匀分布在 XZ 平面：N 个子弹间隔 360/N
+        float angleStep = 360f / killSplitCount;
+        float startAngle = Random.Range(0f, 360f); // 让每次分裂有轻微变化（仍保持均匀）
+
+        for (int i = 0; i < killSplitCount; i++)
+        {
+            float angle = startAngle + i * angleStep;
+            Vector3 dir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+            dir.y = 0f;
+            dir.Normalize();
+
+            Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
+            GameObject child = Instantiate(killSplitChildProjectilePrefab, enemyPosition, rot);
+
+            Projectile childProj = child.GetComponent<Projectile>();
+            if (childProj != null)
+            {
+                // 子弹属性基于父子弹进行初始化（伤害已按比例衰减）
+                childProj.Initialize(
+                    dir,
+                    childSpeed,
+                    childDamage,
+                    childSize,
+                    penetrationCount,
+                    maxTravelDistance*2,
+                    criticalChance,
+                    criticalMultiplier
+                );
+                childProj.SetDamageFalloff(useDamageFalloff, damageFalloffCurve, maxFalloffDistance);
+                childProj.ConfigureKillSplit(enableKillSplit, killSplitCount, childIterations, killSplitChildDamageRatio, killSplitChildProjectilePrefab);
+            }
         }
     }
 
