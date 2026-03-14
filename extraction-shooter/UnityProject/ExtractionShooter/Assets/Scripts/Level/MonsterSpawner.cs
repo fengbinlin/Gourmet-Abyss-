@@ -462,12 +462,11 @@ public class MonsterSpawner : MonoBehaviour
     {
         if (config.currentCount >= config.maxCount) return;
 
-        // 实例化怪物
-        // 计算随机生成位置
+        // 实例化怪物（父物体设为当前脚本所在场景，附加式加载时怪物会留在本场景层级下）
         Vector3 spawnPosition = GetRandomSpawnPosition();
+        Transform parent = transform.root; // 当前对象所在场景的根节点
 
-        // 实例化怪物
-        GameObject monster = Instantiate(config.monsterPrefab, spawnPosition, Quaternion.identity);
+        GameObject monster = Instantiate(config.monsterPrefab, spawnPosition, Quaternion.identity, parent);
 
         // 设置随机大小（如果启用）
         if (config.randomSize && config.minSizeScale < config.maxSizeScale)

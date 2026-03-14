@@ -56,6 +56,8 @@ public class CustomerNPC : MonoBehaviour
     private CustomerManager manager;
 
     public Transform coinSpawnPoint;
+    [Tooltip("飞向钱箱的金币最多生成数量，超出部分只加数值不生成抛射物")]
+    [SerializeField] private int maxVisualCoins = 12;
     // 气泡相关变量
     private Coroutine bubbleRoutineCoroutine;  // 循环更新协程
     private Coroutine bubbleHideCoroutine;     // 气泡隐藏协程
@@ -544,31 +546,27 @@ public class CustomerNPC : MonoBehaviour
     {
         if (totalAmount <= 0) yield break;
 
-        int remaining = totalAmount;
-
-        float spawnInterval = 0f; // 每0.05秒一批
-        int batchMin = 5;
-        int batchMax = 5; // 每次发几个，可根据需求调节
-
         ProjectileLauncher launcher = CustomerManager.instance.projectileLauncher;
         if (launcher == null || target == null) yield break;
 
-        while (remaining > 0)
-        {
-            int thisBatch = Mathf.Min(Random.Range(batchMin, batchMax + 1), remaining);
+        // 表现上最多生成 maxVisualCoins 个金币，金额按份分配，总和仍为 totalAmount
+        int numProjectiles = Mathf.Min(totalAmount, Mathf.Max(1, maxVisualCoins));
+        int baseAmount = totalAmount / numProjectiles;
+        int remainder = totalAmount % numProjectiles;
 
+        float spawnInterval = 0.05f;
+
+        for (int i = 0; i < numProjectiles; i++)
+        {
+            int amountForThis = baseAmount + (i < remainder ? 1 : 0);
+            int capture = amountForThis; // 闭包捕获
             launcher.SpawnProjectile(
                 start,
                 target,
                 ResourceType.Money,
-                thisBatch,
-                () =>
-                {
-                    MoneyChest.Instance.AddMoney(thisBatch);
-                }
+                capture,
+                () => { MoneyChest.Instance.AddMoney(capture); }
             );
-
-            remaining -= thisBatch;
             yield return new WaitForSeconds(spawnInterval);
         }
     }
