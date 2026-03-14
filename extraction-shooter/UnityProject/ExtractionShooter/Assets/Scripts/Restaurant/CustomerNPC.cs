@@ -701,6 +701,45 @@ public class CustomerNPC : MonoBehaviour
         data.isCook = true;
         cookState = CookState.Idle;
 
+        // 刚被雇佣时，立即瞬移到 Left / Right 其中一个点
+        if (CookManager.cookManager != null)
+        {
+            Transform left = CookManager.cookManager.kitchenLeftPoint;
+            Transform right = CookManager.cookManager.kitchenRightPoint;
+
+            Transform startPoint = null;
+            if (left != null && right != null)
+            {
+                startPoint = Random.value > 0.5f ? left : right;
+            }
+            else if (left != null)
+            {
+                startPoint = left;
+            }
+            else if (right != null)
+            {
+                startPoint = right;
+            }
+
+            if (startPoint != null)
+            {
+                Vector3 dest = startPoint.position;
+                transform.position = new Vector3(dest.x, dest.y, dest.z);
+
+                // 面向巡逻方向（朝向另一个点，如果存在）
+                Transform otherPoint = (startPoint == left) ? right : left;
+                if (otherPoint != null)
+                {
+                    Vector3 dir = (otherPoint.position - transform.position);
+                    dir.y = 0;
+                    if (dir.sqrMagnitude > 0.001f)
+                    {
+                        transform.rotation = Quaternion.LookRotation(dir);
+                    }
+                }
+            }
+        }
+
         if (!CookManager.cookManager.curCookList.Contains(this))
             CookManager.cookManager.curCookList.Add(this);
 
@@ -714,11 +753,13 @@ public class CustomerNPC : MonoBehaviour
     {
         Transform left = CookManager.cookManager.kitchenLeftPoint;
         Transform right = CookManager.cookManager.kitchenRightPoint;
+        // 当前巡逻目标（在 Left / Right 之间的随机点）
+        Vector3 currentTargetPos = GetRandomPointBetween(left, right);
+        // 厨师移动速度稍慢一点，显得更从容
+        float cookMoveSpeed = data.moveSpeed * 0.6f;
+        // 张望行为的冷却时间，避免一直说话
+        float idleCooldown = 0f;
 
-        // 当前巡逻目标
-        Transform currentTarget = right;
-        float waitBetween = Random.Range(1f, 2f);
-        Debug.Log("AAA");
         while (data.isCook)
         {
 
@@ -729,25 +770,14 @@ public class CustomerNPC : MonoBehaviour
                 continue;
             }
 
-            // 🔸 实时判断往哪个方向走
-            if (Vector3.Distance(transform.position, right.position) < 0.2f)
-            {
-                Debug.Log("切换坐标为左");
-                // 已经到达右端，下一个目标改为左端
-                currentTarget = left;
-            }
-            else if (Vector3.Distance(transform.position, left.position) < 0.2f)
-            {
-                Debug.Log("切换坐标为右");
-                // 到达左端，下一个目标改为右端
-                currentTarget = right;
-            }
-            Debug.Log("当前目标" + currentTarget);
+            // 🔸 更新张望冷却
+            if (idleCooldown > 0f)
+                idleCooldown -= Time.deltaTime;
+
             // 🔸 移动到目标点
-            Vector3 dest = new Vector3(currentTarget.position.x, currentTarget.position.y, currentTarget.position.z);
-            transform.position = Vector3.MoveTowards(transform.position, dest, data.moveSpeed * Time.deltaTime);
-            Debug.Log("目的地" + dest);
-            Debug.Log("当前坐标" + transform.position);
+            Vector3 dest = currentTargetPos;
+            transform.position = Vector3.MoveTowards(transform.position, dest, cookMoveSpeed * Time.deltaTime);
+
             // 🔸 面向移动方向
             Vector3 dir = dest - transform.position;
             if (dir.sqrMagnitude > 0.001f)
@@ -756,15 +786,95 @@ public class CustomerNPC : MonoBehaviour
                 transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * rotationSpeed);
             }
 
-            // 🔸 如果到达目标点则停顿一下
-            // if (Vector3.Distance(transform.position, dest) < 0.2f)
-            // {
-            //     yield return new WaitForSeconds(waitBetween);
-            //     waitBetween = Random.Range(1f, 2f);
-            // }
+            // 🔸 在移动过程中有一定几率触发停下来张望 + 说话（带冷却）
+            float idleTriggerChancePerFrame = 0.004f; // 已降低频率
+            if (idleCooldown <= 0f && Random.value < idleTriggerChancePerFrame)
+            {
+                yield return StartCoroutine(CookIdleLookAroundRoutine());
+                // 触发一次后，进入冷却，避免太频繁
+                idleCooldown = Random.Range(4f, 7f);
+            }
+
+            // 🔸 如果到达当前随机目标点，则重新随机一个目标点（仍在 Left/Right 之间）
+            if (Vector3.Distance(transform.position, dest) < 0.15f)
+            {
+                currentTargetPos = GetRandomPointBetween(left, right);
+            }
 
             yield return null;
         }
+    }
+
+    // 厨师在巡逻途中停下来四处张望、说话
+    private IEnumerator CookIdleLookAroundRoutine()
+    {
+        // 先停一小会
+        float idleDuration = Random.Range(1.5f, 3f);
+        float elapsed = 0f;
+
+        // 说几句与工作相关的话
+        string[] cookThoughts =
+        {
+            "今天客人好多呀……",
+            "要把每一道菜都做好！",
+            "看看还有哪口锅需要帮忙。",
+            "嗯……味道好像不错。",
+            "要注意火候。"
+        };
+        ShowCustomBubble(GetRandomThought(cookThoughts), idleDuration);
+
+        // 随机左右张望几次
+        int lookTimes = Random.Range(1, 3);
+        // 角色统一面向 Z 轴负半轴范围内的方向（玩家可以看到脸）
+        for (int i = 0; i < lookTimes; i++)
+        {
+            // 在 Z 轴负半轴（z <= 0）的 180° 内随机一个方向
+            float angleDeg = Random.Range(90f, 270f); // 以世界坐标为基准，Z 负半轴为 180°，前后 90° 范围
+            float rad = angleDeg * Mathf.Deg2Rad;
+            Vector3 randomDir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)); // 使 z 分量可能为负
+            if (randomDir.sqrMagnitude > 0.1f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(randomDir);
+                float rotTime = 0.4f;
+                float rotElapsed = 0f;
+                while (rotElapsed < rotTime)
+                {
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotElapsed / rotTime);
+                    rotElapsed += Time.deltaTime;
+                    elapsed += Time.deltaTime;
+                    if (elapsed >= idleDuration)
+                        break;
+                    yield return null;
+                }
+            }
+
+            if (elapsed >= idleDuration)
+                break;
+
+            // 稍微停顿一下再看另一边
+            float pause = Random.Range(0.2f, 0.5f);
+            float pauseElapsed = 0f;
+            while (pauseElapsed < pause && elapsed < idleDuration)
+            {
+                pauseElapsed += Time.deltaTime;
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+    }
+
+    // 在厨房左右点之间随机取一个点（线段内插）
+    private Vector3 GetRandomPointBetween(Transform left, Transform right)
+    {
+        if (left == null && right == null)
+            return transform.position;
+
+        if (left == null) return right.position;
+        if (right == null) return left.position;
+
+        float t = Random.Range(0f, 1f);
+        Vector3 p = Vector3.Lerp(left.position, right.position, t);
+        return p;
     }
 
 
@@ -795,37 +905,79 @@ public class CustomerNPC : MonoBehaviour
 
         ShowCustomBubble($"帮忙煮 {pot.currentRecipe?.dishName ?? "菜"}！", 2f);
 
-        // 移动到锅旁逻辑……
-        Vector3 workPos = pot.transform.position + new Vector3(0, 0, -2f);
-        while (Vector3.Distance(transform.position, workPos) > 0.1f)
+        // 移动到锅前：只对齐 X 轴，Y、Z 保持 NPC 当前位置不变，且始终面朝锅的方向（不倒着走）
+        float cookMoveSpeed = data.moveSpeed * 0.7f;
+        float targetX = pot.transform.position.x;
+        Vector3 workPos = new Vector3(targetX, transform.position.y, transform.position.z);
+        while (Mathf.Abs(transform.position.x - targetX) > 0.05f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, workPos, data.moveSpeed * Time.deltaTime);
+            float newX = Mathf.MoveTowards(transform.position.x, targetX, cookMoveSpeed * Time.deltaTime);
+            transform.position = new Vector3(newX, transform.position.y, transform.position.z);
+            // 每帧朝向锅的方向（仅 Y 轴旋转），保证是“面向锅走过去”而不是倒着走
+            Vector3 lookDir2 = pot.transform.position - transform.position;
+            lookDir2.y = 0;
+            if (lookDir2.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(lookDir2);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+            }
             yield return null;
         }
+        transform.position = workPos;
 
-        // 上下跳动逻辑……
+        // 面朝锅（只绕 Y 轴旋转，水平朝向锅的位置）
+        Vector3 lookDir = pot.transform.position - transform.position;
+        lookDir.y = 0;
+        if (lookDir.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(lookDir);
+            float rotTime = 0.3f;
+            float rotElapsed = 0f;
+            while (rotElapsed < rotTime)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotElapsed / rotTime);
+                rotElapsed += Time.deltaTime;
+                yield return null;
+            }
+            transform.rotation = targetRot;
+        }
+
+        // 做菜时上下跳动，并期间随机说几句话
         float jumpHeight = 0.6f;
         float cookDuration = pot.currentRecipe != null ? pot.currentRecipe.cookTime * 0.5f : 3f;
         float elapsed = 0f;
+        float nextBubbleTime = Random.Range(0.8f, 1.5f);
+        string[] cookingWords = { "火候刚好~", "马上就好！", "再翻炒两下…", "香味出来了！", "注意别糊了。" };
         while (elapsed < cookDuration)
         {
             float yOffset = Mathf.Sin((elapsed % 0.4f) / 0.4f * Mathf.PI) * jumpHeight;
             transform.position = new Vector3(workPos.x, workPos.y + yOffset, workPos.z);
+            if (elapsed >= nextBubbleTime)
+            {
+                ShowCustomBubble(GetRandomThought(cookingWords), 1.2f);
+                nextBubbleTime = elapsed + Random.Range(1f, 2f);
+            }
             elapsed += Time.deltaTime;
             yield return null;
         }
         transform.position = workPos;
 
-        //ApplyCookingBuffToPot(pot);
         ShowCustomBubble("加速烹饪！", 1.5f);
 
-        // 返回闲逛区
+        // 返回闲逛区：移动时面朝目的地，而不是继续朝锅
         Transform left = CookManager.cookManager.kitchenLeftPoint;
         Transform right = CookManager.cookManager.kitchenRightPoint;
         Vector3 backPos = Random.value > 0.5f ? left.position : right.position;
         while (Vector3.Distance(transform.position, backPos) > 0.1f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, backPos, data.moveSpeed * Time.deltaTime);
+            transform.position = Vector3.MoveTowards(transform.position, backPos, cookMoveSpeed * Time.deltaTime);
+            Vector3 lookDir2 = backPos - transform.position;
+            lookDir2.y = 0;
+            if (lookDir2.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(lookDir2);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+            }
             yield return null;
         }
 
