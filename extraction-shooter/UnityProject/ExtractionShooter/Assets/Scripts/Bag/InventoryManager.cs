@@ -512,4 +512,38 @@ public class InventoryManager : MonoBehaviour
         // 清空后更新背包满状态
         UpdateInventoryFullState();
     }
+
+    /// <summary>
+    /// 将背包中所有道具按种类和数量加到 GameValManager，然后清空背包。
+    /// 用于从关卡返回地面（Upground）时结算背包。
+    /// </summary>
+    public void TransferAllToGameValAndClear()
+    {
+        if (GameValManager.Instance == null) return;
+
+        // 按种类汇总数量
+        Dictionary<ResourceType, int> typeToCount = new Dictionary<ResourceType, int>();
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] == null || slots[i].IsEmpty()) continue;
+
+            ResourceType itemType = slots[i].GetItemType();
+            int count = slots[i].GetCurrentCount();
+            if (typeToCount.ContainsKey(itemType))
+                typeToCount[itemType] += count;
+            else
+                typeToCount[itemType] = count;
+        }
+
+        // 加到资源管理器
+        foreach (var kvp in typeToCount)
+        {
+            if (kvp.Value > 0)
+                GameValManager.Instance.AddResource(kvp.Key, kvp.Value);
+        }
+
+        // 清空背包
+        ClearAllItems(false);
+    }
 }

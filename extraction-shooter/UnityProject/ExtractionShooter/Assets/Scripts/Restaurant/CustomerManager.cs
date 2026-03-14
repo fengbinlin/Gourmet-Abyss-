@@ -154,9 +154,11 @@ public class CustomerManager : MonoBehaviour
         // 3️⃣ 记录这个NPC类型
         activeNPCTypes.Add(selectedType);
 
-        // 4️⃣ 生成并初始化
+        // 4️⃣ 生成并初始化（挂到 SceneTitle 单例下便于场景层级管理）
         Transform randomSpawn = spawnPoints[Random.Range(0, spawnPoints.Count)];
         GameObject go = Instantiate(selectedPrefab, randomSpawn.position, Quaternion.identity);
+        if (SceneTitle.instance != null)
+            go.transform.SetParent(SceneTitle.instance.transform);
         CustomerNPC npcInstance = go.GetComponent<CustomerNPC>();
 
         npcInstance.Init();

@@ -34,11 +34,11 @@ public class RestaurantPanel : MonoBehaviour
         instance = this;
     }
     /// <summary>
-    /// 根据 GameValManager 中的资源生成UI
+    /// 每次面板显示时刷新：根据 GameValManager 重新生成食材种类与数量、菜肴列表。
     /// </summary>
-
-    void Start()
+    void OnEnable()
     {
+        if (GameValManager.Instance == null || foodItemParent == null) return;
         GenerateFoodItems();
         GenerateDishList();
     }
@@ -69,7 +69,10 @@ public class RestaurantPanel : MonoBehaviour
             {
                 // 设置图标和数量
                 script.foodIcon.sprite = item.Icon;
+                
                 script.foodAmount.text = item.count.ToString();
+                //print("EEEAAAAA"+item.name);
+                //print("EEEAAAAA"+item.count);
             }
 
             currentFoodItems.Add(foodGO);

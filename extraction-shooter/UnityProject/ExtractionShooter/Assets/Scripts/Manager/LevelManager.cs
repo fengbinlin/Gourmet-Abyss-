@@ -294,6 +294,8 @@ public class LevelManager : MonoBehaviour
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         BattleValManager.Instance?.ResetValues();
+        // 返回地面后只清空背包（打怪时已加过 GameValManager，此处不再重复添加）
+        InventoryManager.instance?.ClearAllItems(false);
     }
 
     private IEnumerator FromLevelToHomeProcess(string levelName)
@@ -374,6 +376,8 @@ public class LevelManager : MonoBehaviour
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         BattleValManager.Instance?.ResetValues();
+        // 返回地面后只清空背包（打怪时已加过 GameValManager，此处不再重复添加）
+        InventoryManager.instance?.ClearAllItems(false);
     }
 
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
