@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 1
   customerName: "\u5C0F\u738B"
-  isCook: 1
+  isCook: 0
   isMan: 1
   buyprobability: 0.8
   wantToBuyDish: 0
   moveSpeed: 5
-  affectionValue: 30
+  affectionValue: 40
   affectionLevel: 3
   affectionLevelNeeds:
   - 10
