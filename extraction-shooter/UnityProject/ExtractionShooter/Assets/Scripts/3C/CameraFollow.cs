@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public class CameraFollow : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class CameraFollow : MonoBehaviour
     private Vector3 velocity = Vector3.zero; 
     private Transform defaultTarget;
     private Transform overrideTarget;
+    public event Action OnOverrideClearedByPlayerMove;
 
     // --- 新增：震动参数 ---
     private float shakeTimer = 0f;
@@ -39,7 +41,7 @@ public class CameraFollow : MonoBehaviour
         // 如果玩家开始移动，强制回到默认跟随
         if (overrideTarget != null && playerController != null && playerController.IsMoving())
         {
-            ClearOverrideTarget();
+            ClearOverrideTarget(true);
         }
 
         Transform currentTarget = overrideTarget != null ? overrideTarget : target;
@@ -53,7 +55,7 @@ public class CameraFollow : MonoBehaviour
         if (shakeTimer > 0)
         {
             // 在球体内随机取一个点作为偏移
-            Vector3 shakeOffset = Random.insideUnitSphere * shakeMagnitude;
+            Vector3 shakeOffset = UnityEngine.Random.insideUnitSphere * shakeMagnitude;
             smoothedPosition += shakeOffset;
 
             shakeTimer -= Time.deltaTime;
@@ -78,7 +80,17 @@ public class CameraFollow : MonoBehaviour
     /// </summary>
     public void ClearOverrideTarget()
     {
+        ClearOverrideTarget(false);
+    }
+
+    private void ClearOverrideTarget(bool clearedByPlayerMove)
+    {
+        if (overrideTarget == null) return;
         overrideTarget = null;
+        if (clearedByPlayerMove)
+        {
+            OnOverrideClearedByPlayerMove?.Invoke();
+        }
     }
 
     /// <summary>

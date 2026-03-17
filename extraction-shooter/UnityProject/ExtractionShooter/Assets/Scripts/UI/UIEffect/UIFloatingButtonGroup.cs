@@ -72,6 +72,10 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     [Header("初始状态")]
     [SerializeField] private int initialSelectedIndex = -1; // -1 表示不选中
+
+    [Header("餐厅/商店联动（餐厅通常是第2个按钮）")]
+    [SerializeField] private bool linkRestaurantToShopUI = true;
+    [SerializeField] private int restaurantButtonIndex = 1;
     
 
     [Header("邻居震荡（下落后波动）")]
@@ -84,15 +88,39 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     private int currentSelectedIndex = -1;
     private float[] lastWaveTime;
+    public static UIFloatingButtonGroup Instance;
+
+    [Header("玩家移动取消选中")]
+    [SerializeField] private TopDownController playerController;
+    private bool wasMovingLastFrame = false;
+
+    // 记录每个按钮当前是否处于选中状态（单选模式：仅一个为 true）
+    private readonly List<bool> selectedStates = new List<bool>();
+
+    /// <summary>
+    /// 各按钮选中状态（公开只读访问）。
+    /// </summary>
+    public IReadOnlyList<bool> SelectedStates => selectedStates;
+
+    public bool IsSelected(int index)
+    {
+        if (index < 0 || index >= selectedStates.Count) return false;
+        return selectedStates[index];
+    }
+
+    public int CurrentSelectedIndex => currentSelectedIndex;
 
     private void Awake()
     {
+        Instance=this;
         AutoPopulateIfNeeded();
         BindItems();
+        EnsureSelectedStateListSize();
         lastWaveTime = new float[items.Count];
         for (int i = 0; i < lastWaveTime.Length; i++) lastWaveTime[i] = -999f;
 
         if (cameraFollow == null) cameraFollow = FindFirstObjectByType<CameraFollow>();
+        if (playerController == null) playerController = FindFirstObjectByType<TopDownController>();
     }
 
     private void OnEnable()
@@ -100,9 +128,23 @@ public class UIFloatingButtonGroup : MonoBehaviour
         // 确保启用时状态正确（尤其是运行时动态生成 UI 的场景）
         ApplyImmediateState(initialSelectedIndex);
         currentSelectedIndex = initialSelectedIndex;
+        EnsureSelectedStateListSize();
+        UpdateSelectedStates(currentSelectedIndex);
+
+        if (cameraFollow != null)
+        {
+            cameraFollow.OnOverrideClearedByPlayerMove -= HandleCameraOverrideClearedByPlayerMove;
+            cameraFollow.OnOverrideClearedByPlayerMove += HandleCameraOverrideClearedByPlayerMove;
+        }
     }
 
-    private void OnDisable() { }
+    private void OnDisable()
+    {
+        if (cameraFollow != null)
+        {
+            cameraFollow.OnOverrideClearedByPlayerMove -= HandleCameraOverrideClearedByPlayerMove;
+        }
+    }
 
     private void Update()
     {
@@ -114,10 +156,38 @@ public class UIFloatingButtonGroup : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.Alpha0 + number) ||
                 (includeKeypadNumbers && Input.GetKeyDown(KeyCode.Keypad0 + number)))
             {
-                ToggleSelect(i);
+                // 键盘触发也走“按钮点击”路径，确保和鼠标点击效果一致（会触发 onClick 上的其它监听）
+                if (items[i] != null) items[i].InvokeButtonClick();
                 return;
             }
         }
+
+        // 玩家开始移动时取消选中（餐厅范围内选中餐厅按钮例外）
+        if (playerController != null)
+        {
+            bool isMoving = playerController.IsMoving();
+            if (isMoving && !wasMovingLastFrame)
+            {
+                HandlePlayerMoveCancelSelection();
+            }
+            wasMovingLastFrame = isMoving;
+        }
+    }
+
+    private void HandlePlayerMoveCancelSelection()
+    {
+        if (currentSelectedIndex == -1) return;
+
+        // 例外：餐厅按钮在触发范围内时，移动不应取消其激活状态
+        if (linkRestaurantToShopUI &&
+            currentSelectedIndex == restaurantButtonIndex &&
+            ShopInteraction.Instance != null &&
+            ShopInteraction.Instance.playerInRange)
+        {
+            return;
+        }
+
+        SetSelectedIndex(-1);
     }
 
     public void ToggleSelect(int index)
@@ -127,7 +197,22 @@ public class UIFloatingButtonGroup : MonoBehaviour
         int newIndex = (currentSelectedIndex == index) ? -1 : index;
         SetSelectedIndex(newIndex);
     }
+    public void ToggleSelectButton(int index)
+    {
+        if (index < 0 || index >= items.Count) return;
 
+        int newIndex = (currentSelectedIndex == index) ? -1 : index;
+        if ( newIndex < -1 ||  newIndex >= items.Count) return;
+        if (currentSelectedIndex ==  newIndex) return;
+
+        int prevSelectedIndex = currentSelectedIndex;
+        currentSelectedIndex =  newIndex;
+        EnsureSelectedStateListSize();
+        UpdateSelectedStates(currentSelectedIndex);
+        HandleRestaurantSelectionChanged(prevSelectedIndex, currentSelectedIndex);
+        UpdateCameraTarget(currentSelectedIndex);
+        AnimateToState(currentSelectedIndex, prevSelectedIndex);
+    }
     public void SetSelectedIndex(int index)
     {
         if (index < -1 || index >= items.Count) return;
@@ -135,8 +220,23 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
         int prevSelectedIndex = currentSelectedIndex;
         currentSelectedIndex = index;
+        EnsureSelectedStateListSize();
+        UpdateSelectedStates(currentSelectedIndex);
+        HandleRestaurantSelectionChanged(prevSelectedIndex, currentSelectedIndex);
         UpdateCameraTarget(currentSelectedIndex);
         AnimateToState(currentSelectedIndex, prevSelectedIndex);
+    }
+
+    /// <summary>
+    /// 如果当前正选中指定 index，则取消选中（设为 -1）。
+    /// 用于触发区离开时“强制餐厅按钮未激活”，但不影响其它按钮已选中状态。
+    /// </summary>
+    public void DeselectIfSelected(int index)
+    {
+        if (currentSelectedIndex == index)
+        {
+            SetSelectedIndex(-1);
+        }
     }
 
     private void UpdateCameraTarget(int selectedIndex)
@@ -156,6 +256,24 @@ public class UIFloatingButtonGroup : MonoBehaviour
         if (revertCameraOnDeselect)
         {
             cameraFollow.ClearOverrideTarget();
+        }
+    }
+
+    private void HandleCameraOverrideClearedByPlayerMove()
+    {
+        // 玩家移动导致相机回到 Player 跟随时，同时复原 UI 选中状态
+        // 例外：餐厅按钮在触发范围内时，移动不应取消其激活状态
+        if (linkRestaurantToShopUI &&
+            currentSelectedIndex == restaurantButtonIndex &&
+            ShopInteraction.Instance != null &&
+            ShopInteraction.Instance.playerInRange)
+        {
+            return;
+        }
+
+        if (currentSelectedIndex != -1)
+        {
+            SetSelectedIndex(-1);
         }
     }
 
@@ -211,6 +329,9 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     private void ApplyImmediateState(int selectedIndex)
     {
+        EnsureSelectedStateListSize();
+        UpdateSelectedStates(selectedIndex);
+
         for (int i = 0; i < items.Count; i++)
         {
             UIFloatingButtonItem it = items[i];
@@ -249,6 +370,54 @@ public class UIFloatingButtonGroup : MonoBehaviour
         // 重新初始化波动节流数组
         lastWaveTime = new float[items.Count];
         for (int i = 0; i < lastWaveTime.Length; i++) lastWaveTime[i] = -999f;
+
+        EnsureSelectedStateListSize();
+    }
+
+    private void EnsureSelectedStateListSize()
+    {
+        if (items == null) return;
+        int count = items.Count;
+        if (selectedStates.Count == count) return;
+
+        if (selectedStates.Count < count)
+        {
+            int add = count - selectedStates.Count;
+            for (int i = 0; i < add; i++) selectedStates.Add(false);
+        }
+        else
+        {
+            selectedStates.RemoveRange(count, selectedStates.Count - count);
+        }
+    }
+
+    private void UpdateSelectedStates(int selectedIndex)
+    {
+        for (int i = 0; i < selectedStates.Count; i++)
+        {
+            selectedStates[i] = (selectedIndex >= 0 && i == selectedIndex);
+        }
+    }
+
+    private void HandleRestaurantSelectionChanged(int prevIndex, int newIndex)
+    {
+        if (!linkRestaurantToShopUI) return;
+        if (restaurantButtonIndex < 0) return;
+
+        bool wasRestaurant = prevIndex == restaurantButtonIndex;
+        bool isRestaurant = newIndex == restaurantButtonIndex;
+        if (wasRestaurant == isRestaurant) return;
+
+        if (ShopInteraction.Instance == null) return;
+
+        if (isRestaurant)
+        {
+            ShopInteraction.Instance.ShowShopUI();
+        }
+        else
+        {
+            ShopInteraction.Instance.HideShopUI();
+        }
     }
 }
 

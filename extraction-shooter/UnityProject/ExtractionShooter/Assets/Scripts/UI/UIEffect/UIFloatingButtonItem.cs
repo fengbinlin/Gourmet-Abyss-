@@ -12,6 +12,11 @@ public class UIFloatingButtonItem : MonoBehaviour
     [SerializeField] private Image dimImage;
     [SerializeField] private Button button;
 
+    [Header("对应 Canvas 显隐（选中显示，未选中隐藏）")]
+    [SerializeField] private GameObject canvasObject;
+
+    private bool isInvokingButtonClick;
+
     private Vector2 baseVisualAnchoredPos;
     private Vector3 baseVisualScale;
     private Color baseDimColor;
@@ -26,6 +31,7 @@ public class UIFloatingButtonItem : MonoBehaviour
     private int indexInGroup;
     [Header("相机切换")]
     public Transform CameraTarget;
+
 
     public Transform GetCameraTarget()
     {
@@ -68,7 +74,7 @@ public class UIFloatingButtonItem : MonoBehaviour
 
     private void OnClick()
     {
-        if (group != null) group.ToggleSelect(indexInGroup);
+        if (group != null) group.ToggleSelectButton(indexInGroup);
     }
 
     public void ApplyImmediate(UIFloatingButtonGroup.AnimConfig cfg, bool isSelected, bool anySelected)
@@ -76,6 +82,7 @@ public class UIFloatingButtonItem : MonoBehaviour
         if (visual == null) return;
 
         KillTweens();
+        ApplyCanvasActiveState(isSelected);
 
         float offsetY = 0f;
         float scale = 1f;
@@ -105,6 +112,8 @@ public class UIFloatingButtonItem : MonoBehaviour
     public void Play(UIFloatingButtonGroup.AnimConfig cfg, bool isSelected, bool anySelected)
     {
         if (visual == null) return;
+
+        ApplyCanvasActiveState(isSelected);
 
         float offsetY = 0f;
         float scale = 1f;
@@ -280,9 +289,59 @@ public class UIFloatingButtonItem : MonoBehaviour
         punchTween = null;
     }
 
+    private void ApplyCanvasActiveState(bool isSelected)
+    {
+        if (canvasObject == null) return;
+        bool isActivate = isSelected;
+        if (canvasObject.activeSelf != isActivate)
+        {
+            canvasObject.SetActive(isActivate);
+        }
+    }
+
     private static Color MultiplyRGB(Color c, float m)
     {
         return new Color(c.r * m, c.g * m, c.b * m, c.a);
     }
+
+    public void ItemButtonEvent()
+    {
+        InvokeButtonClick();
+    }
+
+    /// <summary>
+    /// 用于“键盘触发/外部触发”时，模拟一次按钮点击。
+    /// 会触发 Button 的所有 onClick 监听（包括本脚本 Bind 的选择逻辑）。
+    /// 内置防重入，避免把 ItemButtonEvent 挂到 onClick 后造成递归。
+    /// </summary>
+    public void InvokeButtonClick()
+    {
+        if (button == null) return;
+        if (isInvokingButtonClick) return;
+
+        try
+        {
+            isInvokingButtonClick = true;
+            button.onClick.Invoke();
+        }
+        finally
+        {
+            isInvokingButtonClick = false;
+        }
+    }
+
+    public void ShowRestaurantUI()
+    {
+        if (ShopInteraction.Instance.isUIShowing)
+        {
+            ShopInteraction.Instance.HideShopUI();
+        }
+        else
+        {
+            ShopInteraction.Instance.ShowShopUI();
+        }
+
+    }
+
 }
 

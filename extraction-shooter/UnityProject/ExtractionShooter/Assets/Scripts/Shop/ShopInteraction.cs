@@ -1,11 +1,13 @@
 using UnityEngine;
 using UnityEngine.Events;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using DG.Tweening;
 
 public class ShopInteraction : MonoBehaviour
 {
+    public static ShopInteraction Instance;
     [Header("商店设置")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private KeyCode interactKey = KeyCode.E;
@@ -49,15 +51,17 @@ public class ShopInteraction : MonoBehaviour
     private AudioSource audioSource;
     private RectTransform shopUIRectTransform;
 
-    private bool playerInRange = false;
+    public bool playerInRange = false;
+    private readonly HashSet<int> playerColliderIdsInTrigger = new HashSet<int>();
     private bool canInteract = true;
     private bool shopHasItems = false;
     private Tween currentUItween;
-    private bool isUIShowing = false;
+    public bool isUIShowing = false;
     private Vector3 originalUIScale;
 
     private void Awake()
     {
+        Instance = this;
         playerInventory = FindObjectOfType<InventoryManager>();
         shopManager = GetComponent<ShopManager>();
         audioSource = GetComponent<AudioSource>();
@@ -90,50 +94,72 @@ public class ShopInteraction : MonoBehaviour
 
     private void Update()
     {
-        if (playerInRange && playerTransform != null)
-        {
-            float distance = Vector3.Distance(transform.position, playerTransform.position);
-            if (interactionText != null)
-                UpdateInteractionText();
+        // if (playerInRange && playerTransform != null)
+        // {
+        //     float distance = Vector3.Distance(transform.position, playerTransform.position);
+        //     if (interactionText != null)
+        //         UpdateInteractionText();
 
-            // 改成按住检测
-            if (Input.GetKey(interactKey) && canInteract)
-                TryTransferItem();
-        }
+        //     // 改成按住检测
+        //     if (Input.GetKey(interactKey) && canInteract)
+        //         TryTransferItem();
+        // }
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            GetComponent<InteractiveFeedback>()?.PlayFeedback();
+            // GetComponent<InteractiveFeedback>()?.PlayFeedback();
+            int id = other.GetInstanceID();
+            if (!playerColliderIdsInTrigger.Add(id)) return;
+            if (playerColliderIdsInTrigger.Count > 1) return; // 多 Collider：只在第一次进入时触发
+
             PlayerEnterRange(other.transform);
+            // 进入范围：强制餐厅按钮激活（不管原来是否激活）
+            if (UIFloatingButtonGroup.Instance != null)
+                UIFloatingButtonGroup.Instance.SetSelectedIndex(1);
+            // 兜底确保 UI 显示（防止 SetSelectedIndex 因为“已选中”提前 return）
+            ShowShopUI();
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
+       
         if (other.CompareTag("Player"))
         {
+            int id = other.GetInstanceID();
+            if (!playerColliderIdsInTrigger.Remove(id)) return;
+            if (playerColliderIdsInTrigger.Count > 0) return; // 仍有 Collider 在触发器内：不算真正离开
+
             PlayerExitRange();
+            // 离开范围：将餐厅按钮设为未激活（仅当当前正选中餐厅时才取消，避免误清除其它按钮选中）
+            if (UIFloatingButtonGroup.Instance != null)
+                UIFloatingButtonGroup.Instance.DeselectIfSelected(1);
+            // 兜底隐藏（如果餐厅按钮未选中但 UI 仍开着）
+            HideShopUI();
         }
     }
 
-    private void PlayerEnterRange(Transform player)
+    public void PlayerEnterRange(Transform player)
     {
         playerTransform = player;
         playerInRange = true;
+        // 进范围会强制激活餐厅按钮并显示 UI（逻辑在触发器里做一次，这里保持显示即可）
         ShowShopUI();
         OnPlayerEnterRange?.Invoke();
     }
 
-    private void PlayerExitRange()
+    public void PlayerExitRange()
     {
         playerInRange = false;
         playerTransform = null;
         pendingItemCount = 0; // 重置待处理计数
-        if (!shopHasItems)
-            HideShopUI();
+        playerColliderIdsInTrigger.Clear();
+
+        // 离开范围：无条件隐藏 UI（由按钮/切换其它按钮时也会隐藏）
+        HideShopUI();
 
         if (interactionText != null)
             interactionText.text = "";
@@ -141,7 +167,7 @@ public class ShopInteraction : MonoBehaviour
         OnPlayerExitRange?.Invoke();
     }
 
-    private void ShowShopUI()
+    public void ShowShopUI()
     {
         if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
         if (isUIShowing) return;
@@ -163,7 +189,7 @@ public class ShopInteraction : MonoBehaviour
         currentUItween = showSequence;
     }
 
-    private void HideShopUI()
+    public void HideShopUI()
     {
         if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
         if (!isUIShowing && !shopUICanvas.activeSelf) return;
@@ -246,8 +272,8 @@ public class ShopInteraction : MonoBehaviour
                             feedbackSequence.Append(shopUIRectTransform.DOScale(originalUIScale, 0.2f).SetEase(Ease.OutBack));
                         }
 
-                    // 增加：物品到达后尝试立即触发下一次发射
-                    if (playerInRange && Input.GetKey(interactKey))
+                        // 增加：物品到达后尝试立即触发下一次发射
+                        if (playerInRange && Input.GetKey(interactKey))
                         {
                             StartCoroutine(TriggerImmediate());
                         }
