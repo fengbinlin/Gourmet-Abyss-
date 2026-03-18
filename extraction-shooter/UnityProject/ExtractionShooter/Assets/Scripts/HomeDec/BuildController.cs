@@ -11,7 +11,11 @@ public enum RotationMode
 [RequireComponent(typeof(Collider2D))]
 public class BuildController : MonoBehaviour
 {
+    // 同一时刻只允许一个建筑进入鼠标拖拽，避免多物体同时被拖动
+    private static BuildController ActiveMouseDragController;
+
     private BuildingUnit unit;
+    private GridManager gm;
     private Camera cam;
     private bool isDragging = false;
     private bool wasPlaced = false;
@@ -31,14 +35,64 @@ public class BuildController : MonoBehaviour
     private float keyRepeatDelay = 0.15f; // 按键重复延迟
     private float lastKeyPressTime = 0f;
 
+    // 点击进入拖拽前的轻微缩放反馈（对子物体 SpriteRenderer 缩放）
+    private Vector3[] spriteOriginalScales;
+
+    // 从家具 UI 生成的建筑，需要在放置失败/移出网格时回收入背包
+    private bool spawnedFromFurnitureUI = false;
+    private ResourceType sourceResourceType = ResourceType.None;
+
+    private bool coreInitialized = false;
+    private bool visualsInitialized = false;
+
+    private void EnsureCoreInitialized()
+    {
+        if (coreInitialized) return;
+
+        unit = GetComponent<BuildingUnit>();
+        gm = GridManager.GetById(unit != null ? unit.gridId : 0);
+        if (gm == null) gm = GridManager.Instance; // 兼容旧逻辑
+
+        cam = Camera.main;
+
+        coreInitialized = true;
+    }
+
+    private void EnsureVisualsInitialized()
+    {
+        if (visualsInitialized) return;
+
+        if (cam == null) cam = Camera.main;
+        if (renderers == null || renderers.Length == 0)
+            renderers = GetComponentsInChildren<SpriteRenderer>(true);
+
+        if (renderers != null && renderers.Length > 0)
+        {
+            normalColor = renderers[0].color;
+            normalColor.a = 1f; // 默认不透明
+
+            spriteOriginalScales = new Vector3[renderers.Length];
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                    spriteOriginalScales[i] = renderers[i].transform.localScale;
+            }
+        }
+
+        visualsInitialized = true;
+    }
+
     private void Start()
     {
         AllGameManager.OnDeploymentPhaseCompleted += cancelBox;
-        unit = GetComponent<BuildingUnit>();
-        cam = Camera.main;
-        renderers = GetComponentsInChildren<SpriteRenderer>();
-        if (renderers.Length > 0)
-            normalColor = renderers[0].color;
+        EnsureCoreInitialized();
+        if (gm == null)
+        {
+            Debug.LogError($"❌ BuildController 找不到可用的 GridManager（unit={(unit != null ? unit.name : "null")}）");
+            enabled = false;
+            return;
+        }
+        EnsureVisualsInitialized();
 
         // 初始化旋转状态
         transform.rotation = Quaternion.Euler(0, 0, unit.isRotated ? -90f : 0f);
@@ -64,51 +118,90 @@ public class BuildController : MonoBehaviour
 
     private void HandleMouseInput()
     {
+        // 防呆：如果没有在拖拽但还持有“当前拖拽者”，则在鼠标未按下时释放
+        if (!isDragging && !Input.GetMouseButton(0))
+        {
+            if (HomeManager.instance != null && HomeManager.instance.currentDraggingUnit == this)
+                HomeManager.instance.EndDrag(this);
+            if (ActiveMouseDragController == this)
+                ActiveMouseDragController = null;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             Debug.Log("鼠标按下");
 
-            // 方法1：从屏幕点发射射线
+            // 如果已有其他建筑在拖拽，则忽略新的点击（直到松开）
+            // 这里只做“是否被占用”的判断，不抢锁；抢锁必须等确认点到了自己之后再做
+            if (HomeManager.instance != null)
+            {
+                if (HomeManager.instance.currentDraggingUnit != null && HomeManager.instance.currentDraggingUnit != this)
+                    return;
+            }
+            else
+            {
+                if (ActiveMouseDragController != null && ActiveMouseDragController != this)
+                    return;
+            }
+
+            // 使用“3D Ray 与 2D Collider 的交点”检测，适配相机有倾斜角度的情况
             Vector2 mouseScreenPos = Input.mousePosition;
             Ray ray = cam.ScreenPointToRay(mouseScreenPos);
+            Collider2D selfCol = GetComponent<Collider2D>();
 
-            // 使用 RaycastHit2D 进行 2D 射线检测
-            RaycastHit2D[] hits = Physics2D.RaycastAll(ray.origin, ray.direction, Mathf.Infinity);
-
-            // 按距离排序，获取最近的点击
-            if (hits.Length > 0)
+            RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray, Mathf.Infinity);
+            if (hits.Length > 0 && selfCol != null)
             {
-                // 对结果按距离排序
                 System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-                foreach (RaycastHit2D hit in hits)
+                foreach (var hit in hits)
                 {
-                    if (hit.collider != null)
+                    if (hit.collider == null) continue;
+
+                    // 只在“最近命中的就是自己这个 Collider2D” 时才认为被点击
+                    if (hit.collider == selfCol)
                     {
-                        Debug.Log($"检测到碰撞体: {hit.collider.gameObject.name}, 距离: {hit.distance}");
-
-                        if (hit.collider.gameObject == gameObject)
+                        // 确认点到自己后再尝试抢占“当前拖拽者”
+                        if (HomeManager.instance != null)
                         {
-                            Debug.Log("建筑被点击");
-                            isDragging = true;
-
-                            // 计算偏移量（从建筑中心到点击点的偏移）
-                            Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, Mathf.Abs(cam.transform.position.z)));
-                            mouseWorld.z = 0;
-                            offset = transform.position - mouseWorld;
-
-                            originalPos = transform.position;
-
-                            // 开始拖动时，如果之前已经放置过，先清除占用状态
-                            if (wasPlaced)
-                            {
-                                GridManager.Instance.RemoveUnit(lastPlacedGridPos, unit);
-                                wasPlaced = false;
-                            }
-
-                            SetColor(new Color(normalColor.r, normalColor.g, normalColor.b, 0.7f));
-                            break; // 找到目标后停止检测
+                            if (!HomeManager.instance.TryBeginDrag(this)) return;
                         }
+                        else
+                        {
+                            if (ActiveMouseDragController != null && ActiveMouseDragController != this)
+                                return;
+                        }
+
+                        Debug.Log("建筑被点击（Raycast 命中本体 Collider2D）");
+
+                        // 在真正进入拖拽前做一次轻微缩放反馈：先略微缩小再恢复
+                        StartCoroutine(PlayClickScaleFeedback());
+
+                        isDragging = true;
+                        if (HomeManager.instance == null)
+                            ActiveMouseDragController = this;
+
+                        // 计算偏移量（从建筑中心到点击点的偏移）
+                        Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, Mathf.Abs(cam.transform.position.z)));
+                        mouseWorld.z = 0;
+                        offset = transform.position - mouseWorld;
+
+                        originalPos = transform.position;
+
+                        // 开始拖动时，如果之前已经放置过，先清除占用状态
+                        if (wasPlaced)
+                        {
+                            gm.RemoveUnit(lastPlacedGridPos, unit);
+                            wasPlaced = false;
+                        }
+
+                        SetColor(new Color(normalColor.r, normalColor.g, normalColor.b, 0.7f));
+                        break;
+                    }
+                    else
+                    {
+                        // 如果最近的命中不是自己，直接 break，认为这次点击属于别的物体
+                        break;
                     }
                 }
             }
@@ -122,10 +215,10 @@ public class BuildController : MonoBehaviour
             mouseWorld.z = 0;
 
             Vector3 targetWorld = mouseWorld + offset;
-            currentGridPos = GridManager.Instance.WorldToGrid(targetWorld);
+            currentGridPos = gm.WorldToGrid(targetWorld);
             transform.position = GetSnappedPosition(currentGridPos);
 
-            bool canPlace = GridManager.Instance.CanPlace(currentGridPos, unit);
+            bool canPlace = gm.CanPlace(currentGridPos, unit);
             SetColor(canPlace ? new Color(normalColor.r, normalColor.g, normalColor.b, 0.7f)
                              : new Color(invalidColor.r, invalidColor.g, invalidColor.b, 0.7f));
         }
@@ -133,7 +226,146 @@ public class BuildController : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
+            if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
+            if (ActiveMouseDragController == this) ActiveMouseDragController = null;
             SnapToGrid(currentGridPos);
+        }
+    }
+
+    /// <summary>
+    /// 从家具 UI 生成的新建筑，立即进入拖拽状态
+    /// </summary>
+    public void BeginDragFromUI(ResourceType resourceType)
+    {
+        spawnedFromFurnitureUI = true;
+        sourceResourceType = resourceType;
+
+        EnsureCoreInitialized();
+        EnsureVisualsInitialized();
+        if (gm == null || unit == null)
+        {
+            Debug.LogWarning("BeginDragFromUI 失败：BuildController 未正确初始化 GridManager/BuildingUnit");
+            return;
+        }
+
+        // 抢占拖拽控制权
+        if (HomeManager.instance != null)
+        {
+            if (!HomeManager.instance.TryBeginDrag(this)) return;
+        }
+        else
+        {
+            if (ActiveMouseDragController != null && ActiveMouseDragController != this)
+                return;
+            ActiveMouseDragController = this;
+        }
+
+        isDragging = true;
+
+        Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Mathf.Abs(cam.transform.position.z)));
+        mouseWorld.z = 0;
+        offset = transform.position - mouseWorld;
+
+        originalPos = transform.position;
+        wasPlaced = false;
+
+        // 生成后立即给一个“波动”特效，并按当前位置合法性设置预览颜色（半透明）
+        StartCoroutine(PlaySpawnPulse());
+
+        Vector2Int gridPos = gm != null ? gm.WorldToGrid(transform.position) : Vector2Int.zero;
+        bool canPlace = gm != null && unit != null && gm.CanPlace(gridPos, unit);
+        Color preview = canPlace ? normalColor : invalidColor;
+        preview.a = 0.7f;
+        SetColor(preview);
+    }
+
+    private System.Collections.IEnumerator PlaySpawnPulse()
+    {
+        // 轻微放大再恢复
+        float half = 0.09f;
+        float t = 0f;
+        float peak = 1.12f;
+
+        if (renderers == null || renderers.Length == 0 || spriteOriginalScales == null)
+            yield break;
+
+        while (t < half)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / half);
+            float s = Mathf.Lerp(1f, peak, p);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < half)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / half);
+            float s = Mathf.Lerp(peak, 1f, p);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null) continue;
+            renderers[i].transform.localScale = spriteOriginalScales[i];
+        }
+    }
+
+    private System.Collections.IEnumerator PlayClickScaleFeedback()
+    {
+        float duration = 0.08f;
+        float t = 0f;
+        float targetScaleMultiplier = 0.9f;
+
+        if (renderers == null || renderers.Length == 0 || spriteOriginalScales == null)
+            yield break;
+
+        // 缩小阶段
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float lerp = Mathf.Clamp01(t / duration);
+            float s = Mathf.Lerp(1f, targetScaleMultiplier, lerp);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        // 复原阶段
+        t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float lerp = Mathf.Clamp01(t / duration);
+            float s = Mathf.Lerp(targetScaleMultiplier, 1f, lerp);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        // 确保精确恢复每个 Sprite 的原始缩放
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null) continue;
+            renderers[i].transform.localScale = spriteOriginalScales[i];
         }
     }
 
@@ -238,12 +470,12 @@ public class BuildController : MonoBehaviour
             // 激活键盘控制
             isKeyboardControlled = true;
             originalPos = transform.position;
-            currentKeyboardGridPos = GridManager.Instance.WorldToGrid(transform.position);
+            currentKeyboardGridPos = gm.WorldToGrid(transform.position);
 
             // 如果之前已放置，先移除
             if (wasPlaced)
             {
-                GridManager.Instance.RemoveUnit(lastPlacedGridPos, unit);
+                gm.RemoveUnit(lastPlacedGridPos, unit);
             }
 
             // 检查当前位置合法性并更新颜色
@@ -322,7 +554,7 @@ public class BuildController : MonoBehaviour
                 // 检查合法性并更新颜色
                 UpdateColorBasedOnPlacement();
 
-                Debug.Log($"[{controllingPlayerID}] 移动到网格位置: {currentKeyboardGridPos}，可放置: {GridManager.Instance.CanPlace(currentKeyboardGridPos, unit)}");
+                Debug.Log($"[{controllingPlayerID}] 移动到网格位置: {currentKeyboardGridPos}，可放置: {gm.CanPlace(currentKeyboardGridPos, unit)}");
             }
             else
             {
@@ -334,14 +566,14 @@ public class BuildController : MonoBehaviour
     /// <summary>根据当前位置的合法性更新颜色</summary>
     private void UpdateColorBasedOnPlacement()
     {
-        bool canPlace = GridManager.Instance.CanPlace(currentKeyboardGridPos, unit);
+        bool canPlace = gm.CanPlace(currentKeyboardGridPos, unit);
         SetColor(canPlace ? normalColor : invalidColor);
     }
 
     private bool IsWithinGridBounds(Vector2Int gridPos)
     {
         // 获取网格管理器的边界信息
-        GridManager gm = GridManager.Instance;
+        GridManager gm = this.gm;
 
         // 检查建筑单元的所有格子是否在边界内
         int unitSize = unit.size;
@@ -372,12 +604,12 @@ public class BuildController : MonoBehaviour
         if (!isKeyboardControlled)
             return;
 
-        bool canPlace = GridManager.Instance.CanPlace(currentKeyboardGridPos, unit);
+        bool canPlace = gm.CanPlace(currentKeyboardGridPos, unit);
 
         if (canPlace)
         {
             // 放置成功
-            GridManager.Instance.PlaceUnit(currentKeyboardGridPos, unit);
+            gm.PlaceUnit(currentKeyboardGridPos, unit);
             wasPlaced = true;
             lastPlacedGridPos = currentKeyboardGridPos;
             SetColor(normalColor);
@@ -406,7 +638,7 @@ public class BuildController : MonoBehaviour
         if (wasPlaced)
         {
             // 如果之前已经放置过，恢复之前的放置
-            GridManager.Instance.PlaceUnit(lastPlacedGridPos, unit);
+            gm.PlaceUnit(lastPlacedGridPos, unit);
             transform.position = GetSnappedPosition(lastPlacedGridPos);
         }
         else
@@ -426,9 +658,9 @@ public class BuildController : MonoBehaviour
         unit.ToggleRotationMaskOnly();
 
         // 用当前实际吸附位置的格子坐标计算能否放置
-        Vector2Int gridPos = GridManager.Instance.WorldToGrid(transform.position);
+        Vector2Int gridPos = gm.WorldToGrid(transform.position);
 
-        bool canPlace = GridManager.Instance.CanPlace(gridPos, unit);
+        bool canPlace = gm.CanPlace(gridPos, unit);
         SetColor(canPlace ? normalColor : invalidColor);
 
         Debug.Log($"[{controllingPlayerID}] 旋转建筑，当前位置: {gridPos}，可放置: {canPlace}");
@@ -437,18 +669,18 @@ public class BuildController : MonoBehaviour
     /// <summary>获取网格对齐的位置（考虑锚点）</summary>
     private Vector3 GetSnappedPosition(Vector2Int gridPos)
     {
-        Vector3 worldPos = GridManager.Instance.GridToWorld(gridPos);
+        Vector3 worldPos = gm.GridToWorld(gridPos);
         return worldPos;
     }
 
     private void SnapToGrid(Vector2Int gridPos)
     {
         // 可放置检查
-        bool canPlace = GridManager.Instance.CanPlace(gridPos, unit);
+        bool canPlace = gm.CanPlace(gridPos, unit);
 
         if (canPlace)
         {
-            GridManager.Instance.PlaceUnit(gridPos, unit);
+            gm.PlaceUnit(gridPos, unit);
             wasPlaced = true;
             lastPlacedGridPos = gridPos;
             transform.position = GetSnappedPosition(gridPos); // 确保位置吸附
@@ -459,14 +691,35 @@ public class BuildController : MonoBehaviour
         {
             if (wasPlaced)
             {
-                GridManager.Instance.PlaceUnit(lastPlacedGridPos, unit);
+                gm.PlaceUnit(lastPlacedGridPos, unit);
                 transform.position = GetSnappedPosition(lastPlacedGridPos);
                 SetColor(normalColor);
             }
             else
             {
-                transform.position = originalPos;
-                SetColor(invalidColor);
+                // 尚未成功放置过：如果是从家具 UI 生成的，放置失败则回收入背包并销毁
+                if (spawnedFromFurnitureUI && GameValManager.Instance != null && sourceResourceType != ResourceType.None)
+                {
+                    GameValManager.Instance.AddResource(sourceResourceType, 1);
+                    // 回收入背包后刷新一次家具 UI
+                    if (FurnitureUIManager.instance != null)
+                    {
+                        FurnitureUIManager.instance.GenerateItems();
+                    }
+                    if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
+                    if (ActiveMouseDragController == this) ActiveMouseDragController = null;
+                    Debug.Log($"放置失败，家具已回收入背包: {sourceResourceType}");
+                    Destroy(gameObject);
+                    return;
+                }
+                else
+                {
+                    transform.position = originalPos;
+                    // 回退到原位后，按原位重新判定颜色（原位通常是合法位置）
+                    Vector2Int originalGridPos = gm.WorldToGrid(originalPos);
+                    bool canPlaceAtOriginal = gm.CanPlace(originalGridPos, unit);
+                    SetColor(canPlaceAtOriginal ? normalColor : invalidColor);
+                }
             }
             Debug.Log("此处不可放置，已回退");
         }

@@ -1,7 +1,12 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class GridManager : MonoBehaviour
 {
+    [Header("网格编号（用于多网格隔离）")]
+    [Min(0)]
+    public int gridId = 0;
+
     [Header("网格尺寸")]
     public int gridWidth = 30;    // N
     public int gridHeight = 30;   // N
@@ -11,17 +16,53 @@ public class GridManager : MonoBehaviour
     private bool[,] occupied;
 
     public static GridManager Instance { get; private set; }
+    private static readonly Dictionary<int, GridManager> InstancesById = new Dictionary<int, GridManager>();
+
+    public static GridManager GetById(int id)
+    {
+        InstancesById.TryGetValue(id, out var gm);
+        return gm;
+    }
 
     private void Awake()
     {
-        if (Instance == null)
+        RegisterSelf();
+        EnsureOccupiedArray();
+    }
+
+    private void OnEnable()
+    {
+        RegisterSelf();
+    }
+
+    private void OnDisable()
+    {
+        UnregisterSelf();
+    }
+
+    private void OnDestroy()
+    {
+        UnregisterSelf();
+        if (Instance == this) Instance = null;
+    }
+
+    private void RegisterSelf()
+    {
+        if (InstancesById.TryGetValue(gridId, out var existing) && existing != null && existing != this)
         {
-            Instance = this;
-            EnsureOccupiedArray();
+            Debug.LogWarning($"⚠️ GridManager gridId={gridId} 已存在（{existing.name}），当前实例 {name} 将覆盖注册");
         }
-        else if (Instance != this)
+        InstancesById[gridId] = this;
+
+        // 兼容旧逻辑：如果还没有默认Instance，则用第一个注册的作为默认
+        if (Instance == null) Instance = this;
+    }
+
+    private void UnregisterSelf()
+    {
+        if (InstancesById.TryGetValue(gridId, out var existing) && existing == this)
         {
-            Debug.LogWarning($"⚠️ GridManager 单例已存在，当前实例 {name} 未作为活动网格");
+            InstancesById.Remove(gridId);
         }
     }
 

@@ -7,9 +7,11 @@ public class StorageBox : MonoBehaviour
     // Start is called before the first frame update
     public bool isPlayerEnter = false;
     public GameObject BagUI;
+    private InteractiveFeedback feedback;
+
     void Start()
     {
-
+        feedback = GetComponent<InteractiveFeedback>();
     }
 
     // Update is called once per frame
@@ -34,7 +36,13 @@ public class StorageBox : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
+        {
             isPlayerEnter = true;
+            if (feedback != null)
+            {
+                feedback.PlayFeedback();
+            }
+        }
     }
 
     void OnTriggerExit(Collider other)
@@ -43,6 +51,10 @@ public class StorageBox : MonoBehaviour
         {
             isPlayerEnter = false;
             ItemBagManager.instance.bagAnimatedController.HideUI();
+            if (feedback != null)
+            {
+                feedback.StopFeedbackSmoothly();
+            }
         }
 
     }

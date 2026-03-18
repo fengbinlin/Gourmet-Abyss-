@@ -46,6 +46,7 @@ public class CustomerNPC : MonoBehaviour
     public bool isInteractingWithPlayer = false;  // 当前是否正与玩家互动
     [HideInInspector] public bool isPairChatPositioning = false; // 配对聊天：是否允许在“交互”中继续走位
     private float interactionDuration = 10f;      // 暂停持续时间（可自行调整）
+    [SerializeField] private float maxPlayerInteractionDistance = 5f; // 超出该距离则解除对话/交互
     private Transform playerTransform;             // 玩家对象（运行时获取）
     public CustomerData data;
     public CustomerState state = CustomerState.Spawning;
@@ -81,12 +82,20 @@ public class CustomerNPC : MonoBehaviour
     public Vector3 guestOriginPosition;
     public bool isGuesting;
 
+    [Header("送礼状态")]
+    [SerializeField] private bool hasReceivedGiftFromPlayer = false; // 同一个NPC生成后，玩家是否已送过礼（用于限制重复送礼UI）
+    private bool isInGiftFlow = false; // 玩家已点“想要送礼”，暂停对话倒计时
+
     public void Init()
     {
         manager = CustomerManager.instance;
 
         if (bubble != null)
             bubble.SetActive(false);
+
+        SetInteractionPanelVisible(false);
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
 
         UpdateAffectionUI(); // 初始化好感度UI
         StartBubbleRoutine();
@@ -159,17 +168,14 @@ public class CustomerNPC : MonoBehaviour
         if (sign == facingSign) return;
         facingSign = sign;
 
-        if (useScaleFlipForFacing)
-        {
-            Vector3 s = transform.localScale;
-            float absX = Mathf.Abs(s.x);
-            transform.localScale = new Vector3(absX * facingSign, s.y, s.z);
-        }
-        else
-        {
-            // 备选：用 Y 轴旋转模拟左右（角度按你美术朝向调整）
-            transform.rotation = Quaternion.Euler(0f, facingSign == 1 ? 90f : 270f, 0f);
-        }
+        // 需求：localScale.x 不能为负数。统一保持缩放为正，通过旋转来实现左右朝向。
+        Vector3 s = transform.localScale;
+        float absX = Mathf.Abs(s.x);
+        transform.localScale = new Vector3(absX, s.y, s.z);
+
+        // 用 Y 轴旋转模拟左右（角度按你美术朝向调整）
+        // 保留 useScaleFlipForFacing 字段以兼容 Inspector 配置，但不再使用负缩放。
+        transform.rotation = Quaternion.Euler(0f, facingSign == 1 ? 90f : 270f, 0f);
     }
 
     public void FaceToward(Vector3 worldPos)
@@ -217,6 +223,15 @@ public class CustomerNPC : MonoBehaviour
     {
         print("点击");
 
+        // NPC成为厨师后：不可再被玩家交互
+        if (data != null && data.isCook)
+        {
+            SetInteractionPanelVisible(false);
+            SetGiftPanelVisible(false);
+            SetBagUIVisible(false);
+            return;
+        }
+
         if (state == CustomerState.InsideRestaurant)
             return;
 
@@ -242,8 +257,14 @@ public class CustomerNPC : MonoBehaviour
 
         StopAllCoroutines();  // 停止当前交互协程
         isInteractingWithPlayer = false;
+        isInGiftFlow = false;
         if (bubble != null) bubble.SetActive(false);
         animator.SetBool("isRunning", true);
+
+        SetInteractionPanelVisible(false);
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
+        if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(!hasReceivedGiftFromPlayer);
 
         // 清空全局交互引用
         if (CustomerManager.instance.currentInteractingNPC == this)
@@ -256,19 +277,51 @@ public class CustomerNPC : MonoBehaviour
         isInteractingWithPlayer = true;
         CustomerManager.instance.currentInteractingNPC = this; // ✅ 记录为当前交互 NPC
 
+        SetInteractionPanelVisible(true);
+        // 每次开始与玩家交互时，重置交互相关 UI 的初始状态
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
+        isInGiftFlow = false;
+        if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(!hasReceivedGiftFromPlayer);
+        if (hireButton != null) hireButton.gameObject.SetActive(CanBeRecruitedAsCook());
+
         animator.SetBool("isRunning", false);
         ShowCustomBubble("你好呀～", interactionDuration);
 
-        // 面向玩家方向
-        if (playerTransform != null)
+        // 对话期间：持续面向玩家（仅左/右），并在玩家超出距离时解除交互
+        float elapsed = 0f;
+        while (elapsed < interactionDuration)
         {
-            FaceToward(playerTransform.position);
-        }
+            if (playerTransform == null)
+            {
+                ForceStopInteraction();
+                yield break;
+            }
 
-        yield return new WaitForSeconds(interactionDuration);
+            // 持续面向玩家方向（2D：只左右）
+            FaceToward(playerTransform.position);
+
+            float dist = Vector3.Distance(playerTransform.position, transform.position);
+            if (dist > maxPlayerInteractionDistance)
+            {
+                ForceStopInteraction();
+                yield break;
+            }
+
+            // 若玩家进入送礼流程，则暂停结束对话的计时；提交礼物后再继续计时
+            if (!isInGiftFlow)
+            {
+                elapsed += Time.deltaTime;
+            }
+            yield return null;
+        }
 
         // 🔸 结束交互
         isInteractingWithPlayer = false;
+        isInGiftFlow = false;
+        SetInteractionPanelVisible(false);
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
         if (CustomerManager.instance.currentInteractingNPC == this)
             CustomerManager.instance.currentInteractingNPC = null;
         ItemBagManager.instance.giftResourceType = ResourceType.None;
@@ -307,6 +360,9 @@ public class CustomerNPC : MonoBehaviour
 
         if (bubble == null || bubbleText == null || isInteractingWithPlayer)
             return;
+
+        // 普通弹出文字时：交互面板应隐藏（仅玩家交互时显示）
+        SetInteractionPanelVisible(false);
 
         string thoughtText = "";
 
@@ -355,6 +411,9 @@ public class CustomerNPC : MonoBehaviour
     {
         if (bubble == null || bubbleText == null)
             return;
+
+        // 普通气泡文字：交互面板应隐藏（仅玩家交互时显示）
+        if (!isInteractingWithPlayer) SetInteractionPanelVisible(false);
 
         bubbleText.text = text;
         bubble.SetActive(true);
@@ -635,6 +694,9 @@ public class CustomerNPC : MonoBehaviour
     {
         if (string.IsNullOrEmpty(text) || bubble == null) return;
 
+        // 普通弹字（非交互 UI）：隐藏交互面板；玩家交互协程会重新打开
+        if (!isInteractingWithPlayer) SetInteractionPanelVisible(false);
+
         if (bubbleHideCoroutine != null)
             StopCoroutine(bubbleHideCoroutine);
 
@@ -657,13 +719,79 @@ public class CustomerNPC : MonoBehaviour
     }
     public Image customerGiftImage;
     public ResourceType giftResourceType;
+
+    [Header("UI逻辑引用")]
+    public GameObject interactionPanel;    // 交互面板
+    public GameObject giftPanel;           // 赠礼面板
+    public Button wantGiftButton;          // 想要赠礼按钮
+    public Button giftSubmitButton;        // 赠送提交按钮
+    public Button hireButton;              // 雇佣按钮
+
+    // 兼容旧字段（场景/Prefab 里可能仍引用这个名字）
     public GameObject GiftPanel;
+
+    private void SetInteractionPanelVisible(bool visible)
+    {
+        if (interactionPanel != null) interactionPanel.SetActive(visible);
+    }
+
+    private void SetGiftPanelVisible(bool visible)
+    {
+        GameObject panel = giftPanel != null ? giftPanel : GiftPanel;
+        if (panel != null) panel.SetActive(visible);
+    }
+
+    private void SetBagUIVisible(bool visible)
+    {
+        if (ItemBagManager.instance == null || ItemBagManager.instance.bagAnimatedController == null) return;
+        if (visible) ItemBagManager.instance.bagAnimatedController.ShowUI();
+        else ItemBagManager.instance.bagAnimatedController.HideUI();
+    }
+
+    /// <summary>
+    /// 给“想要赠礼按钮”调用：显示赠礼面板、隐藏想要赠礼按钮，并显示背包 UI。
+    /// </summary>
+    public void OnWantGiftButtonClicked()
+    {
+        if (hasReceivedGiftFromPlayer) return;
+        isInGiftFlow = true;
+        ItemBagManager.instance.customerGiftImage = customerGiftImage;
+        SetGiftPanelVisible(true);
+        if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(false);
+        SetBagUIVisible(true);
+    }
+
+    /// <summary>
+    /// 给“赠送提交按钮”调用：提交赠送，完成后隐藏赠礼面板与背包 UI。
+    /// </summary>
+    public void OnGiftSubmitButtonClicked()
+    {
+        onSendGift();
+    }
+
+    /// <summary>
+    /// 给“雇佣按钮”调用：雇佣（转职为厨师）。
+    /// </summary>
+    public void OnHireButtonClicked()
+    {
+        TryConvertToCook();
+    }
+
     public void onGiftButtonDown()
     {
         ItemBagManager.instance.customerGiftImage = customerGiftImage;
     }
     public void onSendGift()
     {
+        if (hasReceivedGiftFromPlayer)
+        {
+            // 已送过礼则不重复消耗资源/重复提交
+            SetGiftPanelVisible(false);
+            SetBagUIVisible(false);
+            if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(false);
+            return;
+        }
+
         if (data.favouriteItems.Contains(ItemBagManager.instance.giftResourceType))
         {
             ShowCustomBubble("谢谢你！我很喜欢", 1);
@@ -676,7 +804,11 @@ public class CustomerNPC : MonoBehaviour
         }
 
         ItemBagManager.instance.SendGift();
-        GiftPanel.SetActive(false);
+        hasReceivedGiftFromPlayer = true;
+        isInGiftFlow = false;
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
+        if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(false);
     }
 
     public void onGuestButtonDown()
@@ -725,15 +857,22 @@ public class CustomerNPC : MonoBehaviour
     // 检查是否满足招募条件
     public bool CanBeRecruitedAsCook()
     {
-        // 满足好感度等级阈值，例如至少 Lv3
-        int requiredLevel = 3;
-        return data != null && data.affectionLevel >= requiredLevel && !data.isCook;
+        if (data == null) return false;
+        int requiredLevel = Mathf.Max(0, data.recruitCookRequiredAffectionLevel);
+        if (data.affectionLevel < requiredLevel) return false;
+        if (data.isCook) return false;
+
+        // 受最大厨师数量限制
+        if (CookUIManager.instance != null && !CookUIManager.instance.CanRecruitMore())
+            return false;
+
+        return true;
     }
 
     // 由外部或NPC自身调用：尝试转职为厨师
     public void TryConvertToCook()
     {
-        //if (!CanBeRecruitedAsCook()) return;
+        if (!CanBeRecruitedAsCook()) return;
         ConvertToCook();
     }
 
@@ -746,11 +885,22 @@ public class CustomerNPC : MonoBehaviour
         isConsuming = false;
         state = CustomerState.Spawning;
 
+        // 转职后不再需要顾客交互UI
+        SetInteractionPanelVisible(false);
+        SetGiftPanelVisible(false);
+        SetBagUIVisible(false);
+        if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(false);
+        if (hireButton != null) hireButton.gameObject.SetActive(false);
+
         // 状态转为厨师
         data.isCook = true;
         cookState = CookState.Idle;
 
+        // 厨师状态下，确保 NPC 子物体 SpriteRenderer 的显示层级正确
+        SetCookChildSpriteSortingOrder0();
+
         // 刚被雇佣时，立即瞬移到 Left / Right 其中一个点
+        Vector3 initialCookTargetPos = transform.position;
         if (CookManager.cookManager != null)
         {
             Transform left = CookManager.cookManager.kitchenLeftPoint;
@@ -774,6 +924,7 @@ public class CustomerNPC : MonoBehaviour
             {
                 Vector3 dest = startPoint.position;
                 transform.position = new Vector3(dest.x, dest.y, dest.z);
+                initialCookTargetPos = transform.position;
 
                 // 面向巡逻方向（朝向另一个点，如果存在）
                 Transform otherPoint = (startPoint == left) ? right : left;
@@ -792,22 +943,35 @@ public class CustomerNPC : MonoBehaviour
         if (!CookManager.cookManager.curCookList.Contains(this))
             CookManager.cookManager.curCookList.Add(this);
 
+        CookUIManager.instance?.OnChefRecruited(this);
+
         ShowCustomBubble("我愿意帮忙做菜！", 2f);
 
-        cookRoutineCoroutine = StartCoroutine(CookRoutine());
+        cookRoutineCoroutine = StartCoroutine(CookRoutine(initialCookTargetPos));
+    }
+
+    private void SetCookChildSpriteSortingOrder0()
+    {
+        // 只针对 SpriteRenderer：避免误影响其它 Renderer（例如 UI Image）
+        SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null) renderers[i].sortingOrder = 0;
+        }
     }
 
     // 厨师工作主循环：在Left与Right之间巡逻，当被要求做菜时去锅旁上下跳动
-    private IEnumerator CookRoutine()
+    private IEnumerator CookRoutine(Vector3 initialTargetPos)
     {
         Transform left = CookManager.cookManager.kitchenLeftPoint;
         Transform right = CookManager.cookManager.kitchenRightPoint;
         // 当前巡逻目标（在 Left / Right 之间的随机点）
-        Vector3 currentTargetPos = GetRandomPointBetween(left, right);
+        Vector3 currentTargetPos = initialTargetPos;
         // 厨师移动速度稍慢一点，显得更从容
         float cookMoveSpeed = data.moveSpeed * 0.6f;
         // 张望行为的冷却时间，避免一直说话
         float idleCooldown = 0f;
+        bool isFirstTick = true; // 首帧到达目标时不立刻随机，避免“刚瞬移就又慢慢走”
 
         while (data.isCook)
         {
@@ -841,11 +1005,12 @@ public class CustomerNPC : MonoBehaviour
             }
 
             // 🔸 如果到达当前随机目标点，则重新随机一个目标点（仍在 Left/Right 之间）
-            if (Vector3.Distance(transform.position, dest) < 0.15f)
+            if (!isFirstTick && Vector3.Distance(transform.position, dest) < 0.15f)
             {
                 currentTargetPos = GetRandomPointBetween(left, right);
             }
 
+            isFirstTick = false;
             yield return null;
         }
     }
@@ -916,10 +1081,12 @@ public class CustomerNPC : MonoBehaviour
         {
             CookManager.cookManager.curCookList.Remove(this);
         }
+
+        CookUIManager.instance?.OnChefFired(this);
+
         data.isCook = false;
-        ShowCustomBubble("离开厨房……", 2f);
-        LeaveRestaurant();  // 恢复离开状态
-        Destroy(gameObject, 2f);
+        // 解雇后直接销毁 NPC，避免还走“闲逛/离开”逻辑造成视觉错觉
+        Destroy(gameObject);
     }
 
     // 被锅调用的协同函数：锅请求厨师帮忙烹饪

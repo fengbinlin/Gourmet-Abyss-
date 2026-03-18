@@ -28,7 +28,9 @@ public enum ResourceType
     LootSweetPepper,
     LootWatermelon,
     LootPumkin,
-    None
+    None,
+    Furniture_Clock,
+    Furniture_Chair
 }
 public enum ResourceKind
 {
@@ -46,6 +48,7 @@ public class ResourceItem
     public string name;
     public string description;
     public Sprite Icon;
+    public GameObject ItemObject;
     public ResourceItem(ResourceType type, int count = 0, int maxCapacity = 9999)
     {
         this.type = type;

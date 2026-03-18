@@ -40,4 +40,15 @@ public class ItemPrefabs : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// 在家具背包 UI 中点击，开始摆放对应家具
+    /// </summary>
+    public void BeginPlaceFurnitureFromUI()
+    {
+        if (FurnitureUIManager.instance != null)
+        {
+            FurnitureUIManager.instance.BeginPlaceFurniture(resourceType);
+        }
+    }
+
 }

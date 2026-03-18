@@ -10,7 +10,9 @@ public class CustomerData : ScriptableObject
     public int id;
     public string customerName;
     public bool isCook=false; //是否被转换成厨师
-
+    public Sprite NPCIcon;
+    public string NPCDescription;
+    public string SkillDescripton;
     public bool isMan;
     public float buyprobability = 0.2f;
     public bool wantToBuyDish;
@@ -37,6 +39,8 @@ public class CustomerData : ScriptableObject
     public List<string> noPlateFoodWords;
 
     [Header("厨师属性")]
+    [Tooltip("好感度达到该等级后，允许出现“雇佣/转职厨师”按钮")]
+    public int recruitCookRequiredAffectionLevel = 3;
     public float timeReductionRate=1; //时间减少率
     public float outputIncreaseRate=1; //产出增加率
 

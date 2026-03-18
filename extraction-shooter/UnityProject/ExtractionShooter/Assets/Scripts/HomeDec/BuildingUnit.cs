@@ -15,6 +15,10 @@ public enum BuildingUnitType
 public class BuildingUnit : MonoBehaviour
 {
     public List<GameObject> RotateObject;
+    [Header("所属网格编号（用于多网格隔离）")]
+    [Min(0)]
+    public int gridId = 0;
+
     [Header("单元类型")]
     public BuildingUnitType unitType = BuildingUnitType.Platform;
 
@@ -41,6 +45,14 @@ public class BuildingUnit : MonoBehaviour
     // 记录该单元在Grid中的基础位置
     private Vector2Int gridBasePosition;
 
+    private GridManager cachedGridManager;
+    private GridManager GetGridManager()
+    {
+        if (cachedGridManager != null) return cachedGridManager;
+        cachedGridManager = GridManager.GetById(gridId);
+        if (cachedGridManager == null) cachedGridManager = GridManager.Instance; // 兼容旧场景/旧逻辑
+        return cachedGridManager;
+    }
 
     public bool canRotate = true;
     private void Start()
@@ -57,9 +69,10 @@ public class BuildingUnit : MonoBehaviour
         // }
 
         // 计算并记录在Grid中的基础位置
-        if (GridManager.Instance != null)
+        GridManager gm = GetGridManager();
+        if (gm != null)
         {
-            gridBasePosition = GridManager.Instance.WorldToGrid(transform.position);
+            gridBasePosition = gm.WorldToGrid(transform.position);
         }
     }
 
@@ -176,9 +189,10 @@ public class BuildingUnit : MonoBehaviour
     public bool IsGridPositionInUnit(Vector2Int gridPos)
     {
         // 更新基础位置（以防单元被移动）
-        if (GridManager.Instance != null)
+        GridManager gm = GetGridManager();
+        if (gm != null)
         {
-            gridBasePosition = GridManager.Instance.WorldToGrid(transform.position);
+            gridBasePosition = gm.WorldToGrid(transform.position);
         }
 
         // 计算相对位置
@@ -202,9 +216,10 @@ public class BuildingUnit : MonoBehaviour
     /// <summary>获取Grid基础位置</summary>
     public Vector2Int GetGridBasePosition()
     {
-        if (GridManager.Instance != null)
+        GridManager gm = GetGridManager();
+        if (gm != null)
         {
-            gridBasePosition = GridManager.Instance.WorldToGrid(transform.position);
+            gridBasePosition = gm.WorldToGrid(transform.position);
         }
         return gridBasePosition;
     }
@@ -280,12 +295,16 @@ public class BuildingUnit : MonoBehaviour
         if (isRotated)
         {
             // 旋转到90度：位置需要向上移动 (size-1)个单元格
-            transform.position = prevWorldPos + new Vector3(0, (size - 1) * GridManager.Instance.cellSize, 0);
+            GridManager gm = GetGridManager();
+            float cs = gm != null ? gm.cellSize : 1f;
+            transform.position = prevWorldPos + new Vector3(0, (size - 1) * cs, 0);
         }
         else
         {
             // 旋转回0度：位置需要向下移动 (size-1)个单元格
-            transform.position = prevWorldPos - new Vector3(0, (size - 1) * GridManager.Instance.cellSize, 0);
+            GridManager gm = GetGridManager();
+            float cs = gm != null ? gm.cellSize : 1f;
+            transform.position = prevWorldPos - new Vector3(0, (size - 1) * cs, 0);
         }
 
         Debug.Log($"旋转切换，当前状态: {(isRotated ? "旋转90°" : "原始方向")}");
@@ -293,7 +312,8 @@ public class BuildingUnit : MonoBehaviour
     /// <summary>强制更新网格占用状态（用于外部同步）</summary>
     public void RefreshGridOccupation()
     {
-        if (GridManager.Instance == null) return;
+        GridManager gm = GetGridManager();
+        if (gm == null) return;
 
         Vector2Int gridPos = GetGridBasePosition();
 
@@ -303,7 +323,7 @@ public class BuildingUnit : MonoBehaviour
             for (int y = 0; y < size; y++)
             {
                 Vector2Int cellPos = new Vector2Int(gridPos.x + x, gridPos.y + y);
-                GridManager.Instance.SetCellOccupied(cellPos, false);
+                gm.SetCellOccupied(cellPos, false);
             }
         }
 
@@ -314,7 +334,7 @@ public class BuildingUnit : MonoBehaviour
             {
                 if (!GetOccupy(x, y)) continue;
                 Vector2Int cellPos = new Vector2Int(gridPos.x + x, gridPos.y + y);
-                GridManager.Instance.SetCellOccupied(cellPos, true);
+                gm.SetCellOccupied(cellPos, true);
             }
         }
     }
@@ -328,6 +348,8 @@ public class BuildingUnit : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         if (occupyMaskFlat == null || occupyMaskFlat.Length != size * size) return;
+        GridManager gm = GetGridManager();
+        if (gm == null) return;
 
         Gizmos.color = Color.cyan;
         for (int x = 0; x < size; x++)
@@ -341,8 +363,8 @@ public class BuildingUnit : MonoBehaviour
                 Vector3 pos = transform.position + cellOffset;
 
                 Gizmos.DrawWireCube(
-                    pos + new Vector3(GridManager.Instance.cellSize / 2, GridManager.Instance.cellSize / 2, 0),
-                    Vector3.one * GridManager.Instance.cellSize * 0.9f
+                    pos + new Vector3(gm.cellSize / 2, gm.cellSize / 2, 0),
+                    Vector3.one * gm.cellSize * 0.9f
                 );
             }
         }
@@ -352,17 +374,19 @@ public class BuildingUnit : MonoBehaviour
     /// <summary>获取单元格在世界空间中的偏移（考虑旋转和锚点）</summary>
     public Vector3 GetCellWorldOffset(int x, int y)
     {
+        GridManager gm = GetGridManager();
+        float cs = gm != null ? gm.cellSize : 1f;
         if (!isRotated)
         {
             // 原始方向：直接使用x,y
-            return new Vector3(x * GridManager.Instance.cellSize, y * GridManager.Instance.cellSize, 0);
+            return new Vector3(x * cs, y * cs, 0);
         }
         else
         {
             // 旋转90度：确保锚点始终在左下角
             // 旋转后，x轴对应原来的y轴，y轴对应原来的反向x轴
-            float offsetX = y * GridManager.Instance.cellSize;
-            float offsetY = (size - 1 - x) * GridManager.Instance.cellSize;
+            float offsetX = y * cs;
+            float offsetY = (size - 1 - x) * cs;
             return new Vector3(offsetX, offsetY, 0);
         }
     }
