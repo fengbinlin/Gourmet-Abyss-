@@ -56,6 +56,13 @@ public class CustomerNPC : MonoBehaviour
     private bool isConsuming = false;
     private CustomerManager manager;
 
+    // 供 Manager 的配对聊天逻辑做“临时暂停/恢复”用
+    public Vector3 CurrentTargetPosition => targetPosition;
+
+    [Header("2D朝向（仅左/右）")]
+    [SerializeField] private bool useScaleFlipForFacing = true;
+    private int facingSign = 1; // 1=右，-1=左（以 X 轴方向为准）
+
     public Transform coinSpawnPoint;
     [Tooltip("飞向钱箱的金币最多生成数量，超出部分只加数值不生成抛射物")]
     [SerializeField] private int maxVisualCoins = 12;
@@ -138,6 +145,61 @@ public class CustomerNPC : MonoBehaviour
         UpdateBubblePosition();
     }
 
+    private void FaceByDirection(Vector3 worldDirection)
+    {
+        // 2D Sprite：只允许朝左/朝右。这里以 X 轴正向为“右”，负向为“左”。
+        float x = worldDirection.x;
+        if (Mathf.Abs(x) < 0.0001f) return;
+        FaceByX(x);
+    }
+
+    private void FaceByX(float x)
+    {
+        int sign = x >= 0 ? 1 : -1;
+        if (sign == facingSign) return;
+        facingSign = sign;
+
+        if (useScaleFlipForFacing)
+        {
+            Vector3 s = transform.localScale;
+            float absX = Mathf.Abs(s.x);
+            transform.localScale = new Vector3(absX * facingSign, s.y, s.z);
+        }
+        else
+        {
+            // 备选：用 Y 轴旋转模拟左右（角度按你美术朝向调整）
+            transform.rotation = Quaternion.Euler(0f, facingSign == 1 ? 90f : 270f, 0f);
+        }
+    }
+
+    public void FaceToward(Vector3 worldPos)
+    {
+        Vector3 dir = worldPos - transform.position;
+        dir.y = 0f;
+        FaceByDirection(dir);
+    }
+
+    public bool CanDoCustomerPairChat()
+    {
+        // 需求：只能在进入餐厅之前、或离开餐厅准备回家时聊天
+        if (data != null && data.isCook) return false;
+        if (isGuesting) return false;
+        if (isConsuming) return false;
+        if (isInteractingWithPlayer) return false; // 正在与玩家交互/其它交互中，不参与配对聊天
+
+        // 离开点附近不再触发聊天，避免“聊天结束瞬间到点就销毁”的突兀观感
+        if (state == CustomerState.Leaving)
+        {
+            if (Vector3.Distance(transform.position, targetPosition) < 0.8f)
+                return false;
+        }
+
+        return state == CustomerState.Spawning
+            || state == CustomerState.WalkingToQueue
+            || state == CustomerState.Queueing
+            || state == CustomerState.Leaving;
+    }
+
     public void BeginPairChatPositioning(Vector3 pos)
     {
         isInteractingWithPlayer = true;
@@ -200,18 +262,7 @@ public class CustomerNPC : MonoBehaviour
         // 面向玩家方向
         if (playerTransform != null)
         {
-            Vector3 lookDir = playerTransform.position - transform.position;
-            lookDir.y = 0;
-            Quaternion targetRotation = Quaternion.LookRotation(lookDir);
-            float rotateTime = 0.3f;
-            float elapsed = 0f;
-
-            while (elapsed < rotateTime)
-            {
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, elapsed / rotateTime);
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
+            FaceToward(playerTransform.position);
         }
 
         yield return new WaitForSeconds(interactionDuration);
@@ -403,16 +454,12 @@ public class CustomerNPC : MonoBehaviour
             data.moveSpeed * Time.deltaTime
         );
 
-        if (directionToTarget != Vector3.zero)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-        }
+        FaceByDirection(directionToTarget);
 
         if (state == CustomerState.Queueing && Vector3.Distance(transform.position, targetPosition) < 0.1f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(CustomerManager.instance.queueFrontPoint.transform.position - transform.position);
-            transform.rotation = targetRotation;
+            if (CustomerManager.instance != null && CustomerManager.instance.queueFrontPoint != null)
+                FaceToward(CustomerManager.instance.queueFrontPoint.position);
             return;
         }
 
@@ -470,19 +517,9 @@ public class CustomerNPC : MonoBehaviour
     }
     private IEnumerator FinishConsumeInteractionCoroutine(float cost)
     {
-        // 1️⃣ 面向餐碟旋转
-        Vector3 lookDir = targetPlate.transform.position - transform.position;
-        lookDir.y = 0;
-        Quaternion targetRotation = Quaternion.LookRotation(lookDir);
-        float rotateTime = 0.5f;
-        float elapsed = 0f;
-
-        while (elapsed < rotateTime)
-        {
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, elapsed / rotateTime);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
+        // 1️⃣ 面向餐碟（2D：只左/右）
+        if (targetPlate != null)
+            FaceToward(targetPlate.transform.position);
 
         // 2️⃣ 顾客跳一下表示满意
         Vector3 originalPos = transform.position;
@@ -663,10 +700,8 @@ public class CustomerNPC : MonoBehaviour
 
 
         transform.position = HomeManager.instance.guestChair.transform.position;
-        Vector3 NPCRotation = -1 * (transform.position - HomeManager.instance.table.transform.position);
-        NPCRotation.y = 0;
-        Quaternion NPCtargetRotation = Quaternion.LookRotation(NPCRotation);
-        transform.rotation = NPCtargetRotation;
+        if (HomeManager.instance != null && HomeManager.instance.table != null)
+            FaceToward(HomeManager.instance.table.transform.position);
 
 
         ShowCustomBubble("承蒙招待，前来拜访。", 1);
@@ -748,7 +783,7 @@ public class CustomerNPC : MonoBehaviour
                     dir.y = 0;
                     if (dir.sqrMagnitude > 0.001f)
                     {
-                        transform.rotation = Quaternion.LookRotation(dir);
+                        FaceByDirection(dir);
                     }
                 }
             }
@@ -794,11 +829,7 @@ public class CustomerNPC : MonoBehaviour
 
             // 🔸 面向移动方向
             Vector3 dir = dest - transform.position;
-            if (dir.sqrMagnitude > 0.001f)
-            {
-                Quaternion rot = Quaternion.LookRotation(dir);
-                transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * rotationSpeed);
-            }
+            FaceByDirection(dir);
 
             // 🔸 在移动过程中有一定几率触发停下来张望 + 说话（带冷却）
             float idleTriggerChancePerFrame = 0.004f; // 已降低频率
@@ -839,28 +870,12 @@ public class CustomerNPC : MonoBehaviour
 
         // 随机左右张望几次
         int lookTimes = Random.Range(1, 3);
-        // 角色统一面向 Z 轴负半轴范围内的方向（玩家可以看到脸）
         for (int i = 0; i < lookTimes; i++)
         {
-            // 在 Z 轴负半轴（z <= 0）的 180° 内随机一个方向
-            float angleDeg = Random.Range(90f, 270f); // 以世界坐标为基准，Z 负半轴为 180°，前后 90° 范围
-            float rad = angleDeg * Mathf.Deg2Rad;
-            Vector3 randomDir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)); // 使 z 分量可能为负
-            if (randomDir.sqrMagnitude > 0.1f)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(randomDir);
-                float rotTime = 0.4f;
-                float rotElapsed = 0f;
-                while (rotElapsed < rotTime)
-                {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotElapsed / rotTime);
-                    rotElapsed += Time.deltaTime;
-                    elapsed += Time.deltaTime;
-                    if (elapsed >= idleDuration)
-                        break;
-                    yield return null;
-                }
-            }
+            // 2D：只允许左右张望
+            FaceByX(Random.value > 0.5f ? 1f : -1f);
+            elapsed += 0.25f;
+            yield return new WaitForSeconds(0.25f);
 
             if (elapsed >= idleDuration)
                 break;
@@ -927,34 +942,12 @@ public class CustomerNPC : MonoBehaviour
         {
             float newX = Mathf.MoveTowards(transform.position.x, targetX, cookMoveSpeed * Time.deltaTime);
             transform.position = new Vector3(newX, transform.position.y, transform.position.z);
-            // 每帧朝向锅的方向（仅 Y 轴旋转），保证是“面向锅走过去”而不是倒着走
-            Vector3 lookDir2 = pot.transform.position - transform.position;
-            lookDir2.y = 0;
-            if (lookDir2.sqrMagnitude > 0.001f)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(lookDir2);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-            }
+            FaceToward(pot.transform.position);
             yield return null;
         }
         transform.position = workPos;
 
-        // 面朝锅（只绕 Y 轴旋转，水平朝向锅的位置）
-        Vector3 lookDir = pot.transform.position - transform.position;
-        lookDir.y = 0;
-        if (lookDir.sqrMagnitude > 0.001f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(lookDir);
-            float rotTime = 0.3f;
-            float rotElapsed = 0f;
-            while (rotElapsed < rotTime)
-            {
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotElapsed / rotTime);
-                rotElapsed += Time.deltaTime;
-                yield return null;
-            }
-            transform.rotation = targetRot;
-        }
+        FaceToward(pot.transform.position);
 
         // 做菜时上下跳动，并期间随机说几句话
         float jumpHeight = 0.6f;
@@ -985,13 +978,7 @@ public class CustomerNPC : MonoBehaviour
         while (Vector3.Distance(transform.position, backPos) > 0.1f)
         {
             transform.position = Vector3.MoveTowards(transform.position, backPos, cookMoveSpeed * Time.deltaTime);
-            Vector3 lookDir2 = backPos - transform.position;
-            lookDir2.y = 0;
-            if (lookDir2.sqrMagnitude > 0.001f)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(lookDir2);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-            }
+            FaceToward(backPos);
             yield return null;
         }
 

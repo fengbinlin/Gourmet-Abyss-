@@ -31,7 +31,8 @@ public class CustomerManager : MonoBehaviour
     public float minSpawnInterval = 5f; // 最小生成间隔
     public float maxSpawnInterval = 15f; // 最大生成间隔
     public int maxTotalCustomers = 20; // 最大总顾客数（防止卡顿）
-
+   [Header("是否顾客间对话")]
+    public bool isCustomerChat=false;
     private List<CustomerNPC> activeCustomers = new List<CustomerNPC>();
     private List<CustomerNPC> customersQueue = new List<CustomerNPC>(); // 正在排队的顾客
     private List<CustomerNPC> walkingToQueue = new List<CustomerNPC>(); // 正在走向队尾的顾客
@@ -80,7 +81,7 @@ public class CustomerManager : MonoBehaviour
 
 
         // 🔹 检测是否有两位喜欢的顾客可以聊天
-        if (Time.frameCount % 50 == 0) // 每隔几秒检查一次
+        if (Time.frameCount % 50 == 0&&isCustomerChat) // 每隔几秒检查一次
         {
             //print("DA测试相互喜欢的顾客");
             CheckForLikedPairChat();
@@ -373,16 +374,16 @@ public class CustomerManager : MonoBehaviour
     public Transform GetRandomExitPoint(Vector3 NPCPos)
     {
 
-        if (spawnPoints.Count > 1)
+        if (exitPoints.Count > 1)
         {
             // 如果没有专门配置离开点，但有多于一个生成点，随机选一个不同于出生点的位置
             // 注意：这个方法不完全准确，但比总是返回相同位置好
-            Transform exitPoint = spawnPoints[Random.Range(0, spawnPoints.Count)];
+            Transform exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
 
             // 可以再尝试几次避免和某些特定点重复
             while (Vector3.Distance(exitPoint.position, NPCPos) < 0.5f)
             {
-                exitPoint = spawnPoints[Random.Range(0, spawnPoints.Count)];
+                exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
             }
             //print("设置离开点:"+exitPoint.position+" 自身坐标"+NPCPos);
 
@@ -391,12 +392,12 @@ public class CustomerManager : MonoBehaviour
         else
         {
             // 只有一个点，那就用它
-            if (spawnPoints.Count == 0)
+            if (exitPoints.Count == 0)
             {
                 //Debug.LogWarning("没有配置生成点或离开点！");
                 return transform; // 返回Manager自身位置作为备选
             }
-            return spawnPoints[0];
+            return exitPoints[0];
         }
     }
 
@@ -451,10 +452,12 @@ public class CustomerManager : MonoBehaviour
         foreach (var npc in activeCustomers)
         {
             if (npc == null || npc.hasChattedWithOtherCustomer) continue; // 跳过已聊过的
+            if (!npc.CanDoCustomerPairChat()) continue;
 
             foreach (var other in activeCustomers)
             {
                 if (other == null || npc == other || other.hasChattedWithOtherCustomer) continue;
+                if (!other.CanDoCustomerPairChat()) continue;
 
                 // 双方互相喜欢
                 bool likeEachOther =
@@ -462,6 +465,10 @@ public class CustomerManager : MonoBehaviour
                     other.data.likePeopleList.Contains(npc.data.id);
 
                 if (!likeEachOther) continue;
+
+                // 餐厅内不允许聊天（需求：只能在进餐厅前/离开回家时聊）
+                if (npc.state == CustomerState.InsideRestaurant || other.state == CustomerState.InsideRestaurant)
+                    continue;
 
                 // 距离判定
                 float dist = Vector3.Distance(npc.transform.position, other.transform.position);
@@ -497,70 +504,24 @@ public class CustomerManager : MonoBehaviour
             yield break;
         }
 
-        // 1) 配对瞬间就确定站位：A 原地，B 走到 A 的对面（或合适距离）
-        Vector3 aPos = npcA.transform.position;
-        Vector3 bPos = npcB.transform.position;
-        Vector3 dirAtoBFlat = bPos - aPos;
-        dirAtoBFlat.y = 0f;
-        if (dirAtoBFlat.sqrMagnitude < 0.0001f)
-        {
-            // 极端情况：重叠，给一个默认方向
-            dirAtoBFlat = npcA.transform.forward;
-            dirAtoBFlat.y = 0f;
-        }
-        dirAtoBFlat.Normalize();
+        // 聊天期间“暂停移动但不改写原目标”，避免：
+        // - Leaving 状态被改写 target 后立刻触发 Destroy（表现为聊天完突然消失）
+        // - Queueing / WalkingToQueue 目标被覆盖导致卡住或队列错位
+        Vector3 originalTargetA = npcA.CurrentTargetPosition;
+        Vector3 originalTargetB = npcB.CurrentTargetPosition;
+        CustomerState originalStateA = npcA.state;
+        CustomerState originalStateB = npcB.state;
 
-        float sep = Mathf.Max(0.5f, pairChatSeparation);
-        Vector3 targetPosA = aPos; // A 不挪
-        Vector3 targetPosB = aPos + dirAtoBFlat * sep;
-
-        // 与 CustomerNPC.MoveToTarget() 的 Y 锁定逻辑保持一致，避免上下抖动
-        targetPosA.y = 4.036f;
-        targetPosB.y = 4.036f;
-
-        // A 直接停住；B 允许在“交互中”走位到目标点
         npcA.isInteractingWithPlayer = true;
         npcA.isPairChatPositioning = false;
-        npcA.SetTarget(targetPosA);
+        npcB.isInteractingWithPlayer = true;
+        npcB.isPairChatPositioning = false;
 
-        npcB.BeginPairChatPositioning(targetPosB);
-
-        float elapsed = 0f;
-        while (elapsed < pairChatMaxPositioningTime)
+        // 2D：只允许左右朝向
+        if (npcA != null && npcB != null)
         {
-            if (npcA == null || npcB == null)
-            {
-                chatting = false;
-                yield break;
-            }
-
-            float distB = Vector3.Distance(npcB.transform.position, targetPosB);
-            if (distB <= pairChatPositionTolerance)
-                break;
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (npcB != null) npcB.EndPairChatPositioning();
-
-        // 2) 到位后再做“面对面旋转”（这样不会出现先站住再挪）
-        Vector3 dirAtoB = (npcB.transform.position - npcA.transform.position);
-        dirAtoB.y = 0f;
-        if (dirAtoB.sqrMagnitude < 0.0001f) dirAtoB = dirAtoBFlat;
-        dirAtoB.Normalize();
-
-        Quaternion rotA = Quaternion.LookRotation(dirAtoB);
-        Quaternion rotB = Quaternion.LookRotation(-dirAtoB);
-
-        float rotateTime = 0.35f;
-        elapsed = 0f;
-        while (elapsed < rotateTime)
-        {
-            if (npcA != null) npcA.transform.rotation = Quaternion.Slerp(npcA.transform.rotation, rotA, elapsed / rotateTime);
-            if (npcB != null) npcB.transform.rotation = Quaternion.Slerp(npcB.transform.rotation, rotB, elapsed / rotateTime);
-            elapsed += Time.deltaTime;
-            yield return null;
+            npcA.FaceToward(npcB.transform.position);
+            npcB.FaceToward(npcA.transform.position);
         }
 
         // ➤ 聊天序列
@@ -578,7 +539,24 @@ public class CustomerManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
 
         // 聊天结束
-        npcA.isInteractingWithPlayer = npcB.isInteractingWithPlayer = false;
+        if (npcA != null)
+        {
+            npcA.isInteractingWithPlayer = false;
+            npcA.isPairChatPositioning = false;
+            // 恢复原目标（重要：Leaving 的 exit 目标不能丢）
+            npcA.SetTarget(originalTargetA);
+            npcA.state = originalStateA;
+        }
+        if (npcB != null)
+        {
+            npcB.isInteractingWithPlayer = false;
+            npcB.isPairChatPositioning = false;
+            npcB.SetTarget(originalTargetB);
+            npcB.state = originalStateB;
+        }
+
+        // 若其中有人在队列中，强制刷新一次队列站位，避免聊天暂停后队列错位/卡住
+        UpdateQueueMemberPositions();
         chatting = false;
     }
 }
