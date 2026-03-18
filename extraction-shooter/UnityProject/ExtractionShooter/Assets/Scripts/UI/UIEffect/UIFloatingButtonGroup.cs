@@ -419,5 +419,27 @@ public class UIFloatingButtonGroup : MonoBehaviour
             ShopInteraction.Instance.HideShopUI();
         }
     }
+
+    /// <summary>
+    /// 使所有 Item 处于未激活（未选中）状态。
+    /// 遍历每个 Item：若当前为激活/选中，则走“等同按钮点击”的路径切回未激活；若已是未激活则跳过。
+    /// </summary>
+    public void DeactivateAllItems()
+    {
+        if (items == null || items.Count == 0) return;
+
+        // 先做一次快照，避免点击过程中状态变化影响遍历判断
+        EnsureSelectedStateListSize();
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (i < 0 || i >= selectedStates.Count) continue;
+            if (!selectedStates[i]) continue;
+
+            UIFloatingButtonItem it = items[i];
+            if (it == null) continue;
+
+            it.InvokeButtonClick();
+        }
+    }
 }
 

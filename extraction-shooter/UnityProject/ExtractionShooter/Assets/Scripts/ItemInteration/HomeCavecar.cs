@@ -104,7 +104,7 @@ public class HomeCavecar : MonoBehaviour
         isAnimating = true;
         isUIActive = true;
         MapUI.SetActive(true);
-        
+        UIFloatingButtonGroup.Instance.DeactivateAllItems();
         if (currentUITween != null && currentUITween.IsActive())
         {
             currentUITween.Kill();

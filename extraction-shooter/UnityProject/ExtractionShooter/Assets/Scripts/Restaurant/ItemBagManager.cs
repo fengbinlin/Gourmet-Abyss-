@@ -15,6 +15,11 @@ public class ItemBagManager : MonoBehaviour
     // Start is called before the first frame update
     public Image customerGiftImage;
     public ResourceType giftResourceType;
+
+    // 当前是否按单一 ResourceKind 过滤显示
+    private bool useKindFilter = false;
+    private ResourceKind filteredKind;
+
     void Awake()
     {
         instance=this;
@@ -38,11 +43,23 @@ public class ItemBagManager : MonoBehaviour
             return;
         }
 
-        // 遍历资源列表
-        foreach (var item in GameValManager.Instance.resources)
+        // 按 ResourceKind 再按 ResourceType 排序，保证默认“显示全部”时同一类型聚在一起
+        var sortedResources = new List<ResourceItem>(GameValManager.Instance.resources);
+        sortedResources.Sort((a, b) =>
         {
-            // 只显示食物类资源
-            if (item.resourceKind == ResourceKind.Food||item.count==0) continue;
+            int kindCompare = a.resourceKind.CompareTo(b.resourceKind);
+            if (kindCompare != 0) return kindCompare;
+            return a.type.CompareTo(b.type);
+        });
+
+        // 遍历资源列表
+        foreach (var item in sortedResources)
+        {
+            // 只显示有数量的资源
+            if (item.count == 0) continue;
+
+            // 如果启用了 Kind 过滤，则只显示指定 Kind
+            if (useKindFilter && item.resourceKind != filteredKind) continue;
 
             // 实例化预制体
             GameObject GO = Instantiate(ItemPrefabs, ItemParent);
@@ -88,10 +105,60 @@ public class ItemBagManager : MonoBehaviour
 
     }
 
+    public void ShowOnlyTypeFood()
+    {
+        ShowOnlyType(ResourceKind.Food);
+    }
+
+    public void ShowOnlyTypeFurniture()
+    {
+        ShowOnlyType(ResourceKind.Furniture);
+    }
+
+    public void ShowOnlyTypeOthers()
+    {
+        ShowOnlyType(ResourceKind.Others);
+    }
+
     public void SendGift()
     {
         print("完成送礼，资源销毁");
         GameValManager.Instance.TryConsumeResource(giftResourceType,1);
+        GenerateItems();
+    }
+
+    /// <summary>
+    /// 仅显示指定 ResourceKind 的物品。
+    /// </summary>
+    public void ShowOnlyType(ResourceKind kind)
+    {
+        useKindFilter = true;
+        filteredKind = kind;
+        GenerateItems();
+    }
+
+    /// <summary>
+    /// 与 ShowOnlyType 相同，方便在 Inspector 中挂接多个按钮事件。
+    /// </summary>
+    public void ShowOnlyType_Alt1(ResourceKind kind)
+    {
+        ShowOnlyType(kind);
+    }
+
+    /// <summary>
+    /// 与 ShowOnlyType 相同，方便在 Inspector 中挂接多个按钮事件。
+    /// </summary>
+    public void ShowOnlyType_Alt2(ResourceKind kind)
+    {
+        ShowOnlyType(kind);
+    }
+
+    /// <summary>
+    /// 重置为显示所有类型的物品。
+    /// </summary>
+    public void ShowAllTypes()
+    {
+        useKindFilter = false;
         GenerateItems();
     }
 }

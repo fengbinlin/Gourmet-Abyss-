@@ -292,11 +292,20 @@ public class UIFloatingButtonItem : MonoBehaviour
     private void ApplyCanvasActiveState(bool isSelected)
     {
         if (canvasObject == null) return;
-        bool isActivate = isSelected;
-        if (canvasObject.activeSelf != isActivate)
+        if (canvasObject.GetComponent<UIAnimatedPanelController>() == null) return;
+        if (isSelected)
         {
-            canvasObject.SetActive(isActivate);
+            canvasObject.GetComponent<UIAnimatedPanelController>().ShowUI();
         }
+        else
+        {
+            canvasObject.GetComponent<UIAnimatedPanelController>().HideUI();
+        }
+        // bool isActivate = isSelected;
+        // if (canvasObject.activeSelf != isActivate)
+        // {
+        //     canvasObject.SetActive(isActivate);
+        // }
     }
 
     private static Color MultiplyRGB(Color c, float m)

@@ -33,7 +33,8 @@ public enum ResourceType
 public enum ResourceKind
 {
     Food,
-    Others
+    Others,
+    Furniture
 }
 [System.Serializable]
 public class ResourceItem

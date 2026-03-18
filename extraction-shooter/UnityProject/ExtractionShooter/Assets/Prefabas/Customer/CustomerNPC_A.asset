@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 0
   customerName: "\u5C0F\u660E"
-  isCook: 1
+  isCook: 0
   isMan: 1
   buyprobability: 0.8
   wantToBuyDish: 0
