@@ -44,6 +44,7 @@ public class CustomerNPC : MonoBehaviour
     public Text affectionLevelText; // 显示好感度等级（非 TMP）
     public Image affectionProgressImage; // 环形进度条（使用 FillAmount）
     public bool isInteractingWithPlayer = false;  // 当前是否正与玩家互动
+    [HideInInspector] public bool isPairChatPositioning = false; // 配对聊天：是否允许在“交互”中继续走位
     private float interactionDuration = 10f;      // 暂停持续时间（可自行调整）
     private Transform playerTransform;             // 玩家对象（运行时获取）
     public CustomerData data;
@@ -118,7 +119,9 @@ public class CustomerNPC : MonoBehaviour
 
     void Update()
     {
-        if (!data.isCook && !isConsuming && !isInteractingWithPlayer && !isGuesting) // 🔸 如果正在互动则暂停
+        // 配对聊天的“预站位阶段”允许继续移动到目标点
+        bool allowMoveNow = !isInteractingWithPlayer || isPairChatPositioning;
+        if (!data.isCook && !isConsuming && allowMoveNow && !isGuesting) // 🔸 如果正在互动则暂停
         {
             MoveToTarget();
 
@@ -130,9 +133,22 @@ public class CustomerNPC : MonoBehaviour
             }
         }
 
-        animator.SetBool("isRunning", !isInteractingWithPlayer && Vector3.Distance(transform.position, targetPosition) >= 0.1f);
+        animator.SetBool("isRunning", allowMoveNow && Vector3.Distance(transform.position, targetPosition) >= 0.1f);
 
         UpdateBubblePosition();
+    }
+
+    public void BeginPairChatPositioning(Vector3 pos)
+    {
+        isInteractingWithPlayer = true;
+        isPairChatPositioning = true;
+        SetTarget(pos);
+    }
+
+    public void EndPairChatPositioning()
+    {
+        isPairChatPositioning = false;
+        // 保持 isInteractingWithPlayer = true，让其在聊天阶段停住
     }
 
     public void ClickCustomer()

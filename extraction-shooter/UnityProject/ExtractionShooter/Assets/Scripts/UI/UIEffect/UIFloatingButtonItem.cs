@@ -32,6 +32,7 @@ public class UIFloatingButtonItem : MonoBehaviour
     [Header("相机切换")]
     public Transform CameraTarget;
 
+    private UIAnimatedPanelController canvasPanelController;
 
     public Transform GetCameraTarget()
     {
@@ -53,6 +54,7 @@ public class UIFloatingButtonItem : MonoBehaviour
             dimImage = visual.GetComponentInChildren<Image>(true);
 
         CacheBaseState();
+        CacheCanvasPanelController();
     }
 
     private void OnDisable()
@@ -292,20 +294,26 @@ public class UIFloatingButtonItem : MonoBehaviour
     private void ApplyCanvasActiveState(bool isSelected)
     {
         if (canvasObject == null) return;
-        if (canvasObject.GetComponent<UIAnimatedPanelController>() == null) return;
-        if (isSelected)
-        {
-            canvasObject.GetComponent<UIAnimatedPanelController>().ShowUI();
-        }
-        else
-        {
-            canvasObject.GetComponent<UIAnimatedPanelController>().HideUI();
-        }
+
+        // 防呆：如果把 canvasObject 误指定为“按钮自己/同一物体”，HideUI 会导致 Item 本身也被隐藏
+        //（常见现象：运行后所有 Item 都看不见）
+        if (ReferenceEquals(canvasObject, gameObject)) return;
+
+        if (canvasPanelController == null) CacheCanvasPanelController();
+        if (canvasPanelController == null) return;
+
+        if (isSelected) canvasPanelController.ShowUI();
+        else canvasPanelController.HideUI();
         // bool isActivate = isSelected;
         // if (canvasObject.activeSelf != isActivate)
         // {
         //     canvasObject.SetActive(isActivate);
         // }
+    }
+
+    private void CacheCanvasPanelController()
+    {
+        canvasPanelController = canvasObject != null ? canvasObject.GetComponent<UIAnimatedPanelController>() : null;
     }
 
     private static Color MultiplyRGB(Color c, float m)

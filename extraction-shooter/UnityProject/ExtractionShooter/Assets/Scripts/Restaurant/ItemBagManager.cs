@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class ItemBagManager : MonoBehaviour
 {
     public static ItemBagManager instance;
-
+    public UIAnimatedPanelController bagAnimatedController;
     [Header("食材背包UI配置")]
     public GameObject ItemPrefabs;
     public Transform ItemParent;
@@ -39,7 +39,7 @@ public class ItemBagManager : MonoBehaviour
 
         if (GameValManager.Instance == null)
         {
-            Debug.LogError("GameValManager.Instance 未初始化！");
+            Debug.LogWarning("GameValManager.Instance 未初始化！");
             return;
         }
 

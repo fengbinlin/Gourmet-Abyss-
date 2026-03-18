@@ -44,6 +44,8 @@ public class LevelManager : MonoBehaviour
     private void Start()
     {
         TitleText.text = SceneTitle.instance.SceneName;
+        // 默认启动一般在“家/地上”，先隐藏战斗UI，进入关卡再打开
+        UIManager.instance?.SetBattleUIActive(false);
         // TransitionUIAnimator启用时自动播放第一个动画
         if (transitionUIAnimator != null && transitionUIAnimator.enabled)
         {
@@ -200,6 +202,7 @@ public class LevelManager : MonoBehaviour
         loadedLevels.Add(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.Battle;
+        UIManager.instance?.SetBattleUIActive(true);
     }
 
     private IEnumerator ExitLevelProcess(string levelName)
@@ -293,6 +296,7 @@ public class LevelManager : MonoBehaviour
         loadedLevels.Remove(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
+        UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
         // 返回地面后只清空背包（打怪时已加过 GameValManager，此处不再重复添加）
         InventoryManager.instance?.ClearAllItems(false);
@@ -375,6 +379,7 @@ public class LevelManager : MonoBehaviour
         loadedLevels.Remove(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
+        UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
         // 返回地面后只清空背包（打怪时已加过 GameValManager，此处不再重复添加）
         InventoryManager.instance?.ClearAllItems(false);
@@ -462,6 +467,7 @@ public class LevelManager : MonoBehaviour
 
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.Battle;
+        UIManager.instance?.SetBattleUIActive(true);
     }
 
     /// <summary>

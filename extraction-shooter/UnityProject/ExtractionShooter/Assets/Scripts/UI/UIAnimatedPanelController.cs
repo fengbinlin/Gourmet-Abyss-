@@ -9,7 +9,7 @@ using DG.Tweening;
 public class UIAnimatedPanelController : MonoBehaviour
 {
     [Header("目标 UI 根节点")]
-    [SerializeField] private GameObject targetUI;
+    [SerializeField] public GameObject targetUI;
 
     [Header("动画设置")]
     [SerializeField] private float showScaleMultiplier = 1.2f;

@@ -437,6 +437,11 @@ public class CustomerManager : MonoBehaviour
                                                           // 聊天发生的概率（0~1）
     [SerializeField, Range(0f, 1f)]
     private float chatProbability = 0.5f;
+
+    [Header("配对聊天站位")]
+    [SerializeField] private float pairChatSeparation = 3.0f; // 两人之间的最终距离
+    [SerializeField] private float pairChatPositionTolerance = 0.15f;
+    [SerializeField] private float pairChatMaxPositioningTime = 2.0f; // 防止卡住
     private void CheckForLikedPairChat()
     {
         if (chatting) return;
@@ -492,43 +497,68 @@ public class CustomerManager : MonoBehaviour
             yield break;
         }
 
-        npcA.isInteractingWithPlayer = npcB.isInteractingWithPlayer = true;
-
-        // ➤ 让他们面对面
-        Vector3 dirAtoB = (npcB.transform.position - npcA.transform.position).normalized;
-        dirAtoB.y = 0;
-        Quaternion rotA = Quaternion.LookRotation(dirAtoB);
-        Quaternion rotB = Quaternion.LookRotation(-dirAtoB);
-
-        // 旋转动画
-        float rotateTime = 0.4f;
-        float elapsed = 0f;
-        while (elapsed < rotateTime)
+        // 1) 配对瞬间就确定站位：A 原地，B 走到 A 的对面（或合适距离）
+        Vector3 aPos = npcA.transform.position;
+        Vector3 bPos = npcB.transform.position;
+        Vector3 dirAtoBFlat = bPos - aPos;
+        dirAtoBFlat.y = 0f;
+        if (dirAtoBFlat.sqrMagnitude < 0.0001f)
         {
-            if (npcA != null)
-                npcA.transform.rotation = Quaternion.Slerp(npcA.transform.rotation, rotA, elapsed / rotateTime);
-            if (npcB != null)
-                npcB.transform.rotation = Quaternion.Slerp(npcB.transform.rotation, rotB, elapsed / rotateTime);
+            // 极端情况：重叠，给一个默认方向
+            dirAtoBFlat = npcA.transform.forward;
+            dirAtoBFlat.y = 0f;
+        }
+        dirAtoBFlat.Normalize();
+
+        float sep = Mathf.Max(0.5f, pairChatSeparation);
+        Vector3 targetPosA = aPos; // A 不挪
+        Vector3 targetPosB = aPos + dirAtoBFlat * sep;
+
+        // 与 CustomerNPC.MoveToTarget() 的 Y 锁定逻辑保持一致，避免上下抖动
+        targetPosA.y = 4.036f;
+        targetPosB.y = 4.036f;
+
+        // A 直接停住；B 允许在“交互中”走位到目标点
+        npcA.isInteractingWithPlayer = true;
+        npcA.isPairChatPositioning = false;
+        npcA.SetTarget(targetPosA);
+
+        npcB.BeginPairChatPositioning(targetPosB);
+
+        float elapsed = 0f;
+        while (elapsed < pairChatMaxPositioningTime)
+        {
+            if (npcA == null || npcB == null)
+            {
+                chatting = false;
+                yield break;
+            }
+
+            float distB = Vector3.Distance(npcB.transform.position, targetPosB);
+            if (distB <= pairChatPositionTolerance)
+                break;
 
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        // 小幅靠近一点
-        Vector3 midPoint = (npcA.transform.position + npcB.transform.position) / 2f;
-        Vector3 targetPosA = midPoint - dirAtoB * 1.5f;
-        Vector3 targetPosB = midPoint + dirAtoB * 1.5f;
+        if (npcB != null) npcB.EndPairChatPositioning();
 
-        float moveTime = 0.5f;
+        // 2) 到位后再做“面对面旋转”（这样不会出现先站住再挪）
+        Vector3 dirAtoB = (npcB.transform.position - npcA.transform.position);
+        dirAtoB.y = 0f;
+        if (dirAtoB.sqrMagnitude < 0.0001f) dirAtoB = dirAtoBFlat;
+        dirAtoB.Normalize();
+
+        Quaternion rotA = Quaternion.LookRotation(dirAtoB);
+        Quaternion rotB = Quaternion.LookRotation(-dirAtoB);
+
+        float rotateTime = 0.35f;
         elapsed = 0f;
-        Vector3 startPosA = npcA.transform.position;
-        Vector3 startPosB = npcB.transform.position;
-        while (elapsed < moveTime)
+        while (elapsed < rotateTime)
         {
-            if (npcA != null)
-                npcA.transform.position = Vector3.Lerp(startPosA, targetPosA, elapsed / moveTime);
-            if (npcB != null)
-                npcB.transform.position = Vector3.Lerp(startPosB, targetPosB, elapsed / moveTime);
+            if (npcA != null) npcA.transform.rotation = Quaternion.Slerp(npcA.transform.rotation, rotA, elapsed / rotateTime);
+            if (npcB != null) npcB.transform.rotation = Quaternion.Slerp(npcB.transform.rotation, rotB, elapsed / rotateTime);
             elapsed += Time.deltaTime;
             yield return null;
         }

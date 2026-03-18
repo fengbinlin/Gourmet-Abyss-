@@ -94,6 +94,20 @@ public class ShopInteraction : MonoBehaviour
 
     private void Update()
     {
+        if (playerInRange)
+        {
+            if (Input.GetKeyDown(interactKey)){
+                if (!isUIShowing)
+                {
+                    ShowShopUI();
+                }
+                else
+                {
+                    HideShopUI();
+                }
+                
+            }
+        }
         // if (playerInRange && playerTransform != null)
         // {
         //     float distance = Vector3.Distance(transform.position, playerTransform.position);
@@ -114,13 +128,13 @@ public class ShopInteraction : MonoBehaviour
             int id = other.GetInstanceID();
             if (!playerColliderIdsInTrigger.Add(id)) return;
             if (playerColliderIdsInTrigger.Count > 1) return; // 多 Collider：只在第一次进入时触发
-
-            PlayerEnterRange(other.transform);
+            playerInRange = true;
+            //PlayerEnterRange(other.transform);
             // 进入范围：强制餐厅按钮激活（不管原来是否激活）
-            if (UIFloatingButtonGroup.Instance != null)
-                UIFloatingButtonGroup.Instance.SetSelectedIndex(1);
-            // 兜底确保 UI 显示（防止 SetSelectedIndex 因为“已选中”提前 return）
-            ShowShopUI();
+            // if (UIFloatingButtonGroup.Instance != null)
+            //     UIFloatingButtonGroup.Instance.SetSelectedIndex(1);
+            // // 兜底确保 UI 显示（防止 SetSelectedIndex 因为“已选中”提前 return）
+            // ShowShopUI();
         }
     }
 
@@ -132,24 +146,24 @@ public class ShopInteraction : MonoBehaviour
             int id = other.GetInstanceID();
             if (!playerColliderIdsInTrigger.Remove(id)) return;
             if (playerColliderIdsInTrigger.Count > 0) return; // 仍有 Collider 在触发器内：不算真正离开
-
-            PlayerExitRange();
-            // 离开范围：将餐厅按钮设为未激活（仅当当前正选中餐厅时才取消，避免误清除其它按钮选中）
-            if (UIFloatingButtonGroup.Instance != null)
-                UIFloatingButtonGroup.Instance.DeselectIfSelected(1);
-            // 兜底隐藏（如果餐厅按钮未选中但 UI 仍开着）
+            playerInRange=false;
+            // PlayerExitRange();
+            // // 离开范围：将餐厅按钮设为未激活（仅当当前正选中餐厅时才取消，避免误清除其它按钮选中）
+            // if (UIFloatingButtonGroup.Instance != null)
+            //     UIFloatingButtonGroup.Instance.DeselectIfSelected(1);
+            // // 兜底隐藏（如果餐厅按钮未选中但 UI 仍开着）
             HideShopUI();
         }
     }
 
-    public void PlayerEnterRange(Transform player)
-    {
-        playerTransform = player;
-        playerInRange = true;
-        // 进范围会强制激活餐厅按钮并显示 UI（逻辑在触发器里做一次，这里保持显示即可）
-        ShowShopUI();
-        OnPlayerEnterRange?.Invoke();
-    }
+    // public void PlayerEnterRange(Transform player)
+    // {
+    //     playerTransform = player;
+    //     playerInRange = true;
+    //     // 进范围会强制激活餐厅按钮并显示 UI（逻辑在触发器里做一次，这里保持显示即可）
+    //     ShowShopUI();
+    //     OnPlayerEnterRange?.Invoke();
+    // }
 
     public void PlayerExitRange()
     {
