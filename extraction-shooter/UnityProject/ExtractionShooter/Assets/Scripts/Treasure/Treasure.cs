@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using DG.Tweening; // DoTween 命名空间
+using UnityEngine.SceneManagement;
 
 public class Treasure : MonoBehaviour
 {
@@ -70,6 +71,15 @@ public class Treasure : MonoBehaviour
 
         // 实例化宝物
         GameObject spawnedTreasure = Instantiate(selectedTreasure.treasureObject, startPosition, Quaternion.identity);
+
+        // 确保生成物体被放入和宝箱相同的场景（支持附加场景）
+        SceneManager.MoveGameObjectToScene(spawnedTreasure, gameObject.scene);
+
+        // 将父物体设置为宝箱所在场景的父级（与宝箱同一层级）
+        if (transform.parent != null)
+        {
+            spawnedTreasure.transform.SetParent(transform.parent, worldPositionStays: true);
+        }
 
         // 使用 DoTween 实现下落效果
         DropTreasureWithDoTween(spawnedTreasure.transform, startPosition, spawnPosition);

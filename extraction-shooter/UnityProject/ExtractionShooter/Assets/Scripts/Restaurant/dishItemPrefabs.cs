@@ -26,6 +26,7 @@ public class DishRecipe
     public float cookTime = 10f;            // 烹饪时间（秒）
     public float baseDishPrice = 1;         // 基本菜价格
     public DishCategory category = DishCategory.MainCourse; // 菜肴分类
+    public bool locked = true;              // 是否锁定（未解锁的菜不显示/不可用）
 }
 
 // 添加菜肴分类枚举

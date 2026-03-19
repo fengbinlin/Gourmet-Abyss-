@@ -380,7 +380,6 @@ public class EnemyAI : MonoBehaviour
                 walkableDirs.Add(dir);
             }
         }
-        print(walkableDirs.Count);
         return walkableDirs.ToArray();
     }
     

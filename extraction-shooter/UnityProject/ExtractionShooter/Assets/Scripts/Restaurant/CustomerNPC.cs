@@ -694,6 +694,13 @@ public class CustomerNPC : MonoBehaviour
     {
         if (string.IsNullOrEmpty(text) || bubble == null) return;
 
+        // 如果该 NPC 当前未激活，则不再尝试开启协程，避免
+        // "Coroutine couldn't be started because the game object is inactive" 报错
+        if (!isActiveAndEnabled)
+        {
+            return;
+        }
+
         // 普通弹字（非交互 UI）：隐藏交互面板；玩家交互协程会重新打开
         if (!isInteractingWithPlayer) SetInteractionPanelVisible(false);
 

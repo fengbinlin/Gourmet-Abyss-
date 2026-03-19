@@ -124,6 +124,11 @@ public class RestaurantPanel : MonoBehaviour
         for (int i = 0; i < dishRecipes.Count; i++)
         {
             DishRecipe recipe = dishRecipes[i];
+            // 只显示已经解锁的菜谱
+            if (recipe.locked)
+            {
+                continue;
+            }
             GameObject dishGO = Instantiate(dishItemPrefabs, dishParent);
             dishItemPrefabs script = dishGO.GetComponent<dishItemPrefabs>();
             if (script == null)
@@ -295,5 +300,30 @@ public class RestaurantPanel : MonoBehaviour
         // 这里需要一个方法来检查锅的完成状态
 
         return false;
+    }
+
+    /// <summary>
+    /// 根据菜ID解锁菜谱（供道具等调用）
+    /// </summary>
+    public void UnlockDishByID(int dishID)
+    {
+        DishRecipe recipe = dishRecipes.Find(d => d.dishID == dishID);
+        if (recipe == null)
+        {
+            Debug.LogWarning($"未找到 dishID 为 {dishID} 的菜谱！");
+            return;
+        }
+
+        if (!recipe.locked)
+        {
+            // 已经解锁，无需重复处理
+            return;
+        }
+
+        recipe.locked = false;
+        Debug.Log($"已解锁菜谱：{recipe.dishName} (ID={recipe.dishID})");
+
+        // 如果餐厅面板当前是打开状态，刷新一次菜单显示
+        GenerateDishList();
     }
 }

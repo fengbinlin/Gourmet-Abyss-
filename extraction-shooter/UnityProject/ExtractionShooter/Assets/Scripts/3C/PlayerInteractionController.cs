@@ -39,8 +39,10 @@ public class PlayerInteractionController : MonoBehaviour
     private bool isHolding = false; // 是否正在长按
     private float currentProgress = 0f; // 当前进度
 
-    // 当前宝箱引用
+    // 当前宝箱引用（普通宝箱）
     private Treasure currentTreasure = null;
+    // 当前食谱宝箱引用
+    private CookBookTreasure currentCookBookTreasure = null;
 
     private void Awake()
     {
@@ -112,6 +114,7 @@ public class PlayerInteractionController : MonoBehaviour
 
         // 清除宝箱引用
         currentTreasure = null;
+        currentCookBookTreasure = null;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -127,7 +130,7 @@ public class PlayerInteractionController : MonoBehaviour
                 ShowInteractionCanvas();
             }
         }
-        // 靠近宝箱逻辑
+        // 靠近宝箱逻辑（普通宝箱）
         Treasure treasure = other.gameObject.GetComponent<Treasure>();
         if (treasure)
         {
@@ -138,6 +141,25 @@ public class PlayerInteractionController : MonoBehaviour
             print("进入宝箱");
             currentTreasure = treasure;
             holdTime = currentTreasure.timeNeedToHold;
+            AudioManager.Instance.PlayAudio("3");
+            // 如果Canvas还未激活，激活并播放弹出动画
+            if (!isCanvasActive)
+            {
+                ShowInteractionCanvas();
+            }
+        }
+
+        // 靠近食谱宝箱逻辑（CookBookTreasure）
+        CookBookTreasure cookBookTreasure = other.gameObject.GetComponent<CookBookTreasure>();
+        if (cookBookTreasure)
+        {
+            if (cookBookTreasure.isOpen == true)
+            {
+                return;
+            }
+            print("进入食谱宝箱");
+            currentCookBookTreasure = cookBookTreasure;
+            holdTime = currentCookBookTreasure.timeNeedToHold;
             AudioManager.Instance.PlayAudio("3");
             // 如果Canvas还未激活，激活并播放弹出动画
             if (!isCanvasActive)
@@ -160,7 +182,7 @@ public class PlayerInteractionController : MonoBehaviour
                 HideInteractionCanvas();
             }
         }
-        // 离开宝箱逻辑
+        // 离开宝箱逻辑（普通宝箱）
         if (other.gameObject.GetComponent<Treasure>())
         {
             // 重置长按状态
@@ -173,6 +195,26 @@ public class PlayerInteractionController : MonoBehaviour
             }
 
             currentTreasure = null;
+
+            if (isCanvasActive)
+            {
+                HideInteractionCanvas();
+            }
+        }
+
+        // 离开食谱宝箱逻辑（CookBookTreasure）
+        if (other.gameObject.GetComponent<CookBookTreasure>())
+        {
+            // 重置长按状态
+            isHolding = false;
+            currentProgress = 0f;
+
+            if (holdProgress != null)
+            {
+                holdProgress.fillAmount = 0f;
+            }
+
+            currentCookBookTreasure = null;
 
             if (isCanvasActive)
             {
@@ -302,7 +344,7 @@ public class PlayerInteractionController : MonoBehaviour
             OnInteractionPressed?.Invoke();
         }
 
-        // 处理宝箱长按交互
+        // 处理宝箱长按交互（普通宝箱）
         if (currentTreasure != null && holdProgress != null)
         {
             if (currentTreasure.isOpen == true)
@@ -336,6 +378,61 @@ public class PlayerInteractionController : MonoBehaviour
                 {
                     // 打开宝箱
                     currentTreasure.Open();
+
+                    // 重置状态
+                    isHolding = false;
+                    currentProgress = 0f;
+                    holdProgress.fillAmount = 0f;
+                }
+            }
+            else
+            {
+                // 减少进度
+                if (currentProgress > 0f)
+                {
+                    currentProgress -= decreaseSpeed * Time.deltaTime;
+                    currentProgress = Mathf.Clamp(currentProgress, 0f, holdTime);
+
+                    // 更新UI
+                    holdProgress.fillAmount = currentProgress / holdTime;
+                }
+            }
+        }
+        // 处理食谱宝箱长按交互（CookBookTreasure）
+        else if (currentCookBookTreasure != null && holdProgress != null)
+        {
+            if (currentCookBookTreasure.isOpen == true)
+            {
+                return;
+            }
+
+            // 检测按键按下
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                isHolding = true;
+            }
+
+            // 检测按键抬起
+            if (Input.GetKeyUp(KeyCode.E))
+            {
+                isHolding = false;
+            }
+
+            // 更新进度
+            if (isHolding)
+            {
+                // 增加进度
+                currentProgress += fillSpeed * Time.deltaTime;
+                currentProgress = Mathf.Clamp(currentProgress, 0f, holdTime);
+
+                // 更新UI
+                holdProgress.fillAmount = currentProgress / holdTime;
+
+                // 检查是否完成
+                if (currentProgress >= holdTime)
+                {
+                    // 打开食谱宝箱
+                    currentCookBookTreasure.Open();
 
                     // 重置状态
                     isHolding = false;

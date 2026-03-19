@@ -83,6 +83,7 @@ public class ResourceItem
 [System.Serializable]
 public class ResourceChangedEvent : UnityEvent<ResourceType, int, int> { }
 
+[DefaultExecutionOrder(-100)] // 确保资源管理器尽早初始化
 public class GameValManager : MonoBehaviour
 {
     public static GameValManager Instance { get; private set; }
