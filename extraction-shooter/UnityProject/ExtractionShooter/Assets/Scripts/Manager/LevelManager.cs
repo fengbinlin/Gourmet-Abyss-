@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+[DefaultExecutionOrder(-60)] // 在 Audio/UI/GameVal 之后，大部分游戏逻辑之前
 public class LevelManager : MonoBehaviour
 {
     public GameObject mainUI;

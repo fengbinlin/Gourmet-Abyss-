@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(-120)] // 比大多数管理器更早初始化
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }

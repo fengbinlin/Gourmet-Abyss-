@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(-80)] // 先于大多数 UI 逻辑初始化
 public class UIManager : MonoBehaviour
 {
     public static UIManager instance;

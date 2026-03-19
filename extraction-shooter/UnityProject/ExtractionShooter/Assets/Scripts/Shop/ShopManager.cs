@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 
+[DefaultExecutionOrder(-40)] // 早于大部分游戏逻辑，但晚于核心管理器
 public class ShopManager : MonoBehaviour
 {
     [Header("商店显示和隐藏")]

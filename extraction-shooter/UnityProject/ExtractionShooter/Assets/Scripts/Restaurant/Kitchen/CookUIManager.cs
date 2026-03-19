@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
+[DefaultExecutionOrder(-10)] // 在 CookManager 初始化之后不久
 public class CookUIManager : MonoBehaviour
 {
     public static CookUIManager instance;

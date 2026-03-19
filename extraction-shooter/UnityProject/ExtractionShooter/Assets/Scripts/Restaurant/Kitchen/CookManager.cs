@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(-20)] // 早一点初始化，方便其它系统引用
 public class CookManager : MonoBehaviour
 {
     public static CookManager cookManager;
