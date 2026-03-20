@@ -35,7 +35,7 @@ public class Treasure : MonoBehaviour
         transform.GetComponent<Animator>().SetTrigger("Open");
         print("宝箱打开");
         // 调用生成随机已解锁宝物的方法
-        Invoke("SpawnRandomUnlockedTreasure", 1f);
+        Invoke("SpawnRandomUnlockedTreasure", 0.5f);
 
 
     }

@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Chest_1_Simple
+  m_Name: Chest_2_Simple 1
   m_Shader: {fileID: 4800000, guid: 71d6765ad72e11541bc1448c891bbcf9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -27,7 +27,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _Albedo:
-        m_Texture: {fileID: 2800000, guid: cea27b7a61c6a9c4d8534bb5e67b864d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 6925ecd2866c0dd46b96e90e152654af, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -59,7 +59,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: cea27b7a61c6a9c4d8534bb5e67b864d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 6925ecd2866c0dd46b96e90e152654af, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -110,7 +110,7 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.045
     - _GlossyReflections: 1
-    - _ID: 1
+    - _ID: 79
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -127,6 +127,6 @@ Material:
     - _Color: {r: 0.41456032, g: 0.54607725, b: 0.6415094, a: 1}
     - _EdgeHighlightColor: {r: 0.5, g: 0.5, b: 0.5, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _OutlineColor: {r: 0, g: 0, b: 0, a: 0.5}
+    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
     - _PixelGridOrigin: {r: 0, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []

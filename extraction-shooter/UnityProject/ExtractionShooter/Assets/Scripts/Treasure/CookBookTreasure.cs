@@ -75,7 +75,7 @@ public class CookBookTreasure : MonoBehaviour
         }
 
         // 1 秒后根据 Data 生成掉落物
-        Invoke(nameof(SpawnItemFromData), 1.5f);
+        Invoke(nameof(SpawnItemFromData), 0.5f);
     }
 
     private void SpawnItemFromData()
