@@ -20,6 +20,16 @@ public class WeaponStatsManager : MonoBehaviour
 {
     public static WeaponStatsManager Instance { get; private set; }
 
+    [Header("宠物状态（进入战斗时由 PetManager 读取）")]
+    public List<PetStateEntry> petStateList = new List<PetStateEntry>();
+
+    [System.Serializable]
+    public class PetStateEntry
+    {
+        public PetType petType;
+        public bool isEnabled;
+    }
+
     [Header("主武器数值")]
     public bool isPrimaryEnable=true;
     public float primaryFireRate = 0.2f;
@@ -279,5 +289,48 @@ public class WeaponStatsManager : MonoBehaviour
         {
             return defaultMapDensityMultiplier;
         }
+    }
+
+    /// <summary>
+    /// 查询宠物是否启用（供 PetManager 在进入战斗时读取）
+    /// </summary>
+    public bool IsPetEnabled(PetType petType)
+    {
+        if (petType == PetType.None) return false;
+        if (petStateList == null) return false;
+
+        for (int i = 0; i < petStateList.Count; i++)
+        {
+            var entry = petStateList[i];
+            if (entry == null) continue;
+            if (entry.petType != petType) continue;
+            return entry.isEnabled;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 运行时设置宠物启用状态（可选：便于技能/配置系统写入）
+    /// </summary>
+    public void SetPetEnabled(PetType petType, bool enabled)
+    {
+        if (petType == PetType.None) return;
+        if (petStateList == null) petStateList = new List<PetStateEntry>();
+
+        for (int i = 0; i < petStateList.Count; i++)
+        {
+            var entry = petStateList[i];
+            if (entry == null) continue;
+            if (entry.petType != petType) continue;
+            entry.isEnabled = enabled;
+            return;
+        }
+
+        petStateList.Add(new PetStateEntry
+        {
+            petType = petType,
+            isEnabled = enabled
+        });
     }
 }

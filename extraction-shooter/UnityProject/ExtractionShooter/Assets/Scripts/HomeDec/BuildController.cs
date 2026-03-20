@@ -45,6 +45,14 @@ public class BuildController : MonoBehaviour
     private bool coreInitialized = false;
     private bool visualsInitialized = false;
 
+    [Header("网格步进缩放波动（交互反馈）")]
+    [SerializeField] private float gridStepPulsePeak = 1.06f;   // 轻微放大峰值
+    [SerializeField] private float gridStepPulseHalfTime = 0.06f; // 半程时长（放大/缩小各一段）
+
+    private Vector2Int lastGridPosForPulse;
+    private bool hasLastGridPosForPulse = false;
+    private Coroutine gridStepPulseCoroutine;
+
     private void EnsureCoreInitialized()
     {
         if (coreInitialized) return;
@@ -178,6 +186,7 @@ public class BuildController : MonoBehaviour
                         StartCoroutine(PlayClickScaleFeedback());
 
                         isDragging = true;
+                        hasLastGridPosForPulse = false;
                         if (HomeManager.instance == null)
                             ActiveMouseDragController = this;
 
@@ -195,7 +204,7 @@ public class BuildController : MonoBehaviour
                             wasPlaced = false;
                         }
 
-                        SetColor(new Color(normalColor.r, normalColor.g, normalColor.b, 0.7f));
+                        SetColor(normalColor);
                         break;
                     }
                     else
@@ -217,15 +226,16 @@ public class BuildController : MonoBehaviour
             Vector3 targetWorld = mouseWorld + offset;
             currentGridPos = gm.WorldToGrid(targetWorld);
             transform.position = GetSnappedPosition(currentGridPos);
+            TryPlayGridStepPulse(currentGridPos);
 
             bool canPlace = gm.CanPlace(currentGridPos, unit);
-            SetColor(canPlace ? new Color(normalColor.r, normalColor.g, normalColor.b, 0.7f)
-                             : new Color(invalidColor.r, invalidColor.g, invalidColor.b, 0.7f));
+            SetColor(canPlace ? normalColor : invalidColor);
         }
 
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
+            hasLastGridPosForPulse = false;
             if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
             if (ActiveMouseDragController == this) ActiveMouseDragController = null;
             SnapToGrid(currentGridPos);
@@ -261,6 +271,7 @@ public class BuildController : MonoBehaviour
         }
 
         isDragging = true;
+        hasLastGridPosForPulse = false;
 
         Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Mathf.Abs(cam.transform.position.z)));
         mouseWorld.z = 0;
@@ -275,7 +286,6 @@ public class BuildController : MonoBehaviour
         Vector2Int gridPos = gm != null ? gm.WorldToGrid(transform.position) : Vector2Int.zero;
         bool canPlace = gm != null && unit != null && gm.CanPlace(gridPos, unit);
         Color preview = canPlace ? normalColor : invalidColor;
-        preview.a = 0.7f;
         SetColor(preview);
     }
 
@@ -321,6 +331,78 @@ public class BuildController : MonoBehaviour
             if (renderers[i] == null) continue;
             renderers[i].transform.localScale = spriteOriginalScales[i];
         }
+    }
+
+    private void TryPlayGridStepPulse(Vector2Int newGridPos)
+    {
+        if (renderers == null || renderers.Length == 0 || spriteOriginalScales == null) return;
+
+        if (!hasLastGridPosForPulse)
+        {
+            lastGridPosForPulse = newGridPos;
+            hasLastGridPosForPulse = true;
+            return;
+        }
+
+        if (newGridPos == lastGridPosForPulse) return;
+
+        lastGridPosForPulse = newGridPos;
+
+        if (gridStepPulseCoroutine != null)
+            StopCoroutine(gridStepPulseCoroutine);
+
+        // 先恢复到原始缩放，再播放下一次波动，避免多协程叠加导致缩放错位
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null) continue;
+            renderers[i].transform.localScale = spriteOriginalScales[i];
+        }
+
+        gridStepPulseCoroutine = StartCoroutine(PlayGridStepPulse());
+    }
+
+    private System.Collections.IEnumerator PlayGridStepPulse()
+    {
+        float half = Mathf.Max(0.01f, gridStepPulseHalfTime);
+        float peak = Mathf.Max(1.001f, gridStepPulsePeak);
+
+        // 放大阶段：1 -> peak
+        float t = 0f;
+        while (t < half)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / half);
+            float s = Mathf.Lerp(1f, peak, p);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        // 缩小阶段：peak -> 1
+        t = 0f;
+        while (t < half)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / half);
+            float s = Mathf.Lerp(peak, 1f, p);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].transform.localScale = spriteOriginalScales[i] * s;
+            }
+            yield return null;
+        }
+
+        // 精确恢复
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null) continue;
+            renderers[i].transform.localScale = spriteOriginalScales[i];
+        }
+        gridStepPulseCoroutine = null;
     }
 
     private System.Collections.IEnumerator PlayClickScaleFeedback()
@@ -469,6 +551,7 @@ public class BuildController : MonoBehaviour
         {
             // 激活键盘控制
             isKeyboardControlled = true;
+            hasLastGridPosForPulse = false;
             originalPos = transform.position;
             currentKeyboardGridPos = gm.WorldToGrid(transform.position);
 
@@ -550,6 +633,7 @@ public class BuildController : MonoBehaviour
                 // 更新物体位置
                 Vector3 newWorldPos = GetSnappedPosition(currentKeyboardGridPos);
                 transform.position = newWorldPos;
+                TryPlayGridStepPulse(currentKeyboardGridPos);
 
                 // 检查合法性并更新颜色
                 UpdateColorBasedOnPlacement();

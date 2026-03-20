@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 主角飞行随从：跟随主角并自动攻击范围内敌人。
 /// </summary>
-public class FlyingCompanionController : MonoBehaviour
+public class FlyingCompanionController : MonoBehaviour, IPetSystem
 {
     [Header("跟随设置")]
     [SerializeField] private TopDownController playerController;
@@ -111,9 +111,24 @@ public class FlyingCompanionController : MonoBehaviour
         return nearest;
     }
 
+    public void ApplyGrowth(PetGrowthValues growth)
+    {
+        if (growth == null) return;
+
+        attackRange = Mathf.Max(0.1f, growth.attackRange);
+        fireInterval = Mathf.Max(0.01f, growth.fireInterval);
+        bulletDamage = Mathf.Max(0f, growth.bulletDamage);
+
+        bulletMoveSpeed = Mathf.Max(0.01f, growth.bulletMoveSpeed);
+        bulletRotateSpeed = Mathf.Max(0.01f, growth.bulletRotateSpeed);
+        bulletLifeTime = Mathf.Max(0.01f, growth.bulletLifeTime);
+        bulletHitDistance = Mathf.Max(0.01f, growth.bulletHitDistance);
+    }
+
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }
+

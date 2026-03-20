@@ -1,0 +1,181 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// 宠物管理器：
+/// 1) 配置宠物预制体与成长数值
+/// 2) 进入战斗时读取 WeaponStatsManager 里的宠物状态（enum + bool）
+/// 3) 生成启用的宠物预制体，并把成长数值写入到“宠物系统”组件（IPetSystem）
+/// </summary>
+public class PetManager : MonoBehaviour
+{
+    public static PetManager Instance { get; private set; }
+
+    [System.Serializable]
+    public class PetConfigEntry
+    {
+        public PetType petType = PetType.None;
+        public GameObject petPrefab;
+        public Vector3 spawnOffset = Vector3.zero; // 相对“生成点/玩家”的偏移
+    }
+
+    [Header("生成点（为空则使用玩家位置）")]
+    [SerializeField] private Transform petSpawnPoint;
+
+    [Header("宠物配置列表（只配置预制体与偏移）")]
+    [SerializeField] private List<PetConfigEntry> petConfigs = new List<PetConfigEntry>();
+
+    [Header("宠物成长数值（不在 PetConfig 内；按类型前缀命名）")]
+    [SerializeField] private float FlyingCompanion_attackRange = 12f;
+    [SerializeField] private float FlyingCompanion_fireInterval = 0.45f;
+    [SerializeField] private float FlyingCompanion_bulletDamage = 12f;
+
+    [SerializeField] private float FlyingCompanion_bulletMoveSpeed = 18f;
+    [SerializeField] private float FlyingCompanion_bulletRotateSpeed = 540f;
+    [SerializeField] private float FlyingCompanion_bulletLifeTime = 4f;
+    [SerializeField] private float FlyingCompanion_bulletHitDistance = 0.35f;
+
+    // 运行时：记录已生成的宠物实例
+    private readonly Dictionary<PetType, GameObject> spawnedPets = new Dictionary<PetType, GameObject>();
+    private PlayerState lastState = PlayerState.UpGround;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void Start()
+    {
+        if (PlayerStateManager.instance != null)
+            lastState = PlayerStateManager.instance.currentState;
+
+        SyncByState(force: true);
+    }
+
+    private void Update()
+    {
+        if (PlayerStateManager.instance == null) return;
+
+        var currentState = PlayerStateManager.instance.currentState;
+        if (currentState == lastState) return;
+
+        lastState = currentState;
+        SyncByState(force: false);
+    }
+
+    private void SyncByState(bool force)
+    {
+        if (PlayerStateManager.instance == null) return;
+
+        if (force || PlayerStateManager.instance.currentState == PlayerState.Battle)
+        {
+            if (PlayerStateManager.instance.currentState == PlayerState.Battle)
+                EnterBattle();
+        }
+        else
+        {
+            ExitBattle();
+        }
+    }
+
+    private void EnterBattle()
+    {
+        if (WeaponStatsManager.Instance == null)
+        {
+            Debug.LogWarning("[PetManager] WeaponStatsManager.Instance 为空，跳过宠物生成。");
+            return;
+        }
+
+        // 生成旋转时尽量对齐玩家朝向（如果找不到玩家则用默认旋转）
+        Transform playerTransform = null;
+        var player = FindFirstObjectByType<TopDownController>();
+        if (player != null) playerTransform = player.transform;
+
+        for (int i = 0; i < petConfigs.Count; i++)
+        {
+            var cfg = petConfigs[i];
+            if (cfg == null) continue;
+            if (cfg.petType == PetType.None) continue;
+            if (cfg.petPrefab == null) continue;
+
+            bool enabled = WeaponStatsManager.Instance.IsPetEnabled(cfg.petType);
+            if (!enabled) continue;
+
+            if (spawnedPets.TryGetValue(cfg.petType, out var existing) && existing != null)
+            {
+                // 如果之前已生成（比如重复进入战斗），也同步一次成长数值
+                var petSystem = existing.GetComponentInChildren<IPetSystem>();
+                petSystem?.ApplyGrowth(GetGrowthValuesForPetType(cfg.petType));
+                continue;
+            }
+
+            Vector3 spawnPos = GetSpawnPosition(playerTransform) + cfg.spawnOffset;
+            Quaternion spawnRot = playerTransform != null
+                ? Quaternion.Euler(0f, playerTransform.eulerAngles.y, 0f)
+                : Quaternion.identity;
+
+            GameObject petObj = Instantiate(cfg.petPrefab, spawnPos, spawnRot);
+            spawnedPets[cfg.petType] = petObj;
+
+            var system = petObj.GetComponentInChildren<IPetSystem>();
+            if (system == null)
+            {
+                Debug.LogWarning($"[PetManager] 宠物预制体 {cfg.petPrefab.name} 未实现 IPetSystem，无法写入成长数值。");
+                continue;
+            }
+            system.ApplyGrowth(GetGrowthValuesForPetType(cfg.petType));
+        }
+    }
+
+    private void ExitBattle()
+    {
+        // 离开战斗时清理，避免重复进入战斗导致多次生成
+        foreach (var kv in spawnedPets)
+        {
+            if (kv.Value != null)
+            {
+                Destroy(kv.Value);
+            }
+        }
+        spawnedPets.Clear();
+    }
+
+    private Vector3 GetSpawnPosition(Transform playerTransform)
+    {
+        if (petSpawnPoint != null)
+            return petSpawnPoint.position;
+
+        if (playerTransform != null)
+            return playerTransform.position;
+
+        return Vector3.zero;
+    }
+
+    private PetGrowthValues GetGrowthValuesForPetType(PetType petType)
+    {
+        switch (petType)
+        {
+            case PetType.FlyingCompanion:
+                return new PetGrowthValues
+                {
+                    attackRange = FlyingCompanion_attackRange,
+                    fireInterval = FlyingCompanion_fireInterval,
+                    bulletDamage = FlyingCompanion_bulletDamage,
+
+                    bulletMoveSpeed = FlyingCompanion_bulletMoveSpeed,
+                    bulletRotateSpeed = FlyingCompanion_bulletRotateSpeed,
+                    bulletLifeTime = FlyingCompanion_bulletLifeTime,
+                    bulletHitDistance = FlyingCompanion_bulletHitDistance
+                };
+            default:
+                return null;
+        }
+    }
+}
+
