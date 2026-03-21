@@ -1,7 +1,7 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Renderer))]
 public class VehicleColorTransition : MonoBehaviour
 {
     [System.Serializable]
@@ -18,7 +18,7 @@ public class VehicleColorTransition : MonoBehaviour
     [SerializeField] private AnimationCurve transitionCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("材质设置")]
-    [SerializeField] private MaterialColorSettings[] materialSettings;
+    [SerializeField] public MaterialColorSettings[] materialSettings;
 
     [Header("白色设置")]
     [SerializeField] private Color whiteColor = Color.white;
@@ -29,7 +29,14 @@ public class VehicleColorTransition : MonoBehaviour
     [SerializeField] private int initialLayer = 10; // 初始层级
     [SerializeField] private int afterTransitionLayer = 11; // 过渡完成后的层级
 
-    private Renderer meshRenderer;
+    [Header("材质来源")]
+    [Tooltip("为 true 时只使用子物体上的 Renderer；无子物体 Renderer 时回退到自身")]
+    [SerializeField] private bool useChildRenderers = true;
+
+    [Tooltip("为 true 时若自身也有 Renderer，会一并加入材质列表（在子物体之后）")]
+    [SerializeField] private bool includeSelfRenderer = false;
+
+    private Renderer[] targetRenderers;
     private Material[] materials;
     private Coroutine transitionCoroutine;
     public bool isInitialized = false;
@@ -37,7 +44,6 @@ public class VehicleColorTransition : MonoBehaviour
 
     private void Awake()
     {
-        meshRenderer = GetComponent<Renderer>();
         originalLayer = gameObject.layer; // 保存原始层级
         InitializeMaterials();
         isInitialized = false;
@@ -46,7 +52,7 @@ public class VehicleColorTransition : MonoBehaviour
     private void OnEnable()
     {
         // 启用时自动从白色过渡到原色
-        if (meshRenderer != null)
+        if (materials != null && materials.Length > 0)
         {
             //print("VehicleColorTransition OnEnable - 初始化为白色并开始过渡");
             isInitialized = true;
@@ -61,12 +67,64 @@ public class VehicleColorTransition : MonoBehaviour
         SetLayer(initialLayer);
     }
 
+    /// <summary>
+    /// 收集需要参与过渡的 Renderer：默认优先子物体（含嵌套子级），可选再附加自身。
+    /// </summary>
+    private Renderer[] GetTargetRenderers()
+    {
+        var list = new List<Renderer>();
+        if (useChildRenderers)
+        {
+            foreach (var r in GetComponentsInChildren<Renderer>(includeInactive: true))
+            {
+                if (r.transform == transform) continue;
+                list.Add(r);
+            }
+        }
+
+        if (includeSelfRenderer)
+        {
+            var self = GetComponent<Renderer>();
+            if (self != null && !list.Contains(self))
+                list.Add(self);
+        }
+
+        if (list.Count == 0)
+        {
+            var self = GetComponent<Renderer>();
+            if (self != null)
+            {
+                list.Add(self);
+                if (useChildRenderers)
+                {
+                    Debug.LogWarning(
+                        $"VehicleColorTransition on \"{gameObject.name}\": 未找到子物体 Renderer，已回退使用自身 Renderer。",
+                        this);
+                }
+            }
+        }
+
+        return list.ToArray();
+    }
+
     private void InitializeMaterials()
     {
-        if (meshRenderer == null) return;
+        targetRenderers = GetTargetRenderers();
+        if (targetRenderers == null || targetRenderers.Length == 0)
+        {
+            materials = null;
+            return;
+        }
 
-        // 克隆材质以防止影响原材质
-        materials = meshRenderer.materials;
+        // 克隆材质以防止影响原材质（按子物体 Renderer 顺序拼接）
+        var matList = new List<Material>();
+        foreach (var r in targetRenderers)
+        {
+            if (r == null) continue;
+            matList.AddRange(r.materials);
+        }
+
+        materials = matList.ToArray();
 
         // 如果没有设置材质配置，自动创建一个
         if (materialSettings == null || materialSettings.Length == 0)
@@ -387,11 +445,5 @@ public class VehicleColorTransition : MonoBehaviour
     public bool IsTransitioning()
     {
         return transitionCoroutine != null;
-    }
-
-    private void OnValidate()
-    {
-        if (meshRenderer == null)
-            meshRenderer = GetComponent<Renderer>();
     }
 }
