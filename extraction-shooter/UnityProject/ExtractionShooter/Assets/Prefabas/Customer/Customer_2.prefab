@@ -58,6 +58,7 @@ MonoBehaviour:
   affectionProgressImage: {fileID: 1635285347940756435}
   isInteractingWithPlayer: 0
   isPairChatPositioning: 0
+  maxPlayerInteractionDistance: 5
   data: {fileID: 11400000, guid: daa850e701ad6c742b6db7194b5708c1, type: 2}
   state: 0
   bubble: {fileID: 541571661688498990}
@@ -73,6 +74,7 @@ MonoBehaviour:
   rotationSpeed: 1000
   guestOriginPosition: {x: 0, y: 0, z: 0}
   isGuesting: 0
+  hasReceivedGiftFromPlayer: 0
   customerGiftImage: {fileID: 1945509955226578676}
   giftResourceType: 0
   interactionPanel: {fileID: 2620820083758940720}
@@ -177,7 +179,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 3
   m_Sprite: {fileID: 21300000, guid: 079d7cdbd3199ab42aece22d56271291, type: 3}
-  m_Color: {r: 0.9019608, g: 0.9019608, b: 0.9019608, a: 0.9411765}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
