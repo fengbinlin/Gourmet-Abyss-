@@ -9984,6 +9984,15 @@ MonoBehaviour:
   criticalHitEffext: {fileID: 1553327564893038, guid: bd7b931460f01b54d9d15fde2105e052,
     type: 3}
   debugMode: 0
+  enableKillSplit: 0
+  killSplitCount: 0
+  killSplitRemainingIterations: 0
+  killSplitChildDamageRatio: 0.5
+  killSplitChildProjectilePrefab: {fileID: 0}
+  enableAOE: 0
+  aoeRadius: 0
+  aoeEdgeMinDamageRatio: 0.3
+  aoeEffectPrefab: {fileID: 0}
 --- !u!135 &6232764607809560137
 SphereCollider:
   m_ObjectHideFlags: 0
