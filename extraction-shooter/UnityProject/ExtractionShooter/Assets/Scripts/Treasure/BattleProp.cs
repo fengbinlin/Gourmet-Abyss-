@@ -18,6 +18,14 @@ public class BattleProp : MonoBehaviour
     public bool EffectImmediate;
     public bool isPlayerEnter;
 
+    [Header("拾取后销毁动效")]
+    [Min(1f)]
+    public float pickupPulseScale = 1.25f;
+    [Min(0.01f)]
+    public float pickupPulseDuration = 0.2f;
+
+    private bool hasPickedUp = false;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -47,8 +55,14 @@ public class BattleProp : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        if (hasPickedUp)
+        {
+            return;
+        }
+
         if (other.gameObject.tag == "Player")
         {
+            hasPickedUp = true;
             isPlayerEnter = true;
             Debug.Log("拾起道具");
             //如果是食物，直接奏效，如果是道具，添加到便携装备栏
@@ -73,7 +87,14 @@ public class BattleProp : MonoBehaviour
                 //放进装备栏
                 TreasureManager.treasureManager.AddToEquipmentBar(propType);
             }
-            GameObject.Destroy(gameObject, 0.2f);
+
+            Collider col = GetComponent<Collider>();
+            if (col != null)
+            {
+                col.enabled = false;
+            }
+
+            StartCoroutine(PlayPickupPulseAndDestroy());
         }
     }
     void OnTriggerExit(Collider other)
@@ -87,5 +108,33 @@ public class BattleProp : MonoBehaviour
     public void pickUp()
     {
 
+    }
+
+    private IEnumerator PlayPickupPulseAndDestroy()
+    {
+        Vector3 originScale = transform.localScale;
+        Vector3 peakScale = originScale * pickupPulseScale;
+        float halfDuration = pickupPulseDuration * 0.5f;
+
+        float t = 0f;
+        while (t < halfDuration)
+        {
+            t += Time.deltaTime;
+            float lerp = Mathf.Clamp01(t / halfDuration);
+            transform.localScale = Vector3.Lerp(originScale, peakScale, lerp);
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < halfDuration)
+        {
+            t += Time.deltaTime;
+            float lerp = Mathf.Clamp01(t / halfDuration);
+            transform.localScale = Vector3.Lerp(peakScale, originScale, lerp);
+            yield return null;
+        }
+
+        transform.localScale = originScale;
+        Destroy(gameObject);
     }
 }

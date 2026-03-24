@@ -82,7 +82,6 @@ public class EnemyHealth : MonoBehaviour
     
     // 进度条相关变量
     private Coroutine redFillCoroutine;
-    private Coroutine whiteFillCoroutine;
     
     // 血量条隐藏相关变量
     private Coroutine hideCoroutine;
@@ -116,7 +115,7 @@ public class EnemyHealth : MonoBehaviour
             SetAnchorAndPivotToCenter(redBar);
             
             // 初始时进度条宽度为0
-            SetBarWidth(whiteBar, 0f);
+            SetBarWidth(whiteBar, maxBarWidth);
             SetBarWidth(redBar, 0f);
             
             // 初始隐藏进度条
@@ -212,6 +211,9 @@ public class EnemyHealth : MonoBehaviour
     {
         if (whiteBar == null || redBar == null) return;
         
+        // 白条固定为满，红条表示已损失血量
+        SetBarWidth(whiteBar, maxBarWidth);
+
         // 计算损失的血量百分比
         float healthPercent = currentHealth / maxHealth;
         float lostHealthPercent = 1f - healthPercent;
@@ -220,61 +222,32 @@ public class EnemyHealth : MonoBehaviour
         // 重置隐藏计时器
         ResetHideTimer();
         
-        // 停止之前的填充协程
-        if (whiteFillCoroutine != null)
-        {
-            StopCoroutine(whiteFillCoroutine);
-        }
-        
-        // 先立即将白色进度条扩展到目标宽度
-        whiteFillCoroutine = StartCoroutine(FillWhiteBar(targetWidth));
-        
-        // 延迟后开始红色填充
+        // 红条平滑增长到目标
         if (redFillCoroutine != null)
         {
             StopCoroutine(redFillCoroutine);
         }
-        redFillCoroutine = StartCoroutine(FillRedBarDelayed(targetWidth));
+        redFillCoroutine = StartCoroutine(FillRedBarToTarget(targetWidth));
     }
-    
-    // 填充白色进度条
-    private IEnumerator FillWhiteBar(float targetWidth)
+
+    // 红色条填充到目标宽度
+    private IEnumerator FillRedBarToTarget(float targetWidth)
     {
-        float startWidth = GetBarWidth(whiteBar);
+        float startWidth = GetBarWidth(redBar);
         float elapsedTime = 0f;
-        float duration = 0.1f; // 白色填充很快
-        
+        float duration = Mathf.Max(fillDuration, 0.01f);
+
         while (elapsedTime < duration)
         {
             elapsedTime += Time.deltaTime;
             float t = elapsedTime / duration;
             float currentWidth = Mathf.Lerp(startWidth, targetWidth, t);
-            SetBarWidth(whiteBar, currentWidth);
-            yield return null;
-        }
-        
-        SetBarWidth(whiteBar, targetWidth);
-    }
-    
-    // 延迟后填充红色进度条
-    private IEnumerator FillRedBarDelayed(float targetWidth)
-    {
-        // 等待延迟
-        yield return new WaitForSeconds(fillDelay);
-        
-        float startWidth = GetBarWidth(redBar);
-        float elapsedTime = 0f;
-        
-        while (elapsedTime < fillDuration)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = elapsedTime / fillDuration;
-            float currentWidth = Mathf.Lerp(startWidth, targetWidth, t);
             SetBarWidth(redBar, currentWidth);
             yield return null;
         }
-        
+
         SetBarWidth(redBar, targetWidth);
+        redFillCoroutine = null;
     }
     
     private void GetAllRenderers()

@@ -78,6 +78,7 @@ public class UIAnimatedPanelController : MonoBehaviour
 
     public void HideUI()
     {
+        Debug.LogError("关闭UI");
         if (targetUI == null || uiRectTransform == null || canvasGroup == null) return;
         if (!isShowing && !targetUI.activeSelf) return;
 

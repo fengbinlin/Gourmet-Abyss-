@@ -8,6 +8,10 @@ public class StorageBox : MonoBehaviour
     public bool isPlayerEnter = false;
     public GameObject BagUI;
     private InteractiveFeedback feedback;
+    private readonly HashSet<Collider> playerCollidersInside = new HashSet<Collider>();
+
+    // 防止多个 StorageBox 重叠时同时响应 E，导致一开一关闪烁
+    private static StorageBox currentInputOwner;
 
     void Start()
     {
@@ -19,8 +23,23 @@ public class StorageBox : MonoBehaviour
     {
         if (isPlayerEnter)
         {
+            if (currentInputOwner == null)
+            {
+                currentInputOwner = this;
+            }
+
+            if (currentInputOwner != this)
+            {
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.E))
             {
+                if (ItemBagManager.instance == null || ItemBagManager.instance.bagAnimatedController == null)
+                {
+                    return;
+                }
+
                 if (ItemBagManager.instance.bagAnimatedController.targetUI.activeInHierarchy)
                 {
                     ItemBagManager.instance.bagAnimatedController.HideUI();
@@ -35,9 +54,18 @@ public class StorageBox : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
+        {
+            return;
+        }
+
+        bool wasOutside = playerCollidersInside.Count == 0;
+        playerCollidersInside.Add(other);
+
+        if (wasOutside)
         {
             isPlayerEnter = true;
+            currentInputOwner = this;
             if (feedback != null)
             {
                 feedback.PlayFeedback();
@@ -47,15 +75,39 @@ public class StorageBox : MonoBehaviour
 
     void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (!IsPlayerCollider(other))
+        {
+            return;
+        }
+
+        playerCollidersInside.Remove(other);
+        if (playerCollidersInside.Count == 0)
         {
             isPlayerEnter = false;
-            ItemBagManager.instance.bagAnimatedController.HideUI();
+            if (ItemBagManager.instance != null && ItemBagManager.instance.bagAnimatedController != null)
+            {
+                ItemBagManager.instance.bagAnimatedController.HideUI();
+            }
+
+            if (currentInputOwner == this)
+            {
+                currentInputOwner = null;
+            }
+
             if (feedback != null)
             {
                 feedback.StopFeedbackSmoothly();
             }
         }
 
+    }
+
+    private bool IsPlayerCollider(Collider other)
+    {
+        if (other == null) return false;
+        if (other.CompareTag("Player")) return true;
+        if (other.attachedRigidbody != null && other.attachedRigidbody.CompareTag("Player")) return true;
+        if (other.transform.root != null && other.transform.root.CompareTag("Player")) return true;
+        return false;
     }
 }

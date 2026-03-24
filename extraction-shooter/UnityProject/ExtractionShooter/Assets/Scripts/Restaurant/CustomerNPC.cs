@@ -95,7 +95,7 @@ public class CustomerNPC : MonoBehaviour
 
         SetInteractionPanelVisible(false);
         SetGiftPanelVisible(false);
-        SetBagUIVisible(false);
+        //SetBagUIVisible(false);
 
         UpdateAffectionUI(); // 初始化好感度UI
         StartBubbleRoutine();

@@ -429,7 +429,7 @@ public class PlayerInteractionController : MonoBehaviour
                 holdProgress.fillAmount = currentProgress / holdTime;
 
                 // 检查是否完成
-                if (currentProgress >= holdTime)
+                if (currentProgress >= holdTime*0.9f)
                 {
                     // 打开食谱宝箱
                     currentCookBookTreasure.Open();

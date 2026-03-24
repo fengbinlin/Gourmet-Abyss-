@@ -303,19 +303,39 @@ public class EnemyAI : MonoBehaviour
             return;
         }
         
-        // 从可行走方向中随机选择一个
-        int randomIndex = Random.Range(0, walkableDirections.Length);
-        //print("随机序号"+randomIndex);
-        moveDirection = walkableDirections[randomIndex];
-        
-        // 计算移动距离（在最小巡逻距离和巡逻半径之间随机）
-        float moveDistance = Random.Range(minPatrolDistance, patrolRadius);
-        
-        // 计算目标点
-        currentPatrolPoint = transform.position + moveDirection * moveDistance;
-        
+        bool foundPatrolPoint = false;
+        float selectedDistance = minPatrolDistance;
+
+        // 随机尝试多次，确保目标点一定落在 walkable 上
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            int randomIndex = Random.Range(0, walkableDirections.Length);
+            Vector3 candidateDir = walkableDirections[randomIndex];
+            float candidateDistance = Random.Range(minPatrolDistance, patrolRadius);
+
+            Vector3 candidatePoint;
+            if (TryGetValidPatrolPoint(candidateDir, candidateDistance, out candidatePoint))
+            {
+                moveDirection = candidateDir;
+                currentPatrolPoint = candidatePoint;
+                selectedDistance = Vector3.Distance(transform.position, currentPatrolPoint);
+                foundPatrolPoint = true;
+                break;
+            }
+        }
+
+        if (!foundPatrolPoint)
+        {
+            if (showDebugInfo)
+            {
+                Debug.LogWarning($"{gameObject.name} 未找到命中 walkable 的巡逻点，切回 Idle");
+            }
+            SetState(EnemyState.Idle);
+            return;
+        }
+
         // 计算预计的巡逻时间
-        patrolDuration = moveDistance / moveSpeed;
+        patrolDuration = selectedDistance / moveSpeed;
         
         if (showDebugInfo)
         {
@@ -373,10 +393,8 @@ public class EnemyAI : MonoBehaviour
         
         foreach (Vector3 dir in Directions)
         {
-            // 发射射线检测障碍物
-            if (!Physics.Raycast(rayOrigin, dir, raycastDistance, obstacleLayer))
+            if (IsDirectionWalkable(rayOrigin, dir, raycastDistance))
             {
-            
                 walkableDirs.Add(dir);
             }
         }
@@ -404,6 +422,49 @@ public class EnemyAI : MonoBehaviour
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
         }
+    }
+
+    private bool IsDirectionWalkable(Vector3 rayOrigin, Vector3 dir, float distance)
+    {
+        // 1) 前方不能被障碍物挡住
+        if (Physics.Raycast(rayOrigin, dir, distance, obstacleLayer))
+        {
+            return false;
+        }
+
+        // 2) 目标点必须向下命中 walkable 层
+        Vector3 targetPos = transform.position + dir * distance;
+        RaycastHit groundHit;
+        if (!Physics.Raycast(targetPos + Vector3.up * 2f, Vector3.down, out groundHit, 5f, walkableLayer))
+        {
+            return false;
+        }
+
+        // 3) 地面坡度限制，避免极陡斜坡
+        float angle = Vector3.Angle(groundHit.normal, Vector3.up);
+        return angle < 45f;
+    }
+
+    private bool TryGetValidPatrolPoint(Vector3 dir, float moveDistance, out Vector3 patrolPoint)
+    {
+        patrolPoint = Vector3.zero;
+        Vector3 rayOrigin = transform.position + Vector3.up * raycastHeight;
+
+        // 前方路径上必须无障碍，且目标点必须是 walkable
+        if (!IsDirectionWalkable(rayOrigin, dir, moveDistance))
+        {
+            return false;
+        }
+
+        Vector3 targetPos = transform.position + dir * moveDistance;
+        RaycastHit groundHit;
+        if (!Physics.Raycast(targetPos + Vector3.up * 2f, Vector3.down, out groundHit, 5f, walkableLayer))
+        {
+            return false;
+        }
+
+        patrolPoint = groundHit.point;
+        return true;
     }
     
     #endregion

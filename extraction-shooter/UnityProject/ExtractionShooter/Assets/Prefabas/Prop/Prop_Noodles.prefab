@@ -364,6 +364,8 @@ MonoBehaviour:
   propType: 1
   EffectImmediate: 0
   isPlayerEnter: 0
+  pickupPulseScale: 1.3
+  pickupPulseDuration: 0.2
 --- !u!114 &-8392925096937997308
 MonoBehaviour:
   m_ObjectHideFlags: 0

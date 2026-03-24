@@ -44283,7 +44283,7 @@ MonoBehaviour:
   raycastDistance: 1
   walkableLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 65536
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 16384

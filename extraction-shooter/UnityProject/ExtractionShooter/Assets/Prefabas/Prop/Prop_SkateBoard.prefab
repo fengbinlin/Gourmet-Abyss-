@@ -267,6 +267,8 @@ MonoBehaviour:
   propType: 5
   EffectImmediate: 0
   isPlayerEnter: 0
+  pickupPulseScale: 1.3
+  pickupPulseDuration: 0.2
 --- !u!65 &7347843623672257600
 BoxCollider:
   m_ObjectHideFlags: 0

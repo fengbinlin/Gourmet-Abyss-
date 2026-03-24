@@ -175,7 +175,7 @@ MonoBehaviour:
   timeNeedToHold: 2
   isOpen: 0
   spawnForwardOffset: -2
-  spawnDropHeight: 2
+  spawnDropHeight: 3
   dropDuration: 0.5
   data: {fileID: 11400000, guid: c4714ff99976f414ca974972629ffc69, type: 2}
 --- !u!1 &4428714029937599088

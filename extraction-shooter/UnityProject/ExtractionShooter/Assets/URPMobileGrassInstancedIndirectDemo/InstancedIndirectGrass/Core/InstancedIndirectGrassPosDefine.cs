@@ -34,21 +34,21 @@ public class InstancedIndirectGrassPosDefine : MonoBehaviour
 
     private void OnGUI()
     {
-        GUI.Label(new Rect(300, 50, 200, 30), $"Area Size: {areaSize.x} x {areaSize.y}");
-        areaSize.x = GUI.HorizontalSlider(new Rect(300, 80, 200, 30), areaSize.x, 10, 500);
-        areaSize.y = GUI.HorizontalSlider(new Rect(300, 110, 200, 30), areaSize.y, 10, 500);
+        // GUI.Label(new Rect(300, 50, 200, 30), $"Area Size: {areaSize.x} x {areaSize.y}");
+        // areaSize.x = GUI.HorizontalSlider(new Rect(300, 80, 200, 30), areaSize.x, 10, 500);
+        // areaSize.y = GUI.HorizontalSlider(new Rect(300, 110, 200, 30), areaSize.y, 10, 500);
 
-        GUI.Label(new Rect(300, 150, 200, 30), $"Grass Density: {grassDensity}");
-        grassDensity = GUI.HorizontalSlider(new Rect(300, 180, 200, 30), grassDensity, 0.1f, 100f);
+        // GUI.Label(new Rect(300, 150, 200, 30), $"Grass Density: {grassDensity}");
+        // grassDensity = GUI.HorizontalSlider(new Rect(300, 180, 200, 30), grassDensity, 0.1f, 100f);
 
-        GUI.Label(new Rect(300, 210, 200, 30), $"Draw Distance: {drawDistance}");
-        drawDistance = Mathf.Max(1, (int)(GUI.HorizontalSlider(new Rect(300, 240, 200, 30), drawDistance / 25f, 1, 8)) * 25);
+        // GUI.Label(new Rect(300, 210, 200, 30), $"Draw Distance: {drawDistance}");
+        // drawDistance = Mathf.Max(1, (int)(GUI.HorizontalSlider(new Rect(300, 240, 200, 30), drawDistance / 25f, 1, 8)) * 25);
 
-        GUI.Label(new Rect(300, 270, 200, 30), $"Noise Scale: {noiseScale:F2}");
-        noiseScale = GUI.HorizontalSlider(new Rect(300, 300, 200, 30), noiseScale, 0.1f, 10f);
+        // GUI.Label(new Rect(300, 270, 200, 30), $"Noise Scale: {noiseScale:F2}");
+        // noiseScale = GUI.HorizontalSlider(new Rect(300, 300, 200, 30), noiseScale, 0.1f, 10f);
 
-        GUI.Label(new Rect(300, 330, 200, 30), $"Noise Threshold: {noiseThreshold:F2}");
-        noiseThreshold = GUI.HorizontalSlider(new Rect(300, 360, 200, 30), noiseThreshold, 0f, 1f);
+        // GUI.Label(new Rect(300, 330, 200, 30), $"Noise Threshold: {noiseThreshold:F2}");
+        // noiseThreshold = GUI.HorizontalSlider(new Rect(300, 360, 200, 30), noiseThreshold, 0f, 1f);
 
         if (InstancedIndirectGrassRenderer.instance)
             InstancedIndirectGrassRenderer.instance.drawDistance = drawDistance;

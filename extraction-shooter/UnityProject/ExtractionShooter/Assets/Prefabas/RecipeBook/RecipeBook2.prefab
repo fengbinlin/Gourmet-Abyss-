@@ -10092,6 +10092,8 @@ MonoBehaviour:
   sourceData: {fileID: 11400000, guid: 3478026f6817ac646bd5d3c2e6ad415e, type: 2}
   playerTag: Player
   destroyOnPickup: 1
+  pickupPulseScale: 1.3
+  pickupPulseDuration: 0.5
 --- !u!1 &5241800470170494695
 GameObject:
   m_ObjectHideFlags: 0

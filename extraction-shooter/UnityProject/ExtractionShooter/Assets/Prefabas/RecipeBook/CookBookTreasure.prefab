@@ -175,8 +175,8 @@ MonoBehaviour:
   timeNeedToHold: 2
   isOpen: 0
   spawnForwardOffset: -2
-  spawnDropHeight: 2
-  dropDuration: 0.5
+  spawnDropHeight: 4
+  dropDuration: 1
   data: {fileID: 11400000, guid: 16fbcc1a208269240aa7cbd7f4f535d6, type: 2}
 --- !u!1 &9095654209461549529
 GameObject:
