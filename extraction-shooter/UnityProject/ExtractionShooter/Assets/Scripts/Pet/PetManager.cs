@@ -69,6 +69,17 @@ public class PetManager : MonoBehaviour
         SyncByState(force: false);
     }
 
+    /// <summary>
+    /// 剧情/事件用途：在当前仍处于战斗状态时，立刻根据 WeaponStatsManager 重新生成（或同步）已启用的宠物。
+    /// </summary>
+    public void SyncPetsForBattleNow()
+    {
+        if (PlayerStateManager.instance == null) return;
+        if (PlayerStateManager.instance.currentState != PlayerState.Battle) return;
+
+        EnterBattle();
+    }
+
     private void SyncByState(bool force)
     {
         if (PlayerStateManager.instance == null) return;

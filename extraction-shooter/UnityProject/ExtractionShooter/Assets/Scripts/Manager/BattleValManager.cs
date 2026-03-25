@@ -27,7 +27,13 @@ public class BattleValManager : MonoBehaviour
     // 当前值
     public float oxygenCurrent;
     private int primaryAmmoCurrent;
+    // 剩余弹药（不在弹夹内，用于充能完成后装填）
+    private int primaryReserveAmmoCurrent;
+    private int primaryReserveAmmoMax;
     private int secondaryAmmoCurrent;
+    // 剩余弹药（不在弹夹内，用于充能完成后装填）
+    private int secondaryReserveAmmoCurrent;
+    private int secondaryReserveAmmoMax;
 
     // 事件
     public event Action OnOxygenChanged;
@@ -59,6 +65,23 @@ public class BattleValManager : MonoBehaviour
     public UnityEngine.UI.Image oxgImage;
     public UnityEngine.UI.Image weaponImage;
     public UnityEngine.UI.Image subWeaponImage;
+
+    [Header("弹药条 UI 平滑参数")]
+    [Tooltip("弹药减少时，UI fill 从当前值快速靠近目标值的速度(单位: fillAmount/秒)")]
+    [SerializeField] private float ammoUiDepleteSpeed = 8f;
+
+    private float weaponUiFillCurrent;
+    private float subWeaponUiFillCurrent;
+
+    [Header("弹夹条 UI 平滑参数")]
+    [Tooltip("装填后，弹夹UI fill 从当前值快速靠近目标值的速度(单位: fillAmount/秒)")]
+    [SerializeField] private float magazineUiFillSpeed = 12f;
+
+    private float primaryMagazineUiFillCurrent;
+    private float secondaryMagazineUiFillCurrent;
+    [Header("弹夹进度条(填充Image)")]
+    public UnityEngine.UI.Image primaryMagazineImage;
+    public UnityEngine.UI.Image secondaryMagazineImage;
 
     #endregion
 
@@ -100,10 +123,39 @@ public class BattleValManager : MonoBehaviour
 
         if (!isActive) return;
 
-        if (weaponImage != null)
-            weaponImage.fillAmount = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
-        if (subWeaponImage != null)
-            subWeaponImage.fillAmount = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+        // 用平滑逻辑处理总弹药 UI，避免换弹瞬间骤降
+        if (weaponImage != null && primaryAmmoMax > 0)
+        {
+            float target = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
+            weaponUiFillCurrent = Mathf.MoveTowards(
+                weaponUiFillCurrent,
+                target,
+                ammoUiDepleteSpeed * Time.deltaTime
+            );
+            weaponImage.fillAmount = weaponUiFillCurrent;
+        }
+        if (subWeaponImage != null && secondaryAmmoMax > 0)
+        {
+            float target = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+            subWeaponUiFillCurrent = Mathf.MoveTowards(
+                subWeaponUiFillCurrent,
+                target,
+                ammoUiDepleteSpeed * Time.deltaTime
+            );
+            subWeaponImage.fillAmount = subWeaponUiFillCurrent;
+        }
+
+        // 弹夹进度条：装填时快速变满（平滑），开火时也平滑减少
+        if (primaryMagazineImage != null && primaryReserveAmmoMax > 0)
+        {
+            primaryMagazineUiFillCurrent = primaryReserveAmmoCurrent * 1.0f / primaryReserveAmmoMax;
+            primaryMagazineImage.fillAmount = primaryMagazineUiFillCurrent;
+        }
+        if (secondaryMagazineImage != null && secondaryReserveAmmoMax > 0)
+        {
+            secondaryMagazineUiFillCurrent = secondaryReserveAmmoCurrent * 1.0f / secondaryReserveAmmoMax;
+            secondaryMagazineImage.fillAmount = secondaryMagazineUiFillCurrent;
+        }
 
         float primaryPercent = PrimaryAmmoPercentage;
         float secondaryPercent = SecondaryAmmoPercentage;
@@ -194,29 +246,33 @@ public class BattleValManager : MonoBehaviour
     /// </summary>
     public bool TryConsumePrimaryAmmo()
     {
-        if (primaryAmmoCurrent < primaryAmmoConsumePerShot)
+        // 弹药从“弹夹”里扣
+        if (primaryReserveAmmoCurrent < primaryAmmoConsumePerShot)
         {
             OnPrimaryAmmoEmpty?.Invoke();
             return false;
         }
 
-        primaryAmmoCurrent -= primaryAmmoConsumePerShot;
-        primaryAmmoCurrent = Mathf.Max(0, primaryAmmoCurrent);
+        primaryReserveAmmoCurrent -= primaryAmmoConsumePerShot;
+        primaryReserveAmmoCurrent = Mathf.Max(0, primaryReserveAmmoCurrent);
 
-        OnPrimaryAmmoChanged?.Invoke();
         return true;
     }
     public bool CanConsumePrimaryAmmo()
     {
-        if (primaryAmmoCurrent < primaryAmmoConsumePerShot)
-        {
-            return false;
-        }
-
-        return true;
+        return primaryReserveAmmoCurrent >= primaryAmmoConsumePerShot;
     }
+
+    // 是否可以开始换弹（弹夹不足且总弹药还有剩余）
+    public bool CanReloadPrimaryMagazine()
+    {
+        // 弹夹不足到无法开火
+        bool magazineEmptyOrInsufficient = primaryReserveAmmoCurrent < primaryAmmoConsumePerShot;
+        return magazineEmptyOrInsufficient && primaryAmmoCurrent > 0;
+    }
+
     /// <summary>
-    /// 添加主武器弹药
+    /// 添加主武器“总弹药”（不影响当前弹夹，直到换弹时扣除）
     /// </summary>
     public void AddPrimaryAmmo(int amount)
     {
@@ -233,6 +289,33 @@ public class BattleValManager : MonoBehaviour
     {
         primaryAmmoConsumePerShot = Mathf.Max(1, amount);
     }
+
+    // 兼容旧的 CanConsumePrimaryAmmo 逻辑（保留函数签名以免其它脚本调用出错）
+    public bool CanConsumePrimaryAmmoOld()
+    {
+        return primaryReserveAmmoCurrent >= primaryAmmoConsumePerShot;
+    }
+
+    /*
+     * 下面原来的 CanConsumePrimaryAmmo/ AddPrimaryAmmo / SetPrimaryAmmoConsumePerShot 将被替换
+     */
+    /*
+    public bool CanConsumePrimaryAmmo()
+    {
+        if (primaryAmmoCurrent < primaryAmmoConsumePerShot)
+        {
+            return false;
+        }
+
+        return true;
+    }
+    /// <summary>
+    /// 添加主武器弹药
+    /// </summary>
+    public void AddPrimaryAmmo(int amount) { }
+
+    public void SetPrimaryAmmoConsumePerShot(int amount) { }
+    */
     #endregion
 
     #region 副武器弹药管理
@@ -242,33 +325,31 @@ public class BattleValManager : MonoBehaviour
     public bool TryConsumeSecondaryAmmo()
     {
 
-        if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
+        if (secondaryReserveAmmoCurrent < secondaryAmmoConsumePerShot)
         {
             OnSecondaryAmmoEmpty?.Invoke();
             return false;
         }
-        //print(secondaryAmmoCurrent);
-        secondaryAmmoCurrent -= secondaryAmmoConsumePerShot;
-        secondaryAmmoCurrent = Mathf.Max(0, secondaryAmmoCurrent);
 
-        OnSecondaryAmmoChanged?.Invoke();
+        secondaryReserveAmmoCurrent -= secondaryAmmoConsumePerShot;
+        secondaryReserveAmmoCurrent = Mathf.Max(0, secondaryReserveAmmoCurrent);
         return true;
     }
     public bool CanConsumeSecondaryAmmo()
     {
 
-        if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
-        {
+        return secondaryReserveAmmoCurrent >= secondaryAmmoConsumePerShot;
+    }
 
-            return false;
-        }
-
-        return true;
+    public bool CanReloadSecondaryMagazine()
+    {
+        bool magazineEmptyOrInsufficient = secondaryReserveAmmoCurrent < secondaryAmmoConsumePerShot;
+        return magazineEmptyOrInsufficient && secondaryAmmoCurrent > 0;
     }
     public bool CheckConsumeSecondaryAmmo()
     {
         print("消耗副武器弹药");
-        if (secondaryAmmoCurrent < secondaryAmmoConsumePerShot)
+        if (secondaryReserveAmmoCurrent < secondaryAmmoConsumePerShot)
         {
 
             return false;
@@ -307,6 +388,14 @@ public class BattleValManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 恢复消耗（继续扣氧气，但不重置当前氧气/弹药等数值）
+    /// </summary>
+    public void ResumeConsuming()
+    {
+        isActive = true;
+    }
+
+    /// <summary>
     /// 停止消耗（暂停消耗氧气）
     /// </summary>
     public void StopConsuming()
@@ -323,13 +412,25 @@ public class BattleValManager : MonoBehaviour
         // 从WeaponStatsManager获取最新的数值
         oxygenMax = WeaponStatsManager.Instance.oxygenMax;
         oxygenConsumeRate = WeaponStatsManager.Instance.oxygenConsumeRate;
+        
+        // 总弹药（用于原本的UI弹药条）
         primaryAmmoMax = WeaponStatsManager.Instance.primaryAmmoMax;
         primaryAmmoConsumePerShot = WeaponStatsManager.Instance.primaryAmmoConsumePerShot;
         secondaryAmmoMax = WeaponStatsManager.Instance.secondaryAmmoMax;
         secondaryAmmoConsumePerShot = WeaponStatsManager.Instance.secondaryAmmoConsumePerShot;
+
+        // 弹夹容量（用于新增的弹夹进度条）
+        primaryReserveAmmoMax = WeaponStatsManager.Instance.primaryMagazineCapacity;
+        secondaryReserveAmmoMax = WeaponStatsManager.Instance.secondaryMagazineCapacity;
         oxygenCurrent = oxygenMax;
+
+        // 总弹药：初始满（第一次弹夹免费，不在此时扣除）
         primaryAmmoCurrent = primaryAmmoMax;
         secondaryAmmoCurrent = secondaryAmmoMax;
+
+        // 弹夹：默认一管子弹（从总弹药中取，但第一次不扣总弹药UI）
+        primaryReserveAmmoCurrent = Mathf.Min(primaryReserveAmmoMax, primaryAmmoCurrent);
+        secondaryReserveAmmoCurrent = Mathf.Min(secondaryReserveAmmoMax, secondaryAmmoCurrent);
 
         healthTips.SetActive(false);
         // 重置进度条到初始状态
@@ -346,8 +447,36 @@ public class BattleValManager : MonoBehaviour
         OnPrimaryAmmoChanged?.Invoke();
         OnSecondaryAmmoChanged?.Invoke();
         oxgImage.fillAmount = OxygenCurrent * 1.0f / oxygenMax;
-        weaponImage.fillAmount = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
-        subWeaponImage.fillAmount = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+        if (weaponImage != null && primaryAmmoMax > 0)
+            weaponUiFillCurrent = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
+        if (subWeaponImage != null && secondaryAmmoMax > 0)
+            subWeaponUiFillCurrent = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+
+        if (weaponImage != null && primaryAmmoMax > 0)
+            weaponImage.fillAmount = weaponUiFillCurrent;
+        if (subWeaponImage != null && secondaryAmmoMax > 0)
+            subWeaponImage.fillAmount = subWeaponUiFillCurrent;
+
+        if (primaryMagazineImage != null && primaryReserveAmmoMax > 0)
+        {
+            float target = primaryReserveAmmoCurrent * 1.0f / primaryReserveAmmoMax;
+            primaryMagazineUiFillCurrent = Mathf.MoveTowards(
+                primaryMagazineUiFillCurrent,
+                target,
+                magazineUiFillSpeed * Time.deltaTime
+            );
+            primaryMagazineImage.fillAmount = primaryMagazineUiFillCurrent;
+        }
+        if (secondaryMagazineImage != null && secondaryReserveAmmoMax > 0)
+        {
+            float target = secondaryReserveAmmoCurrent * 1.0f / secondaryReserveAmmoMax;
+            secondaryMagazineUiFillCurrent = Mathf.MoveTowards(
+                secondaryMagazineUiFillCurrent,
+                target,
+                magazineUiFillSpeed * Time.deltaTime
+            );
+            secondaryMagazineImage.fillAmount = secondaryMagazineUiFillCurrent;
+        }
     }
 
     /// <summary>
@@ -359,20 +488,63 @@ public class BattleValManager : MonoBehaviour
     {
         oxygenMax = Mathf.Max(0, newOxygenMax);
         oxygenConsumeRate = Mathf.Max(0, newOxygenConsumeRate);
+        // 总弹药（原本UI弹药条）
         primaryAmmoMax = Mathf.Max(0, newPrimaryAmmoMax);
         primaryAmmoConsumePerShot = Mathf.Max(1, newPrimaryAmmoConsume);
         secondaryAmmoMax = Mathf.Max(0, newSecondaryAmmoMax);
         secondaryAmmoConsumePerShot = Mathf.Max(1, newSecondaryAmmoConsume);
 
+        // 弹夹容量：优先使用 WeaponStatsManager
+        if (WeaponStatsManager.Instance != null)
+        {
+            primaryReserveAmmoMax = WeaponStatsManager.Instance.primaryMagazineCapacity;
+            secondaryReserveAmmoMax = WeaponStatsManager.Instance.secondaryMagazineCapacity;
+        }
+        else
+        {
+            primaryReserveAmmoMax = Mathf.Max(1, primaryReserveAmmoMax);
+            secondaryReserveAmmoMax = Mathf.Max(1, secondaryReserveAmmoMax);
+        }
+
         // 确保当前值不超过新的最大值
         oxygenCurrent = Mathf.Min(oxygenCurrent, oxygenMax);
         primaryAmmoCurrent = Mathf.Min(primaryAmmoCurrent, primaryAmmoMax);
         secondaryAmmoCurrent = Mathf.Min(secondaryAmmoCurrent, secondaryAmmoMax);
+        primaryReserveAmmoCurrent = Mathf.Min(primaryReserveAmmoCurrent, primaryReserveAmmoMax);
+        secondaryReserveAmmoCurrent = Mathf.Min(secondaryReserveAmmoCurrent, secondaryReserveAmmoMax);
 
         OnOxygenChanged?.Invoke();
         OnPrimaryAmmoChanged?.Invoke();
         OnSecondaryAmmoChanged?.Invoke();
     }
+    #endregion
+
+    #region 弹夹装填逻辑
+    public void ReloadPrimaryMagazine()
+    {
+        // 弹夹装填完成时：从“总弹药”里扣除本次装填的子弹
+        if (primaryAmmoCurrent <= 0) return;
+
+        int bulletsToLoad = Mathf.Min(primaryReserveAmmoMax, primaryAmmoCurrent);
+        if (bulletsToLoad <= 0) return;
+
+        primaryAmmoCurrent -= bulletsToLoad;
+        primaryReserveAmmoCurrent = bulletsToLoad;
+        OnPrimaryAmmoChanged?.Invoke();
+    }
+
+    public void ReloadSecondaryMagazine()
+    {
+        if (secondaryAmmoCurrent <= 0) return;
+
+        int bulletsToLoad = Mathf.Min(secondaryReserveAmmoMax, secondaryAmmoCurrent);
+        if (bulletsToLoad <= 0) return;
+
+        secondaryAmmoCurrent -= bulletsToLoad;
+        secondaryReserveAmmoCurrent = bulletsToLoad;
+        OnSecondaryAmmoChanged?.Invoke();
+    }
+
     #endregion
 
     #region 调试功能

@@ -71,8 +71,18 @@ public class WeaponStatsManager : MonoBehaviour
     public float bossDamageToOxygenMultiplier = 1f;
     public int primaryAmmoMax = 100;                // 主武器弹容量
     public int primaryAmmoConsumePerShot = 1;         // 主武器每次射击消耗
+    [Tooltip("主武器弹夹容量（充能完成后装填的最大子弹数）")]
+    public int primaryMagazineCapacity = 100;
     public int secondaryAmmoMax = 50;               // 副武器弹容量
     public int secondaryAmmoConsumePerShot = 1;       // 副武器每次射击消耗
+    [Tooltip("副武器弹夹容量（充能完成后装填的最大子弹数）")]
+    public int secondaryMagazineCapacity = 50;
+
+    [Header("弹夹充能 / 换弹夹时间")]
+    [Tooltip("主武器弹夹耗尽后，充能(换弹夹)持续时间，期间禁止开火并播放抬起+Y轴旋转动画")]
+    public float primaryReloadDuration = 0.8f;
+    [Tooltip("副武器弹夹耗尽后，充能(换弹夹)持续时间，期间禁止开火并播放抬起+Z轴旋转动画")]
+    public float secondaryReloadDuration = 0.8f;
 
     [Header("地图生成数值")]
     [Tooltip("默认地图密度乘积因子，当没有特定绑定时使用此值")]

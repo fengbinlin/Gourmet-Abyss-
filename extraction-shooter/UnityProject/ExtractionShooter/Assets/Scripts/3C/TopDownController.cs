@@ -55,6 +55,13 @@ public class TopDownController : MonoBehaviour
     [SerializeField] private Text weaponTipsUI;
     [SerializeField] private float weaponTipsDuration = 1.5f; // 提示持续时间
     private Coroutine weaponTipsCoroutine;
+
+    // 记录上帧是否在充能，避免提示文字每帧刷屏
+    private bool wasPrimaryReloading = false;
+    private bool wasSecondaryReloading = false;
+    // 记录上帧是否已经提示过“没子弹了”，避免每帧重复刷屏
+    private bool wasPrimaryNoAmmo = false;
+    private bool wasSecondaryNoAmmo = false;
     #endregion
 
     #region --- 4. 瞄准系统 ---
@@ -540,16 +547,38 @@ public class TopDownController : MonoBehaviour
             bool isFiring = Input.GetButton("Fire1");
             primaryWeapon.SetShooting(isFiring);
 
+            bool isReloading = primaryWeapon.IsReloading();
             if (isFiring)
             {
-                // 如果没子弹
-                if (!BattleValManager.Instance.CanConsumePrimaryAmmo())
+                // 充能期间仍按开火：提示“充能中”
+                if (isReloading && (Input.GetButtonDown("Fire1") || !wasPrimaryReloading))
                 {
-                    ShowWeaponTips("主武器弹药不足");
-                    return;
+                    ShowWeaponTips("主武器充能中");
                 }
 
-                primaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                if (isReloading)
+                {
+                    wasPrimaryNoAmmo = false;
+                }
+                else
+                {
+                    bool canConsume = BattleValManager.Instance != null && BattleValManager.Instance.CanConsumePrimaryAmmo();
+                    if (!canConsume)
+                    {
+                        bool canReload = BattleValManager.Instance != null && BattleValManager.Instance.CanReloadPrimaryMagazine();
+                        if (!canReload)
+                        {
+                            if (Input.GetButtonDown("Fire1") || !wasPrimaryNoAmmo)
+                                ShowWeaponTips("主武器没子弹了");
+                            wasPrimaryNoAmmo = true;
+                        }
+                    }
+                    else
+                    {
+                        wasPrimaryNoAmmo = false;
+                        primaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                    }
+                }
             }
         }
         if (WeaponStatsManager.Instance)
@@ -561,19 +590,46 @@ public class TopDownController : MonoBehaviour
                     bool isFiringSecondary = Input.GetButton("Fire2");
                     secondaryWeapon.SetShooting(isFiringSecondary);
 
+                    bool isReloading = secondaryWeapon.IsReloading();
                     if (isFiringSecondary)
                     {
-                        if (!BattleValManager.Instance.CanConsumeSecondaryAmmo())
+                        // 充能期间仍按开火：提示“充能中”
+                        if (isReloading && (Input.GetButtonDown("Fire2") || !wasSecondaryReloading))
                         {
-                            ShowWeaponTips("副武器弹药不足");
-                            return;
+                            ShowWeaponTips("副武器充能中");
                         }
 
-                        secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                        if (isReloading)
+                        {
+                            wasSecondaryNoAmmo = false;
+                        }
+                        else
+                        {
+                            bool canConsume = BattleValManager.Instance != null && BattleValManager.Instance.CanConsumeSecondaryAmmo();
+                            if (!canConsume)
+                            {
+                                bool canReload = BattleValManager.Instance != null && BattleValManager.Instance.CanReloadSecondaryMagazine();
+                                if (!canReload)
+                                {
+                                    if (Input.GetButtonDown("Fire2") || !wasSecondaryNoAmmo)
+                                        ShowWeaponTips("副武器没子弹了");
+                                    wasSecondaryNoAmmo = true;
+                                }
+                            }
+                            else
+                            {
+                                wasSecondaryNoAmmo = false;
+                                secondaryWeapon.HandleShooting(currentAimPoint, mouseIsActive);
+                            }
+                        }
                     }
                 }
             }
         }
+
+        // 更新充能状态缓存
+        wasPrimaryReloading = primaryWeapon != null && primaryWeapon.IsReloading();
+        wasSecondaryReloading = secondaryWeapon != null && secondaryWeapon.IsReloading();
 
     }
     #endregion

@@ -696,9 +696,21 @@ public class EnemyHealth : MonoBehaviour
         
         // 隐藏敌人模型
         HideEnemyModel();
+
+        // 给剧情对话留出时间（尤其是你这个“恶霸死前遗言”的需求）
+        if (destroyDelayAfterDeath > 0f)
+            yield return new WaitForSeconds(destroyDelayAfterDeath);
         
         // 立即销毁敌人对象，不需要等待特效完成
         Destroy(gameObject);
+    }
+
+    /// <summary>
+    /// 剧情用途：动态延长死亡后销毁自身的时间，保证对话/镜头能播完。
+    /// </summary>
+    public void SetDestroyDelayAfterDeath(float delaySeconds)
+    {
+        destroyDelayAfterDeath = Mathf.Max(0f, delaySeconds);
     }
     
     // 隐藏敌人模型

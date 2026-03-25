@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class PrimaryWeapon : MonoBehaviour
@@ -135,6 +136,14 @@ public class PrimaryWeapon : MonoBehaviour
     private float lastFireTime = 0f;
     private bool isShooting = false;
 
+    // 弹夹充能 / 换弹夹状态
+    private bool isReloading = false;
+    // 充能“旋转阶段”时禁用 UpdateWeapon，避免与武器恢复/下垂逻辑互相覆盖
+    private bool isReloadSpinActive = false;
+    private Coroutine reloadCoroutine;
+    private float primaryReloadDuration = 0.8f;
+    private const float reloadTotalSpinDegrees = 1080f; // 充能过程中绕自身Y轴旋转的总角度
+
     // 武器状态
     private Vector3 weaponOriginalScale;
     private Vector3 weaponOriginalPosition;
@@ -161,6 +170,7 @@ public class PrimaryWeapon : MonoBehaviour
     {
         // 从 WeaponStatsManager 获取数值
         fireRate = WeaponStatsManager.Instance.primaryFireRate;
+        primaryReloadDuration = WeaponStatsManager.Instance.primaryReloadDuration;
         pelletCount = WeaponStatsManager.Instance.primaryPelletCount;
         penetrationCount = WeaponStatsManager.Instance.primaryPenetrationCount;
         bulletSpeed = WeaponStatsManager.Instance.primaryBulletSpeed;
@@ -201,6 +211,34 @@ public class PrimaryWeapon : MonoBehaviour
 
     public void SetShooting(bool shooting)
     {
+        // 充能期间禁止开火（允许玩家继续按住按钮，但不会进入射击状态）
+        if (isReloading)
+        {
+            isShooting = false;
+            if (animator != null && !string.IsNullOrEmpty(shootBoolName))
+            {
+                animator.SetBool(shootBoolName, false);
+            }
+            return;
+        }
+
+        // 弹夹已空：按下开火键后直接进入充能
+        if (shooting && BattleValManager.Instance != null && !BattleValManager.Instance.CanConsumePrimaryAmmo())
+        {
+            if (BattleValManager.Instance.CanReloadPrimaryMagazine())
+            {
+                StartPrimaryReload();
+            }
+            else
+            {
+                // 总弹药不足：不进入换弹
+                isShooting = false;
+                if (animator != null && !string.IsNullOrEmpty(shootBoolName))
+                    animator.SetBool(shootBoolName, false);
+            }
+            return;
+        }
+
         isShooting = shooting;
 
         if (animator != null && !string.IsNullOrEmpty(shootBoolName))
@@ -227,6 +265,7 @@ public class PrimaryWeapon : MonoBehaviour
 
     public void UpdateWeapon()
     {
+        if (isReloadSpinActive) return; // 旋转阶段由协程驱动，避免与后坐力/下垂逻辑冲突
         UpdateWeaponRecovery();
         UpdateMuzzleDownState();
 
@@ -405,6 +444,7 @@ public class PrimaryWeapon : MonoBehaviour
 
     private void Shoot(Vector3 aimPoint, bool mouseActive)
     {
+        if (isReloading) return;
         
         if (bulletPrefab == null || firePoint == null)
         {
@@ -424,7 +464,15 @@ public class PrimaryWeapon : MonoBehaviour
         {
             if (!BattleValManager.Instance.TryConsumePrimaryAmmo())
             {
-                if (debugMode) Debug.Log("主武器弹药不足！");
+                if (debugMode) Debug.Log("主武器弹药不足，开始充能！");
+                if (BattleValManager.Instance.CanReloadPrimaryMagazine())
+                    StartPrimaryReload();
+                else
+                {
+                    isShooting = false;
+                    if (animator != null && !string.IsNullOrEmpty(shootBoolName))
+                        animator.SetBool(shootBoolName, false);
+                }
                 return;
             }
         }
@@ -1011,6 +1059,109 @@ public class PrimaryWeapon : MonoBehaviour
         {
             weaponModel.localRotation = weaponOriginalRotation;
         }
+    }
+
+    public bool IsReloading()
+    {
+        return isReloading;
+    }
+
+    private void StartPrimaryReload()
+    {
+        if (isReloading) return;
+        if (primaryReloadDuration <= 0.0001f) primaryReloadDuration = 0.01f;
+
+        if (reloadCoroutine != null)
+        {
+            StopCoroutine(reloadCoroutine);
+            reloadCoroutine = null;
+        }
+
+        // 进入换弹：强制切到“未开火（抬起）姿态”，然后再开始绕轴旋转
+        isReloading = true;
+        isReloadSpinActive = true;
+        isShooting = false;
+        if (animator != null && !string.IsNullOrEmpty(shootBoolName))
+            animator.SetBool(shootBoolName, false);
+
+        if (weaponModel != null)
+        {
+            currentMuzzleRise = 0f;
+            currentWeaponKick = Vector3.zero;
+            currentWeaponRotation = Vector3.zero;
+
+            currentMuzzleDownAngle = 1f;
+            weaponModel.localScale = weaponOriginalScale;
+            weaponModel.localPosition = weaponOriginalPosition;
+            weaponModel.localRotation = idleWeaponRotation;
+        }
+
+        reloadCoroutine = StartCoroutine(PrimaryReloadRoutine());
+    }
+
+    private IEnumerator PrimaryReloadRoutine()
+    {
+        // 以“进入充能瞬间的未开火姿态”为旋转基准
+        Vector3 baseLocalPosition = Vector3.zero;
+        Vector3 baseLocalScale = Vector3.zero;
+        Quaternion baseLocalRotation = Quaternion.identity;
+        if (weaponModel != null)
+        {
+            baseLocalPosition = weaponModel.localPosition;
+            baseLocalScale = weaponModel.localScale;
+            baseLocalRotation = weaponModel.localRotation;
+        }
+
+        float startTime = Time.time;
+        float prevSpinY = 0f;
+        while (Time.time - startTime < primaryReloadDuration)
+        {
+            float t = (Time.time - startTime) / primaryReloadDuration;
+            t = Mathf.Clamp01(t);
+            float spinY = t * reloadTotalSpinDegrees;
+            float deltaY = spinY - prevSpinY;
+            prevSpinY = spinY;
+
+            if (weaponModel != null)
+            {
+                // 通过增量旋转，保证绕“武器模型自身Local Y轴”转
+                weaponModel.localRotation = weaponModel.localRotation * Quaternion.Euler(0f, deltaY, 0f);
+                // 位置/缩放保持不变（不强制重置到 weaponOriginal）
+                weaponModel.localPosition = baseLocalPosition;
+                weaponModel.localScale = baseLocalScale;
+            }
+
+            yield return null;
+        }
+
+        // 充能完成：装填弹夹
+        if (BattleValManager.Instance != null)
+        {
+            BattleValManager.Instance.ReloadPrimaryMagazine();
+        }
+
+        // 充能结束：恢复到“进入充能瞬间”的姿态基准
+        if (weaponModel != null)
+        {
+            weaponModel.localRotation = baseLocalRotation;
+            weaponModel.localPosition = baseLocalPosition;
+            weaponModel.localScale = baseLocalScale;
+        }
+
+        isReloading = false;
+        isReloadSpinActive = false;
+        reloadCoroutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (reloadCoroutine != null)
+        {
+            StopCoroutine(reloadCoroutine);
+            reloadCoroutine = null;
+        }
+        isReloading = false;
+        isShooting = false;
     }
 
     #endregion

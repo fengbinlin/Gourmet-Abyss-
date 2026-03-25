@@ -98,7 +98,7 @@ public class HealthBarBillboard : MonoBehaviour
         {
             case BillboardType.CameraForward:
                 // 朝向摄像机前方
-                transform.forward = -_cameraTransform.forward;
+                transform.forward = _cameraTransform.forward;
                 break;
                 
             case BillboardType.CameraPosition:

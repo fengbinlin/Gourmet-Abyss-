@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class SecondaryWeapon : MonoBehaviour
@@ -121,6 +122,14 @@ public class SecondaryWeapon : MonoBehaviour
     private float nextLaserUpdateTime = 0f;
     private bool isShooting = false;
 
+    // 弹夹充能 / 换弹夹状态
+    private bool isReloading = false;
+    // 充能“旋转阶段”时禁用 UpdateWeapon，避免与恢复/下垂逻辑互相覆盖
+    private bool isReloadSpinActive = false;
+    private Coroutine reloadCoroutine;
+    private float secondaryReloadDuration = 0.8f;
+    private const float reloadTotalSpinDegrees = 1080f; // 充能过程中绕自身Z轴旋转的总角度
+
     // 武器状态
     private Vector3 secondaryWeaponOriginalScale;
     private Vector3 secondaryWeaponOriginalPosition;
@@ -164,6 +173,7 @@ public class SecondaryWeapon : MonoBehaviour
         // 从 WeaponStatsManager 获取数值
         maxChainCount = 1;
         secondaryFireRate = WeaponStatsManager.Instance.secondaryFireRate;
+        secondaryReloadDuration = WeaponStatsManager.Instance.secondaryReloadDuration;
         damageTickInterval = WeaponStatsManager.Instance.secondaryFireRate;
         damageValue = WeaponStatsManager.Instance.secondaryDamageValue;
         laserLength = WeaponStatsManager.Instance.secondaryLaserLength;
@@ -210,23 +220,27 @@ public class SecondaryWeapon : MonoBehaviour
 
     public void SetShooting(bool shooting)
     {
+        // 充能期间禁止进入射击状态
+        if (isReloading)
+        {
+            isShooting = false;
+            if (!shooting)
+                StopShooting();
+            return;
+        }
+
         bool wasShooting = isShooting;
 
-        // 如果要开始射击，先检查弹药
-        if (shooting)
+        // 弹夹已空：按下开火则直接进入充能（保持玩家输入，但不会开始激光）
+        if (shooting && BattleValManager.Instance != null && !BattleValManager.Instance.CanConsumeSecondaryAmmo())
         {
-            // 检查弹药是否足够
-            if (BattleValManager.Instance != null &&
-                !BattleValManager.Instance.CheckConsumeSecondaryAmmo())  // 需要添加这个方法
+            if (BattleValManager.Instance.CanReloadSecondaryMagazine())
             {
-                Debug.Log("副武器弹药不足，无法开始射击！");
-                isShooting = false;  // 确保状态为 false
-                if (wasShooting)  // 如果之前是射击状态，停止射击
-                {
-                    StopShooting();
-                }
-                return;  // 直接返回，不设置射击状态
+                StartSecondaryReload();
             }
+            // 总弹药不足：不进入换弹
+            isShooting = false;
+            return;
         }
 
         isShooting = shooting;
@@ -260,6 +274,7 @@ public class SecondaryWeapon : MonoBehaviour
 
     public void UpdateWeapon()
     {
+        if (isReloadSpinActive) return; // 旋转阶段由协程驱动，避免与下垂/后坐力逻辑冲突
         UpdateWeaponRecovery();
         UpdateMuzzleDownState();
 
@@ -669,13 +684,17 @@ public class SecondaryWeapon : MonoBehaviour
 
     private void ShootSecondary(Vector3 aimPoint, bool mouseActive)
     {
+        if (isReloading) return;
         print("副武器开火！");
         if (BattleValManager.Instance != null)
         {
             if (!BattleValManager.Instance.TryConsumeSecondaryAmmo())
             {
                 Debug.Log("副武器弹药不足！");
-                StopShooting();
+                if (BattleValManager.Instance.CanReloadSecondaryMagazine())
+                    StartSecondaryReload();
+                else
+                    isShooting = false;
                 return;
             }
         }
@@ -712,6 +731,111 @@ public class SecondaryWeapon : MonoBehaviour
         }
         AudioManager.Instance.PlayAudio("1");
         UpdateLaserPositions(aimPoint, mouseActive);
+    }
+
+    public bool IsReloading()
+    {
+        return isReloading;
+    }
+
+    private void StartSecondaryReload()
+    {
+        if (isReloading) return;
+
+        isReloading = true;
+        isReloadSpinActive = true;
+        isShooting = false; // 禁止进入下一次 ShootSecondary
+        // 注意：不要在这里立即 DestroyAllLasers。激光伤害在同帧可能仍会结算，
+        // 我们在协程下一帧再 StopShooting()，避免丢失“最后一发”的结算。
+
+        // 强制切到“未开火（抬起）姿态”，确保在持续按住开火时旋转也是抬起状态
+        currentSecondaryMuzzleDownAngle = 1f;
+        if (secondaryWeaponModel != null)
+        {
+            secondaryWeaponModel.localScale = secondaryWeaponOriginalScale;
+            secondaryWeaponModel.localPosition = secondaryWeaponOriginalPosition;
+            secondaryWeaponModel.localRotation = secondaryIdleWeaponRotation;
+        }
+
+        if (secondaryReloadDuration <= 0.0001f) secondaryReloadDuration = 0.01f;
+
+        if (reloadCoroutine != null)
+        {
+            StopCoroutine(reloadCoroutine);
+            reloadCoroutine = null;
+        }
+
+        reloadCoroutine = StartCoroutine(SecondaryReloadRoutine());
+    }
+
+    private IEnumerator SecondaryReloadRoutine()
+    {
+        // 等一帧，避免与本帧激光/姿态更新互相抢占
+        yield return null;
+
+        // 下一帧再销毁激光，确保“最后一发”的本帧更新先完成
+        StopShooting();
+
+        // 以“进入充能瞬间的未开火姿态”为旋转基准
+        Vector3 baseLocalPosition = Vector3.zero;
+        Vector3 baseLocalScale = Vector3.zero;
+        Quaternion baseLocalRotation = Quaternion.identity;
+        if (secondaryWeaponModel != null)
+        {
+            baseLocalPosition = secondaryWeaponModel.localPosition;
+            baseLocalScale = secondaryWeaponModel.localScale;
+            baseLocalRotation = secondaryWeaponModel.localRotation;
+        }
+
+        float startTime = Time.time;
+        float prevSpinZ = 0f;
+        while (Time.time - startTime < secondaryReloadDuration)
+        {
+            float t = (Time.time - startTime) / secondaryReloadDuration;
+            t = Mathf.Clamp01(t);
+            float spinZ = t * reloadTotalSpinDegrees;
+            float deltaZ = spinZ - prevSpinZ;
+            prevSpinZ = spinZ;
+
+            if (secondaryWeaponModel != null)
+            {
+                // 通过增量旋转，保证绕“武器模型自身Local Z轴”转
+                secondaryWeaponModel.localRotation = secondaryWeaponModel.localRotation * Quaternion.Euler(0f, 0f, deltaZ);
+                // 位置/缩放保持不变（不强制重置到 secondaryWeaponOriginal）
+                secondaryWeaponModel.localPosition = baseLocalPosition;
+                secondaryWeaponModel.localScale = baseLocalScale;
+            }
+
+            yield return null;
+        }
+
+        // 充能完成：装填弹夹
+        if (BattleValManager.Instance != null)
+        {
+            BattleValManager.Instance.ReloadSecondaryMagazine();
+        }
+
+        if (secondaryWeaponModel != null)
+        {
+            secondaryWeaponModel.localRotation = baseLocalRotation;
+            secondaryWeaponModel.localPosition = baseLocalPosition;
+            secondaryWeaponModel.localScale = baseLocalScale;
+        }
+
+        isReloading = false;
+        isReloadSpinActive = false;
+        reloadCoroutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (reloadCoroutine != null)
+        {
+            StopCoroutine(reloadCoroutine);
+            reloadCoroutine = null;
+        }
+        isReloading = false;
+        isShooting = false;
     }
 
     private Vector3 CalculateShootDirection(Vector3 aimPoint, bool mouseActive)
