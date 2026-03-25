@@ -234,6 +234,22 @@ public class ExcelConfigReader : MonoBehaviour
                 case 28: wsm.secondaryAmmoMax = (int)stat.initialValue; break;
                 case 29: wsm.secondaryAmmoConsumePerShot = (int)stat.initialValue; break;
                 case 30: wsm.defaultMapDensityMultiplier = stat.initialValue; break;
+                case 33: wsm.primaryEnableKillSplit = stat.initialValue != 0f; break;
+                case 34: wsm.primaryKillSplitCount = Mathf.Max(1, (int)stat.initialValue); break;
+                case 35: wsm.primaryKillSplitChildDamageRatio = Mathf.Clamp01(stat.initialValue); break;
+                case 36: wsm.primaryEnableAOE = stat.initialValue != 0f; break;
+                case 37: wsm.primaryAOERadius = Mathf.Max(0f, stat.initialValue); break;
+                case 38: wsm.restaurantPotCount = Mathf.Max(1, (int)stat.initialValue); break;
+                case 39: wsm.restaurantPlateCount = Mathf.Max(1, (int)stat.initialValue); break;
+                case 40: wsm.cookingTimeMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
+                case 41: wsm.restaurantSellBonusRate = Mathf.Max(0f, stat.initialValue); break;
+                case 42: wsm.restaurantMaxTotalCustomers = Mathf.Max(1, (int)stat.initialValue); break;
+                case 43: wsm.restaurantMaxCustomersInside = Mathf.Max(1, (int)stat.initialValue); break;
+                case 44: wsm.customerMoveSpeedMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
+                case 45: wsm.primaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
+                case 46: wsm.secondaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
+                case 47: wsm.primaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
+                case 48: wsm.secondaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
             }
             wsm.OnInventoryStatsChangedInvoke();
             wsm.OnShopStatsChangedInvoke();

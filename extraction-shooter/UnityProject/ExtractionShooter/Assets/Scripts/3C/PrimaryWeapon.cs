@@ -99,32 +99,16 @@ public class PrimaryWeapon : MonoBehaviour
     [SerializeField] private bool debugMode = false;
     [SerializeField] private float debugRayDuration = 2f;
 
-    [Header("击杀分裂（主武器子弹）")]
-    [Tooltip("子弹击杀敌人后是否分裂")]
-    [SerializeField] private bool enableKillSplit = false;
-    [Tooltip("分裂产生的小子弹数量（均匀分布在 XZ 平面）")]
-    [Min(1)]
-    [SerializeField] private int killSplitCount = 4;
-    [Tooltip("分裂迭代次数上限（小子弹击杀后还能分裂的剩余层数）")]
-    [Min(0)]
-    [SerializeField] private int killSplitMaxIterations = 1;
-    [Tooltip("小子弹伤害占比（相对于父子弹的伤害）")]
-    [Range(0f, 1f)]
-    [SerializeField] private float killSplitChildDamageRatio = 0.5f;
-    [Tooltip("小子弹预制体（需挂 Projectile 脚本）")]
-    [SerializeField] private GameObject killSplitChildProjectilePrefab;
-
-    [Header("AOE 伤害（主武器子弹）")]
-    [Tooltip("命中敌人后是否对周围造成 AOE 伤害")]
-    [SerializeField] private bool enableAOE = false;
-    [Tooltip("AOE 作用半径")]
-    [Min(0f)]
-    [SerializeField] private float aoeRadius = 3f;
-    [Tooltip("AOE 边缘处的最低伤害比例（中心为 1，边缘为该比例）")]
-    [Range(0f, 1f)]
-    [SerializeField] private float aoeEdgeMinDamageRatio = 0.3f;
-    [Tooltip("AOE 触发时在命中点生成的特效预制体")]
-    [SerializeField] private GameObject aoeEffectPrefab;
+    // 由 WeaponStatsManager 同步的运行时参数
+    private bool enableKillSplit = false;
+    private int killSplitCount = 4;
+    private int killSplitMaxIterations = 1;
+    private float killSplitChildDamageRatio = 0.5f;
+    private GameObject killSplitChildProjectilePrefab;
+    private bool enableAOE = false;
+    private float aoeRadius = 3f;
+    private float aoeEdgeMinDamageRatio = 0.3f;
+    private GameObject aoeEffectPrefab;
 
     // 内部变量
     private Animator animator;
@@ -169,19 +153,7 @@ public class PrimaryWeapon : MonoBehaviour
     }
     private void Start()
     {
-        // 从 WeaponStatsManager 获取数值
-        fireRate = WeaponStatsManager.Instance.primaryFireRate;
-        primaryReloadDuration = WeaponStatsManager.Instance.primaryReloadDuration;
-        pelletCount = WeaponStatsManager.Instance.primaryPelletCount;
-        penetrationCount = WeaponStatsManager.Instance.primaryPenetrationCount;
-        bulletSpeed = WeaponStatsManager.Instance.primaryBulletSpeed;
-        bulletSize = WeaponStatsManager.Instance.primaryBulletSize;
-        print("PrimaryWeapon Start获取BaseDamage");
-        print(bulletSize);
-        baseDamage = WeaponStatsManager.Instance.primaryBaseDamage;
-        criticalChance = WeaponStatsManager.Instance.primaryCriticalChance;
-        criticalMultiplier = WeaponStatsManager.Instance.primaryCriticalMultiplier;
-        maxTravelDistance = WeaponStatsManager.Instance.primaryMaxTravelDistance;
+        ApplyWeaponStatsFromManager();
     }
 
     private void OnEnable()
@@ -194,8 +166,27 @@ public class PrimaryWeapon : MonoBehaviour
     private void ApplyWeaponStatsFromManager()
     {
         if (WeaponStatsManager.Instance == null) return;
-        // 只更新当前充能时长，不更新 basePrimaryReloadDuration，保证“角速度恒定”
+        fireRate = WeaponStatsManager.Instance.primaryFireRate;
         primaryReloadDuration = Mathf.Max(0.001f, WeaponStatsManager.Instance.primaryReloadDuration);
+        pelletCount = WeaponStatsManager.Instance.primaryPelletCount;
+        penetrationCount = WeaponStatsManager.Instance.primaryPenetrationCount;
+        bulletSpeed = WeaponStatsManager.Instance.primaryBulletSpeed;
+        bulletSize = WeaponStatsManager.Instance.primaryBulletSize;
+        baseDamage = WeaponStatsManager.Instance.primaryBaseDamage;
+        criticalChance = WeaponStatsManager.Instance.primaryCriticalChance;
+        criticalMultiplier = WeaponStatsManager.Instance.primaryCriticalMultiplier;
+        maxTravelDistance = WeaponStatsManager.Instance.primaryMaxTravelDistance;
+
+        enableKillSplit = WeaponStatsManager.Instance.primaryEnableKillSplit;
+        killSplitCount = Mathf.Max(1, WeaponStatsManager.Instance.primaryKillSplitCount);
+        killSplitMaxIterations = Mathf.Max(0, WeaponStatsManager.Instance.primaryKillSplitMaxIterations);
+        killSplitChildDamageRatio = Mathf.Clamp01(WeaponStatsManager.Instance.primaryKillSplitChildDamageRatio);
+        killSplitChildProjectilePrefab = WeaponStatsManager.Instance.primaryKillSplitChildProjectilePrefab;
+
+        enableAOE = WeaponStatsManager.Instance.primaryEnableAOE;
+        aoeRadius = Mathf.Max(0f, WeaponStatsManager.Instance.primaryAOERadius);
+        aoeEdgeMinDamageRatio = Mathf.Clamp01(WeaponStatsManager.Instance.primaryAOEEdgeMinDamageRatio);
+        aoeEffectPrefab = WeaponStatsManager.Instance.primaryAOEEffectPrefab;
     }
     public void Initialize(Animator anim, Camera cam, TopDownController ctrl)
     {

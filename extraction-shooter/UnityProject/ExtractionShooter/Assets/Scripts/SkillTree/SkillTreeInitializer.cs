@@ -273,6 +273,19 @@ public class SkillTreeInitializer : MonoBehaviour
 
     private void ApplySingleEffect(string effect, WeaponStatsManager wsm, int level = 1)
     {
+        // 关卡倍率元组 (49,(levelId,countV,spawnV,waitV,propV)) — levelId 与 WeaponStatsManager.levelParamRateItems[].id 一致
+        var levelRateMatch = Regex.Match(effect, @"\(49,\(([^,)]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+)\)\)");
+        if (levelRateMatch.Success)
+        {
+            string levelId = levelRateMatch.Groups[1].Value.Trim().Trim('"');
+            float v1 = float.Parse(levelRateMatch.Groups[2].Value, CultureInfo.InvariantCulture);
+            float v2 = float.Parse(levelRateMatch.Groups[3].Value, CultureInfo.InvariantCulture);
+            float v3 = float.Parse(levelRateMatch.Groups[4].Value, CultureInfo.InvariantCulture);
+            float v4 = float.Parse(levelRateMatch.Groups[5].Value, CultureInfo.InvariantCulture);
+            wsm.TryApplyLevelRatesBuff(levelId, v1, v2, v3, v4, level);
+            return;
+        }
+
         // 检查是否是地图密度元组效果 (30,(levelID,multiplier))
         var mapDensityMatch = Regex.Match(effect, @"\(30,\((\d+),([\d.]+)\)\)");
         if (mapDensityMatch.Success)
@@ -392,8 +405,50 @@ public class SkillTreeInitializer : MonoBehaviour
                     wsm.isSecondaryEnable = (value != 0); 
                     BattleValManager.Instance.enbaleSecondWeapon();
                     break;
-                } 
-            
+                }
+
+            // 主武器分裂 / AOE
+            case 33: wsm.primaryEnableKillSplit = value != 0f; break;
+            case 34: wsm.primaryKillSplitCount = Mathf.Max(1, wsm.primaryKillSplitCount + (int)value); break;
+            case 35: wsm.primaryKillSplitChildDamageRatio = Mathf.Clamp01(initialValue * (1f + value * level)); break;
+            case 36: wsm.primaryEnableAOE = value != 0f; break;
+            case 37: wsm.primaryAOERadius = Mathf.Max(0f, initialValue * (1f + value * level)); break;
+
+            // 餐厅
+            case 38: wsm.SetRestaurantPotCount(wsm.restaurantPotCount + (int)value); break;
+            case 39: wsm.SetRestaurantPlateCount(wsm.restaurantPlateCount + (int)value); break;
+            case 40: wsm.SetCookingTimeMultiplier(initialValue / (1f + value * level)); break; // 与换弹一致：正值缩短烹饪时间
+            case 41: wsm.SetRestaurantSellBonusRate(Mathf.Max(0f, initialValue + value * level)); break;
+
+            // 顾客
+            case 42: wsm.SetRestaurantMaxTotalCustomers(wsm.restaurantMaxTotalCustomers + (int)value); break;
+            case 43: wsm.SetRestaurantMaxCustomersInside(wsm.restaurantMaxCustomersInside + (int)value); break;
+            case 44: wsm.SetCustomerMoveSpeedMultiplier(initialValue * (1f + value * level)); break;
+
+            // 弹夹容量 / 换弹时间（正值 = 换弹更快，时间为 原 * 1/(1+v*等级)）
+            case 45: wsm.primaryMagazineCapacity = Mathf.Max(1, Mathf.RoundToInt(initialValue * (1f + value * level))); break;
+            case 46: wsm.secondaryMagazineCapacity = Mathf.Max(1, Mathf.RoundToInt(initialValue * (1f + value * level))); break;
+            case 47: wsm.SetPrimaryReloadDuration(initialValue / (1f + value * level)); break;
+            case 48: wsm.SetSecondaryReloadDuration(initialValue / (1f + value * level)); break;
+
+            // FlyingCompanion（数值来自 PetManager Awake 快照；statID 52–65）
+            case 52:
+            case 53:
+            case 54:
+            case 55:
+            case 56:
+            case 57:
+            case 58:
+            case 59:
+            case 60:
+            case 61:
+            case 62:
+            case 63:
+            case 64:
+            case 65:
+                if (PetManager.Instance != null)
+                    PetManager.Instance.ApplyFlyingCompanionBuffStat(statID, value, level);
+                break;
         }
     }
 
@@ -447,6 +502,22 @@ public class SkillTreeInitializer : MonoBehaviour
             case 27: return wsm.primaryAmmoConsumePerShot;
             case 28: return wsm.secondaryAmmoMax;
             case 29: return wsm.secondaryAmmoConsumePerShot;
+            case 33: return wsm.primaryEnableKillSplit ? 1f : 0f;
+            case 34: return wsm.primaryKillSplitCount;
+            case 35: return wsm.primaryKillSplitChildDamageRatio;
+            case 36: return wsm.primaryEnableAOE ? 1f : 0f;
+            case 37: return wsm.primaryAOERadius;
+            case 38: return wsm.restaurantPotCount;
+            case 39: return wsm.restaurantPlateCount;
+            case 40: return wsm.cookingTimeMultiplier;
+            case 41: return wsm.restaurantSellBonusRate;
+            case 42: return wsm.restaurantMaxTotalCustomers;
+            case 43: return wsm.restaurantMaxCustomersInside;
+            case 44: return wsm.customerMoveSpeedMultiplier;
+            case 45: return wsm.primaryMagazineCapacity;
+            case 46: return wsm.secondaryMagazineCapacity;
+            case 47: return wsm.primaryReloadDuration;
+            case 48: return wsm.secondaryReloadDuration;
             default: return 0f;
         }
     }
@@ -471,6 +542,38 @@ public class SkillTreeInitializer : MonoBehaviour
         if (buffEffects.Contains("(30,"))
         {
             wsm.RebuildDensityDictionary();
+        }
+        if (buffEffects.Contains("(33,") || buffEffects.Contains("(34,") ||
+            buffEffects.Contains("(35,") || buffEffects.Contains("(36,") ||
+            buffEffects.Contains("(37,") || buffEffects.Contains("(45,") ||
+            buffEffects.Contains("(46,") || buffEffects.Contains("(47,") ||
+            buffEffects.Contains("(48,"))
+        {
+            wsm.OnWeaponStatsChangedInvoke();
+        }
+        if (buffEffects.Contains("(38,") || buffEffects.Contains("(39,") ||
+            buffEffects.Contains("(40,") || buffEffects.Contains("(41,"))
+        {
+            wsm.OnRestaurantStatsChangedInvoke();
+        }
+        if (buffEffects.Contains("(42,") || buffEffects.Contains("(43,") ||
+            buffEffects.Contains("(44,"))
+        {
+            wsm.OnCustomerStatsChangedInvoke();
+        }
+        if (buffEffects.Contains("(49,"))
+        {
+            wsm.OnLevelStatsChangedInvoke();
+        }
+        if (buffEffects.Contains("(52,") || buffEffects.Contains("(53,") ||
+            buffEffects.Contains("(54,") || buffEffects.Contains("(55,") ||
+            buffEffects.Contains("(56,") || buffEffects.Contains("(57,") ||
+            buffEffects.Contains("(58,") || buffEffects.Contains("(59,") ||
+            buffEffects.Contains("(60,") || buffEffects.Contains("(61,") ||
+            buffEffects.Contains("(62,") || buffEffects.Contains("(63,") ||
+            buffEffects.Contains("(64,") || buffEffects.Contains("(65,"))
+        {
+            wsm.OnBattleStatsChangedInvoke();
         }
     }
 }

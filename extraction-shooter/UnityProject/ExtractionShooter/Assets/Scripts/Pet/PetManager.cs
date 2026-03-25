@@ -45,6 +45,28 @@ public class PetManager : MonoBehaviour
     [SerializeField] private float FlyingCompanion_bulletLifeTime = 4f;
     [SerializeField] private float FlyingCompanion_bulletHitDistance = 0.35f;
 
+    [System.Serializable]
+    private struct FlyingCompanionInitialSnapshot
+    {
+        public float attackRange;
+        public float fireInterval;
+        public float bulletDamage;
+        public float bulletSize;
+        public int burstBulletCount;
+        public float burstFanAngle;
+        public float slowRatioBase;
+        public float slowDurationBase;
+        public float slowRatioMultiplier;
+        public float slowDurationMultiplier;
+        public float bulletMoveSpeed;
+        public float bulletRotateSpeed;
+        public float bulletLifeTime;
+        public float bulletHitDistance;
+    }
+
+    private FlyingCompanionInitialSnapshot _fcInitial;
+    private bool _fcInitialCaptured;
+
     // 运行时：记录已生成的宠物实例
     private readonly Dictionary<PetType, GameObject> spawnedPets = new Dictionary<PetType, GameObject>();
     private PlayerState lastState = PlayerState.UpGround;
@@ -58,6 +80,102 @@ public class PetManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        CaptureFlyingCompanionInitialIfNeeded();
+    }
+
+    private void CaptureFlyingCompanionInitialIfNeeded()
+    {
+        if (_fcInitialCaptured) return;
+        _fcInitial = new FlyingCompanionInitialSnapshot
+        {
+            attackRange = FlyingCompanion_attackRange,
+            fireInterval = FlyingCompanion_fireInterval,
+            bulletDamage = FlyingCompanion_bulletDamage,
+            bulletSize = FlyingCompanion_bulletSize,
+            burstBulletCount = FlyingCompanion_burstBulletCount,
+            burstFanAngle = FlyingCompanion_burstFanAngle,
+            slowRatioBase = FlyingCompanion_slowRatioBase,
+            slowDurationBase = FlyingCompanion_slowDurationBase,
+            slowRatioMultiplier = FlyingCompanion_slowRatioMultiplier,
+            slowDurationMultiplier = FlyingCompanion_slowDurationMultiplier,
+            bulletMoveSpeed = FlyingCompanion_bulletMoveSpeed,
+            bulletRotateSpeed = FlyingCompanion_bulletRotateSpeed,
+            bulletLifeTime = FlyingCompanion_bulletLifeTime,
+            bulletHitDistance = FlyingCompanion_bulletHitDistance
+        };
+        _fcInitialCaptured = true;
+    }
+
+    /// <summary>
+    /// 技能树 buff：FlyingCompanion 成长（statID 52–65），与 SkillTreeInitializer 约定一致。
+    /// </summary>
+    public void ApplyFlyingCompanionBuffStat(int statID, float value, int skillLevel)
+    {
+        CaptureFlyingCompanionInitialIfNeeded();
+        int L = Mathf.Max(0, skillLevel);
+        float init;
+        switch (statID)
+        {
+            case 52:
+                init = _fcInitial.attackRange;
+                FlyingCompanion_attackRange = init * (1f + value * L);
+                break;
+            case 53:
+                init = _fcInitial.fireInterval;
+                FlyingCompanion_fireInterval = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 54:
+                init = _fcInitial.bulletDamage;
+                FlyingCompanion_bulletDamage = Mathf.Max(0f, init * (1f + value * L));
+                break;
+            case 55:
+                init = _fcInitial.bulletSize;
+                FlyingCompanion_bulletSize = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 56:
+                FlyingCompanion_burstBulletCount = Mathf.Max(1, FlyingCompanion_burstBulletCount + (int)value);
+                break;
+            case 57:
+                init = _fcInitial.burstFanAngle;
+                FlyingCompanion_burstFanAngle = init * (1f + value * L);
+                break;
+            case 58:
+                init = _fcInitial.slowRatioBase;
+                FlyingCompanion_slowRatioBase = Mathf.Clamp01(init * (1f + value * L));
+                break;
+            case 59:
+                init = _fcInitial.slowDurationBase;
+                FlyingCompanion_slowDurationBase = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 60:
+                init = _fcInitial.slowRatioMultiplier;
+                FlyingCompanion_slowRatioMultiplier = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 61:
+                init = _fcInitial.slowDurationMultiplier;
+                FlyingCompanion_slowDurationMultiplier = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 62:
+                init = _fcInitial.bulletMoveSpeed;
+                FlyingCompanion_bulletMoveSpeed = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 63:
+                init = _fcInitial.bulletRotateSpeed;
+                FlyingCompanion_bulletRotateSpeed = Mathf.Max(1f, init * (1f + value * L));
+                break;
+            case 64:
+                init = _fcInitial.bulletLifeTime;
+                FlyingCompanion_bulletLifeTime = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            case 65:
+                init = _fcInitial.bulletHitDistance;
+                FlyingCompanion_bulletHitDistance = Mathf.Max(0.01f, init * (1f + value * L));
+                break;
+            default:
+                return;
+        }
+
+        SyncPetsForBattleNow();
     }
 
     private void Start()

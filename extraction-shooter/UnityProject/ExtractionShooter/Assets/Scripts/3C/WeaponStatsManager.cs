@@ -24,6 +24,35 @@ public class LevelParamRateItem
     public float monsterRapidSpawnIntervalRate = 1f;
     public float monsterWaitTimeRate = 1f;
     public float propProbabilityRate = 1f;
+
+    [System.NonSerialized] public bool levelBuffBasesCaptured;
+    [System.NonSerialized] public float levelBuffBaseMonsterCountRate = 1f;
+    [System.NonSerialized] public float levelBuffBaseSpawnIntervalRate = 1f;
+    [System.NonSerialized] public float levelBuffBaseWaitTimeRate = 1f;
+    [System.NonSerialized] public float levelBuffBasePropProbabilityRate = 1f;
+
+    public void EnsureLevelBuffBases()
+    {
+        if (levelBuffBasesCaptured) return;
+        levelBuffBaseMonsterCountRate = monsterCountRate;
+        levelBuffBaseSpawnIntervalRate = monsterRapidSpawnIntervalRate;
+        levelBuffBaseWaitTimeRate = monsterWaitTimeRate;
+        levelBuffBasePropProbabilityRate = propProbabilityRate;
+        levelBuffBasesCaptured = true;
+    }
+
+    /// <summary>
+    /// 技能 buff：各 Rate 相对关卡条目的初始快照做乘法 — 最终 = 快照 * (1 + v * 技能等级)。
+    /// </summary>
+    public void ApplyLevelRatesBuff(float countV, float spawnV, float waitV, float propV, int skillLevel)
+    {
+        EnsureLevelBuffBases();
+        float lc = Mathf.Max(0, skillLevel);
+        monsterCountRate = levelBuffBaseMonsterCountRate * (1f + countV * lc);
+        monsterRapidSpawnIntervalRate = levelBuffBaseSpawnIntervalRate * (1f + spawnV * lc);
+        monsterWaitTimeRate = levelBuffBaseWaitTimeRate * (1f + waitV * lc);
+        propProbabilityRate = levelBuffBasePropProbabilityRate * (1f + propV * lc);
+    }
 }
 
 public class WeaponStatsManager : MonoBehaviour
@@ -51,6 +80,17 @@ public class WeaponStatsManager : MonoBehaviour
     public float primaryCriticalChance = 0.1f;
     public float primaryCriticalMultiplier = 2f;
     public float primaryMaxTravelDistance = 100f;
+    [Header("主武器击杀分裂")]
+    public bool primaryEnableKillSplit = false;
+    [Min(1)] public int primaryKillSplitCount = 4;
+    [Min(0)] public int primaryKillSplitMaxIterations = 1;
+    [Range(0f, 1f)] public float primaryKillSplitChildDamageRatio = 0.5f;
+    public GameObject primaryKillSplitChildProjectilePrefab;
+    [Header("主武器AOE伤害")]
+    public bool primaryEnableAOE = false;
+    [Min(0f)] public float primaryAOERadius = 3f;
+    [Range(0f, 1f)] public float primaryAOEEdgeMinDamageRatio = 0.3f;
+    public GameObject primaryAOEEffectPrefab;
 
     [Header("副武器数值")]
     public bool isSecondaryEnable=true;
@@ -140,6 +180,12 @@ public class WeaponStatsManager : MonoBehaviour
 
             // 初始化字典
             RebuildDensityDictionary();
+
+            if (levelParamRateItems != null)
+            {
+                for (int i = 0; i < levelParamRateItems.Count; i++)
+                    levelParamRateItems[i]?.EnsureLevelBuffBases();
+            }
         }
         else
         {
@@ -159,6 +205,11 @@ public class WeaponStatsManager : MonoBehaviour
         restaurantMaxCustomersInside = Mathf.Max(1, restaurantMaxCustomersInside);
         restaurantMaxTotalCustomers = Mathf.Max(1, restaurantMaxTotalCustomers);
         customerMoveSpeedMultiplier = Mathf.Max(0.01f, customerMoveSpeedMultiplier);
+        primaryKillSplitCount = Mathf.Max(1, primaryKillSplitCount);
+        primaryKillSplitMaxIterations = Mathf.Max(0, primaryKillSplitMaxIterations);
+        primaryKillSplitChildDamageRatio = Mathf.Clamp01(primaryKillSplitChildDamageRatio);
+        primaryAOERadius = Mathf.Max(0f, primaryAOERadius);
+        primaryAOEEdgeMinDamageRatio = Mathf.Clamp01(primaryAOEEdgeMinDamageRatio);
 
         if (Instance == this)
         {
@@ -469,6 +520,23 @@ public class WeaponStatsManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 技能 buff：按关卡 id 调整 Count / SpawnInterval / Wait / Prop 四类倍率（相对 Awake 时快照：快照 * (1 + v * 技能等级)）。
+    /// </summary>
+    public bool TryApplyLevelRatesBuff(string levelId, float countV, float spawnIntervalV, float waitV, float propV, int skillLevel)
+    {
+        LevelParamRateItem item = GetLevelRateItem(levelId?.Trim());
+        if (item == null)
+        {
+            Debug.LogWarning($"[WeaponStatsManager] 未找到关卡 id「{levelId}」的 LevelParamRateItem。");
+            return false;
+        }
+
+        item.ApplyLevelRatesBuff(countV, spawnIntervalV, waitV, propV, skillLevel);
+        OnLevelStatsChangedInvoke();
+        return true;
     }
 
     /// <summary>
