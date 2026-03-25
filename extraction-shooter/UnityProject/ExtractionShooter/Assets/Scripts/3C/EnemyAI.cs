@@ -46,6 +46,11 @@ public class EnemyAI : MonoBehaviour
     
     [Header("AI设置")]
     [SerializeField] private float raycastHeight = 0.2f;       // 射线发射的高度偏移
+
+    [Header("减速Debuff（运行时）")]
+    [SerializeField, Range(0f, 1f)] private float currentSlowRatio = 0f; // 0.2 表示减速20%
+    [SerializeField] private float slowEndTime = 0f;
+    [SerializeField, Range(0.05f, 1f)] private float minMoveSpeedRatio = 0.15f; // 减速后最低保留速度比例（避免完全定身）
     
     // 八个方向向量
     private static readonly Vector3[] Directions = new Vector3[]
@@ -72,6 +77,7 @@ public class EnemyAI : MonoBehaviour
     private bool hasReachedDestination = false;
     private EnemyHealth enemyHealth;
     private Vector3 spawnPosition; // 记录生成位置
+    private float baseMoveSpeed;
     
     // 动画参数哈希
     private int isWalkingHash;
@@ -84,6 +90,7 @@ public class EnemyAI : MonoBehaviour
             animator = GetComponent<Animator>();
             
         enemyHealth = GetComponent<EnemyHealth>();
+        baseMoveSpeed = moveSpeed;
         
         // 记录生成位置
         spawnPosition = transform.position;
@@ -127,6 +134,12 @@ public class EnemyAI : MonoBehaviour
         
         // 更新动画
         UpdateAnimations();
+
+        // 减速到时自动清除
+        if (currentSlowRatio > 0f && Time.time >= slowEndTime)
+        {
+            currentSlowRatio = 0f;
+        }
     }
     
     #region 状态更新方法
@@ -335,7 +348,7 @@ public class EnemyAI : MonoBehaviour
         }
 
         // 计算预计的巡逻时间
-        patrolDuration = selectedDistance / moveSpeed;
+        patrolDuration = selectedDistance / Mathf.Max(0.01f, GetCurrentMoveSpeed());
         
         if (showDebugInfo)
         {
@@ -416,7 +429,7 @@ public class EnemyAI : MonoBehaviour
         if (direction.magnitude > 0.1f)
         {
             // 移动
-            transform.position += direction * moveSpeed * Time.deltaTime;
+            transform.position += direction * GetCurrentMoveSpeed() * Time.deltaTime;
             
             // 转向移动方向
             Quaternion targetRotation = Quaternion.LookRotation(direction);
@@ -530,6 +543,38 @@ public class EnemyAI : MonoBehaviour
     public EnemyState GetCurrentState()
     {
         return currentState;
+    }
+
+    /// <summary>
+    /// 施加移动减速：slowRatio=0.25 表示减速25%，duration为持续秒数。
+    /// 同时存在多个减速时：取更强减速；持续时间取更长。
+    /// </summary>
+    public void ApplyMoveSlow(float slowRatio, float duration)
+    {
+        if (currentState == EnemyState.Dead) return;
+        if (duration <= 0f || slowRatio <= 0f) return;
+
+        // 仅允许“减速”，不允许变成“定身”：slowRatio 最大限制为 (1 - minMoveSpeedRatio)
+        float maxSlowRatio = Mathf.Clamp01(1f - Mathf.Clamp(minMoveSpeedRatio, 0.05f, 1f));
+        float clampedRatio = Mathf.Clamp(slowRatio, 0f, maxSlowRatio);
+        float newEndTime = Time.time + duration;
+
+        if (clampedRatio > currentSlowRatio)
+        {
+            currentSlowRatio = clampedRatio;
+        }
+
+        if (newEndTime > slowEndTime)
+        {
+            slowEndTime = newEndTime;
+        }
+    }
+
+    public float GetCurrentMoveSpeed()
+    {
+        float minRatio = Mathf.Clamp(minMoveSpeedRatio, 0.05f, 1f);
+        float finalRatio = Mathf.Max(minRatio, 1f - currentSlowRatio);
+        return Mathf.Max(0.01f, baseMoveSpeed * finalRatio);
     }
     
     // 强制设置巡逻点（调试用）

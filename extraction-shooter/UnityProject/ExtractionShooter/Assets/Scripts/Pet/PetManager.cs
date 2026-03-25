@@ -30,6 +30,16 @@ public class PetManager : MonoBehaviour
     [SerializeField] private float FlyingCompanion_fireInterval = 0.45f;
     [SerializeField] private float FlyingCompanion_bulletDamage = 12f;
 
+    [Header("FlyingCompanion 子弹表现")]
+    [SerializeField] private float FlyingCompanion_bulletSize = 1f;
+    [SerializeField] private int FlyingCompanion_burstBulletCount = 1;
+    [SerializeField] private float FlyingCompanion_burstFanAngle = 0f; // degrees
+    [Header("FlyingCompanion 命中减速")]
+    [SerializeField] private float FlyingCompanion_slowRatioBase = 0.2f;
+    [SerializeField] private float FlyingCompanion_slowDurationBase = 1.5f;
+    [SerializeField] private float FlyingCompanion_slowRatioMultiplier = 1f;
+    [SerializeField] private float FlyingCompanion_slowDurationMultiplier = 1f;
+
     [SerializeField] private float FlyingCompanion_bulletMoveSpeed = 18f;
     [SerializeField] private float FlyingCompanion_bulletRotateSpeed = 540f;
     [SerializeField] private float FlyingCompanion_bulletLifeTime = 4f;
@@ -179,10 +189,19 @@ public class PetManager : MonoBehaviour
                     fireInterval = FlyingCompanion_fireInterval,
                     bulletDamage = FlyingCompanion_bulletDamage,
 
+                    bulletSize = FlyingCompanion_bulletSize,
+                    burstBulletCount = Mathf.Max(1, FlyingCompanion_burstBulletCount),
+                    burstFanAngle = FlyingCompanion_burstFanAngle,
+
                     bulletMoveSpeed = FlyingCompanion_bulletMoveSpeed,
                     bulletRotateSpeed = FlyingCompanion_bulletRotateSpeed,
                     bulletLifeTime = FlyingCompanion_bulletLifeTime,
-                    bulletHitDistance = FlyingCompanion_bulletHitDistance
+                    bulletHitDistance = FlyingCompanion_bulletHitDistance,
+
+                    slowRatioBase = FlyingCompanion_slowRatioBase,
+                    slowDurationBase = FlyingCompanion_slowDurationBase,
+                    slowRatioMultiplier = FlyingCompanion_slowRatioMultiplier,
+                    slowDurationMultiplier = FlyingCompanion_slowDurationMultiplier
                 };
             default:
                 return null;

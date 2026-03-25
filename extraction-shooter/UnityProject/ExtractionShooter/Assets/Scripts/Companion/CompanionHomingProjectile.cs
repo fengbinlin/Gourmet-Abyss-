@@ -11,6 +11,11 @@ public class CompanionHomingProjectile : MonoBehaviour
     private float rotateSpeed;
     private float lifeTime;
     private float hitDistance;
+    private float bulletSize = 1f;
+    private float homingPathOffsetRadius = 0.6f;
+    private float slowRatioOnHit = 0f;
+    private float slowDurationOnHit = 0f;
+    private Vector3 perProjectileHomingOffset = Vector3.zero;
     private bool initialized;
 
     public void Initialize(
@@ -19,7 +24,12 @@ public class CompanionHomingProjectile : MonoBehaviour
         float projectileMoveSpeed,
         float projectileRotateSpeed,
         float projectileLifeTime,
-        float projectileHitDistance)
+        float projectileHitDistance,
+        float projectileSize,
+        float projectileHomingPathOffsetRadius,
+        Vector3 projectileHomingOffset,
+        float projectileSlowRatioOnHit,
+        float projectileSlowDurationOnHit)
     {
         target = targetHealth;
         damage = projectileDamage;
@@ -27,6 +37,18 @@ public class CompanionHomingProjectile : MonoBehaviour
         rotateSpeed = projectileRotateSpeed;
         lifeTime = projectileLifeTime;
         hitDistance = Mathf.Max(0.05f, projectileHitDistance);
+        bulletSize = Mathf.Max(0.01f, projectileSize);
+        homingPathOffsetRadius = Mathf.Max(0f, projectileHomingPathOffsetRadius);
+        slowRatioOnHit = Mathf.Clamp01(projectileSlowRatioOnHit);
+        slowDurationOnHit = Mathf.Max(0f, projectileSlowDurationOnHit);
+        perProjectileHomingOffset = projectileHomingOffset;
+        if (perProjectileHomingOffset.sqrMagnitude > homingPathOffsetRadius * homingPathOffsetRadius && homingPathOffsetRadius > 0.001f)
+        {
+            perProjectileHomingOffset = perProjectileHomingOffset.normalized * homingPathOffsetRadius;
+        }
+
+        // 缩放整个子弹（prefab 如果有Collider/Render 一般会跟随缩放）
+        transform.localScale = Vector3.one * bulletSize;
         initialized = true;
     }
 
@@ -51,19 +73,39 @@ public class CompanionHomingProjectile : MonoBehaviour
             return;
         }
 
-        Vector3 targetPos = target.transform.position + Vector3.up * 0.5f;
-        Vector3 toTarget = targetPos - transform.position;
+        // 追踪目标偏上方的命中点，并叠加每发子弹独立的追踪偏移（靠近目标时逐渐收敛到目标中心）
+        Vector3 aimPoint = target.transform.position + Vector3.up * 0.5f;
+        Vector3 toTargetCenterFlat = new Vector3(aimPoint.x, transform.position.y, aimPoint.z) - transform.position;
+        float distanceToTargetCenter = toTargetCenterFlat.magnitude;
+        float offsetFade = Mathf.Clamp01(distanceToTargetCenter / Mathf.Max(hitDistance * 2.5f, 0.2f));
+        aimPoint += perProjectileHomingOffset * offsetFade;
+        Vector3 aimPointFlat = new Vector3(aimPoint.x, transform.position.y, aimPoint.z);
+        Vector3 toAim = aimPointFlat - transform.position;
 
-        if (toTarget.sqrMagnitude <= hitDistance * hitDistance)
+        float hitDistSqr = hitDistance * hitDistance;
+        if (toAim.sqrMagnitude <= hitDistSqr)
         {
-            HitTarget(targetPos);
+            HitTarget(aimPoint);
             return;
         }
 
-        Vector3 dir = toTarget.normalized;
-        Quaternion targetRotation = Quaternion.LookRotation(dir);
+        // 目标方向过近时，LookRotation 会不稳定；给个保护
+        Vector3 dir = toAim.sqrMagnitude > 0.000001f ? toAim.normalized : transform.forward;
+        Quaternion targetRotation = Quaternion.LookRotation(dir, Vector3.up);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
-        transform.position += transform.forward * moveSpeed * Time.deltaTime;
+
+        // 预测下一帧位置，避免高速步进造成“跨过命中距离但本帧没命中”
+        Vector3 currentPos = transform.position;
+        Vector3 nextPos = currentPos + transform.forward * moveSpeed * Time.deltaTime;
+
+        if ((aimPointFlat - nextPos).sqrMagnitude <= hitDistSqr)
+        {
+            transform.position = nextPos;
+            HitTarget(aimPoint);
+            return;
+        }
+
+        transform.position = nextPos;
     }
 
     private void HitTarget(Vector3 hitPoint)
@@ -73,6 +115,12 @@ public class CompanionHomingProjectile : MonoBehaviour
             Vector3 hitNormal = (target.transform.position - transform.position).normalized;
             Vector3 bulletDirection = transform.forward;
             target.TakeDamageFromProjectile(damage, hitPoint, hitNormal, transform.position, bulletDirection);
+
+            EnemyAI enemyAI = target.GetComponent<EnemyAI>();
+            if (enemyAI != null && slowRatioOnHit > 0f && slowDurationOnHit > 0f)
+            {
+                enemyAI.ApplyMoveSlow(slowRatioOnHit, slowDurationOnHit);
+            }
         }
 
         Destroy(gameObject);
