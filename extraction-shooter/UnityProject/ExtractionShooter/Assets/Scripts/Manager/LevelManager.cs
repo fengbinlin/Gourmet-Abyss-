@@ -13,6 +13,7 @@ public class LevelManager : MonoBehaviour
 
     [Header("场景对象")]
     public GameObject homeSceneObject;
+    public GameObject restaurantObject;
 
     [Header("过渡系统")]
     public EmissionTransition emissionTransition;
@@ -29,6 +30,8 @@ public class LevelManager : MonoBehaviour
     // 私有变量
     private bool isTransitioning = false;
     private List<string> loadedLevels = new List<string>();
+    private Vector3 restaurantInitialPosition;
+    private bool hasCachedRestaurantInitialPosition = false;
 
     private void Awake()
     {
@@ -52,6 +55,8 @@ public class LevelManager : MonoBehaviour
         {
             transitionUIAnimator.Play("DefaultState", 0, 0f);
         }
+
+        CacheRestaurantInitialPosition();
     }
 
     /// <summary>
@@ -167,6 +172,7 @@ public class LevelManager : MonoBehaviour
         {
             homeSceneObject.SetActive(false);
         }
+        MoveRestaurantForBattle();
         KeepMainCamera.instance.tKeepMainCamera();
 
         // 7. 新场景车辆从白色过渡到原色
@@ -271,6 +277,7 @@ public class LevelManager : MonoBehaviour
         {
             homeSceneObject.SetActive(true);
         }
+        RestoreRestaurantToHomePosition();
 
         // 7. 主场景车辆从白色过渡到原色
         VehicleColorTransition homeVehicle = FindVehicleInScene("UpGround");
@@ -356,6 +363,7 @@ public class LevelManager : MonoBehaviour
         {
             homeSceneObject.SetActive(true);
         }
+        RestoreRestaurantToHomePosition();
         KeepMainCamera.instance.tKeepMainCamera();
         // 7. 主场景车辆从白色过渡到原色
         VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
@@ -515,5 +523,29 @@ public class LevelManager : MonoBehaviour
     public bool IsTransitioning()
     {
         return isTransitioning;
+    }
+
+    private void CacheRestaurantInitialPosition()
+    {
+        if (restaurantObject == null || hasCachedRestaurantInitialPosition) return;
+        restaurantInitialPosition = restaurantObject.transform.position;
+        hasCachedRestaurantInitialPosition = true;
+    }
+
+    private void MoveRestaurantForBattle()
+    {
+        if (restaurantObject == null) return;
+        CacheRestaurantInitialPosition();
+
+        Vector3 targetPos = restaurantInitialPosition;
+        targetPos.x += 100f;
+        restaurantObject.transform.position = targetPos;
+    }
+
+    private void RestoreRestaurantToHomePosition()
+    {
+        if (restaurantObject == null) return;
+        CacheRestaurantInitialPosition();
+        restaurantObject.transform.position = restaurantInitialPosition;
     }
 }

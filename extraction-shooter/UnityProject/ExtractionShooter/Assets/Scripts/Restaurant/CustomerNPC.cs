@@ -510,7 +510,7 @@ public class CustomerNPC : MonoBehaviour
         transform.position = Vector3.MoveTowards(
             transform.position,
             targetPosition,
-            data.moveSpeed * Time.deltaTime
+            GetFinalMoveSpeed() * Time.deltaTime
         );
 
         FaceByDirection(directionToTarget);
@@ -526,6 +526,17 @@ public class CustomerNPC : MonoBehaviour
         {
             OnReachTarget();
         }
+    }
+
+    private float GetFinalMoveSpeed()
+    {
+        float multiplier = 1f;
+        if (WeaponStatsManager.Instance != null)
+        {
+            multiplier = WeaponStatsManager.Instance.customerMoveSpeedMultiplier;
+        }
+
+        return data.moveSpeed * multiplier;
     }
 
     private void OnReachTarget()
@@ -975,7 +986,7 @@ public class CustomerNPC : MonoBehaviour
         // 当前巡逻目标（在 Left / Right 之间的随机点）
         Vector3 currentTargetPos = initialTargetPos;
         // 厨师移动速度稍慢一点，显得更从容
-        float cookMoveSpeed = data.moveSpeed * 0.6f;
+        float cookMoveSpeed = GetFinalMoveSpeed() * 0.6f;
         // 张望行为的冷却时间，避免一直说话
         float idleCooldown = 0f;
         bool isFirstTick = true; // 首帧到达目标时不立刻随机，避免“刚瞬移就又慢慢走”
@@ -1109,7 +1120,7 @@ public class CustomerNPC : MonoBehaviour
         ShowCustomBubble($"帮忙煮 {pot.currentRecipe?.dishName ?? "菜"}！", 2f);
 
         // 移动到锅前：只对齐 X 轴，Y、Z 保持 NPC 当前位置不变，且始终面朝锅的方向（不倒着走）
-        float cookMoveSpeed = data.moveSpeed * 0.7f;
+        float cookMoveSpeed = GetFinalMoveSpeed() * 0.7f;
         float targetX = pot.transform.position.x;
         Vector3 workPos = new Vector3(targetX, transform.position.y, transform.position.z);
         while (Mathf.Abs(transform.position.x - targetX) > 0.05f)

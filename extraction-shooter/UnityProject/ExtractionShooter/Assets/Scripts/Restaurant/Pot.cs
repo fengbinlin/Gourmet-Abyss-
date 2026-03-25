@@ -27,9 +27,14 @@ public class Pot : MonoBehaviour
     public Vector3 closedRotation = new Vector3(0, 0, -90f); // 关闭时的旋转角度
     public Vector3 openRotation = Vector3.zero; // 打开时的旋转角度
 
+    [Header("烹饪状态动画")]
+    public Animator animator;
+    public string animatorIsCookingBool = "isCooking";
+    public bool isCooking;
+
+    public event System.Action<bool> CookingStateChanged;
+
     [Header("烹饪效果组件")]
-    public Behaviour boilingLidEffect; // BoilingLidEffect组件（可以是ParticleSystem等）
-    public Behaviour potBreathingEffect; // PotBreathingEffect组件
     public GameObject Fog;
     public GameObject Fire;
 
@@ -69,17 +74,24 @@ public class Pot : MonoBehaviour
     /// </summary>
     private void SetCookingEffects(bool isActive)
     {
-        if (boilingLidEffect != null)
+        if (isCooking == isActive)
         {
-            boilingLidEffect.enabled = isActive;
+            if (Fire != null) Fire.gameObject.SetActive(isActive);
+            if (Fog != null) Fog.gameObject.SetActive(isActive);
+            return;
         }
 
-        if (potBreathingEffect != null)
+        isCooking = isActive;
+
+        if (animator != null && !string.IsNullOrEmpty(animatorIsCookingBool))
         {
-            potBreathingEffect.enabled = isActive;
+            animator.SetBool(animatorIsCookingBool, isActive);
         }
-        Fire.gameObject.SetActive(isActive);
-        Fog.gameObject.SetActive(isActive);
+
+        if (Fire != null) Fire.gameObject.SetActive(isActive);
+        if (Fog != null) Fog.gameObject.SetActive(isActive);
+
+        CookingStateChanged?.Invoke(isActive);
     }
 
     /// <summary>
@@ -134,10 +146,16 @@ public class Pot : MonoBehaviour
 
         // 设置锅状态和菜谱
         potState = potState.Used;
-        currentRecipe = recipe;
+        currentRecipe = CloneRecipe(recipe);
         if (assignedCook)
         {
-            currentRecipe = CookManager.cookManager.ApplyCookBuff(recipe, assignedCook);
+            currentRecipe = CookManager.cookManager.ApplyCookBuff(currentRecipe, assignedCook);
+        }
+
+        if (WeaponStatsManager.Instance != null)
+        {
+            currentRecipe.cookTime *= WeaponStatsManager.Instance.cookingTimeMultiplier;
+            currentRecipe.baseDishPrice *= (1f + WeaponStatsManager.Instance.restaurantSellBonusRate);
         }
 
 
@@ -157,6 +175,21 @@ public class Pot : MonoBehaviour
         Debug.Log($"开始烹饪：{currentRecipe.dishName}，预计时间：{currentRecipe.cookTime}秒");
 
         return true;
+    }
+
+    private DishRecipe CloneRecipe(DishRecipe source)
+    {
+        DishRecipe cloned = new DishRecipe();
+        cloned.dishID = source.dishID;
+        cloned.dishName = source.dishName;
+        cloned.dishIcon = source.dishIcon;
+        cloned.ingredients = source.ingredients != null ? new List<DishIngredient>(source.ingredients) : new List<DishIngredient>();
+        cloned.acceptablePot = source.acceptablePot != null ? new List<potType>(source.acceptablePot) : new List<potType>();
+        cloned.cookTime = source.cookTime;
+        cloned.baseDishPrice = source.baseDishPrice;
+        cloned.category = source.category;
+        cloned.locked = source.locked;
+        return cloned;
     }
     /// <summary>
     /// 完整的烹饪流程协程

@@ -129,6 +129,7 @@ public class SecondaryWeapon : MonoBehaviour
     private Coroutine reloadCoroutine;
     private float secondaryReloadDuration = 0.8f;
     private const float reloadTotalSpinDegrees = 1080f; // 充能过程中绕自身Z轴旋转的总角度
+    private const float designSecondaryReloadDuration = 0.8f; // 设计参考：角速度以 0.8s 为基准
 
     // 武器状态
     private Vector3 secondaryWeaponOriginalScale;
@@ -183,6 +184,20 @@ public class SecondaryWeapon : MonoBehaviour
         critMultiplier = WeaponStatsManager.Instance.secondaryCritMultiplier;
         maxChainsPerEnemy = WeaponStatsManager.Instance.secondaryMaxChainCount;
         chainSearchRadius = WeaponStatsManager.Instance.secondaryChainSearchRadius;
+    }
+
+    private void OnEnable()
+    {
+        if (WeaponStatsManager.Instance == null) return;
+        WeaponStatsManager.Instance.OnWeaponStatsChanged -= ApplyWeaponStatsFromManager;
+        WeaponStatsManager.Instance.OnWeaponStatsChanged += ApplyWeaponStatsFromManager;
+    }
+
+    private void ApplyWeaponStatsFromManager()
+    {
+        if (WeaponStatsManager.Instance == null) return;
+        // 只更新当前充能时长，不更新 baseSecondaryReloadDuration，保证“角速度恒定”
+        secondaryReloadDuration = Mathf.Max(0.001f, WeaponStatsManager.Instance.secondaryReloadDuration);
     }
     public void Initialize(Animator anim, Camera cam, TopDownController ctrl)
     {
@@ -788,12 +803,14 @@ public class SecondaryWeapon : MonoBehaviour
         }
 
         float startTime = Time.time;
+        float effectiveTotalSpinDegrees = GetEffectiveTotalSpinDegrees();
         float prevSpinZ = 0f;
         while (Time.time - startTime < secondaryReloadDuration)
         {
             float t = (Time.time - startTime) / secondaryReloadDuration;
             t = Mathf.Clamp01(t);
-            float spinZ = t * reloadTotalSpinDegrees;
+            // 保持“旋转角速度”恒定：如果持续时间变长，就增加总旋转角度
+            float spinZ = t * effectiveTotalSpinDegrees;
             float deltaZ = spinZ - prevSpinZ;
             prevSpinZ = spinZ;
 
@@ -827,8 +844,22 @@ public class SecondaryWeapon : MonoBehaviour
         reloadCoroutine = null;
     }
 
+    private float GetEffectiveTotalSpinDegrees()
+    {
+        float currentDuration = Mathf.Max(0.001f, secondaryReloadDuration);
+        float baseDuration = Mathf.Max(0.001f, designSecondaryReloadDuration);
+
+        float ratio = currentDuration / baseDuration;
+        return reloadTotalSpinDegrees * ratio;
+    }
+
     private void OnDisable()
     {
+        if (WeaponStatsManager.Instance != null)
+        {
+            WeaponStatsManager.Instance.OnWeaponStatsChanged -= ApplyWeaponStatsFromManager;
+        }
+
         if (reloadCoroutine != null)
         {
             StopCoroutine(reloadCoroutine);

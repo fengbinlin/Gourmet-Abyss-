@@ -143,6 +143,7 @@ public class PrimaryWeapon : MonoBehaviour
     private Coroutine reloadCoroutine;
     private float primaryReloadDuration = 0.8f;
     private const float reloadTotalSpinDegrees = 1080f; // 充能过程中绕自身Y轴旋转的总角度
+    private const float designPrimaryReloadDuration = 0.8f; // 设计参考：角速度以 0.8s 为基准
 
     // 武器状态
     private Vector3 weaponOriginalScale;
@@ -181,6 +182,20 @@ public class PrimaryWeapon : MonoBehaviour
         criticalChance = WeaponStatsManager.Instance.primaryCriticalChance;
         criticalMultiplier = WeaponStatsManager.Instance.primaryCriticalMultiplier;
         maxTravelDistance = WeaponStatsManager.Instance.primaryMaxTravelDistance;
+    }
+
+    private void OnEnable()
+    {
+        if (WeaponStatsManager.Instance == null) return;
+        WeaponStatsManager.Instance.OnWeaponStatsChanged -= ApplyWeaponStatsFromManager;
+        WeaponStatsManager.Instance.OnWeaponStatsChanged += ApplyWeaponStatsFromManager;
+    }
+
+    private void ApplyWeaponStatsFromManager()
+    {
+        if (WeaponStatsManager.Instance == null) return;
+        // 只更新当前充能时长，不更新 basePrimaryReloadDuration，保证“角速度恒定”
+        primaryReloadDuration = Mathf.Max(0.001f, WeaponStatsManager.Instance.primaryReloadDuration);
     }
     public void Initialize(Animator anim, Camera cam, TopDownController ctrl)
     {
@@ -1113,12 +1128,14 @@ public class PrimaryWeapon : MonoBehaviour
         }
 
         float startTime = Time.time;
+        float effectiveTotalSpinDegrees = GetEffectiveTotalSpinDegrees();
         float prevSpinY = 0f;
         while (Time.time - startTime < primaryReloadDuration)
         {
             float t = (Time.time - startTime) / primaryReloadDuration;
             t = Mathf.Clamp01(t);
-            float spinY = t * reloadTotalSpinDegrees;
+            // 保持“旋转角速度”恒定：如果持续时间变长，就增加总旋转角度
+            float spinY = t * effectiveTotalSpinDegrees;
             float deltaY = spinY - prevSpinY;
             prevSpinY = spinY;
 
@@ -1153,8 +1170,22 @@ public class PrimaryWeapon : MonoBehaviour
         reloadCoroutine = null;
     }
 
+    private float GetEffectiveTotalSpinDegrees()
+    {
+        float currentDuration = Mathf.Max(0.001f, primaryReloadDuration);
+        float baseDuration = Mathf.Max(0.001f, designPrimaryReloadDuration);
+
+        float ratio = currentDuration / baseDuration;
+        return reloadTotalSpinDegrees * ratio;
+    }
+
     private void OnDisable()
     {
+        if (WeaponStatsManager.Instance != null)
+        {
+            WeaponStatsManager.Instance.OnWeaponStatsChanged -= ApplyWeaponStatsFromManager;
+        }
+
         if (reloadCoroutine != null)
         {
             StopCoroutine(reloadCoroutine);

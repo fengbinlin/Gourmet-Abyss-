@@ -31,6 +31,9 @@ public class MonsterSpawnConfig
     [Range(0, 20)]
     public int warmUpCount = 5;
 
+    [Tooltip("预热数量比例：最终预热数 = 有效maxCount * warmUpCountRate。设置为 >=0 时优先使用该比例；设置为 -1 则兼容 warmUpCount 作为旧配置。")]
+    public float warmUpCountRate = -1f;
+
     [Tooltip("是否启用预热")]
     public bool enableWarmUp = true;
 
@@ -61,6 +64,9 @@ public class MonsterSpawnConfig
 
 public class MonsterSpawner : MonoBehaviour
 {
+    [Header("关卡参数ID")]
+    public string statsId = "default";
+
     [Header("刷怪配置")]
     [Tooltip("怪物生成配置列表")]
     public List<MonsterSpawnConfig> spawnConfigs = new List<MonsterSpawnConfig>();
@@ -182,16 +188,17 @@ public class MonsterSpawner : MonoBehaviour
         
         foreach (var config in spawnConfigs)
         {
-            if (config.monsterPrefab != null && config.enableWarmUp && config.warmUpCount > 0)
+            int effectiveMax = GetEffectiveMaxCount(config);
+            int targetCount = GetWarmUpTargetCount(config, effectiveMax);
+
+            if (config.monsterPrefab != null && config.enableWarmUp && targetCount > 0)
             {
-                // 预热数量不能超过最大数量
-                int count = Mathf.Min(config.warmUpCount, config.maxCount);
-                targetWarmUpCounts[config] = count;
-                totalWarmUpMonsters += count;
+                targetWarmUpCounts[config] = targetCount;
+                totalWarmUpMonsters += targetCount;
                 
                 if (showDebug)
                 {
-                    Debug.Log($"{gameObject.name}: {config.monsterPrefab.name} 预热目标: {count}/{config.maxCount}");
+                    Debug.Log($"{gameObject.name}: {config.monsterPrefab.name} 预热目标: {targetCount}/{effectiveMax} (warmUpCountRate={config.warmUpCountRate:F2})");
                 }
             }
         }
@@ -215,17 +222,18 @@ public class MonsterSpawner : MonoBehaviour
         int generatedCount = 0;
         foreach (var config in spawnConfigs)
         {
-            if (config.monsterPrefab != null && config.enableWarmUp && config.warmUpCount > 0)
+            int effectiveMax = GetEffectiveMaxCount(config);
+            int targetCount = GetWarmUpTargetCount(config, effectiveMax);
+
+            if (config.monsterPrefab != null && config.enableWarmUp && targetCount > 0)
             {
-                int targetCount = Mathf.Min(config.warmUpCount, config.maxCount);
-                
                 for (int i = 0; i < targetCount; i++)
                 {
-                    if (config.currentCount >= config.maxCount)
+                    if (config.currentCount >= GetEffectiveMaxCount(config))
                     {
                         if (showDebug)
                         {
-                            Debug.Log($"{gameObject.name}: {config.monsterPrefab.name} 已达到最大数量 {config.maxCount}，停止预热生成");
+                            Debug.Log($"{gameObject.name}: {config.monsterPrefab.name} 已达到最大数量 {GetEffectiveMaxCount(config)}，停止预热生成");
                         }
                         break;
                     }
@@ -298,15 +306,15 @@ public class MonsterSpawner : MonoBehaviour
             // 条件1: 当前数量小于最大数量
             // 条件2: 已经过了等待时间
             // 条件3: 还没有进入快速刷怪模式
-            if (config.currentCount < config.maxCount &&
-                config.timeSinceLastDecrease >= config.waitTimeAfterDecrease &&
+            if (config.currentCount < GetEffectiveMaxCount(config) &&
+                config.timeSinceLastDecrease >= GetEffectiveWaitTimeAfterDecrease(config) &&
                 !config.isInRapidSpawnMode)
             {
                 StartRapidSpawnMode(config);
             }
 
             // 如果已经达到最大数量，停止快速刷怪
-            if (config.currentCount >= config.maxCount && config.isInRapidSpawnMode)
+            if (config.currentCount >= GetEffectiveMaxCount(config) && config.isInRapidSpawnMode)
             {
                 StopRapidSpawnMode(config);
             }
@@ -354,16 +362,16 @@ public class MonsterSpawner : MonoBehaviour
     /// </summary>
     private IEnumerator RapidSpawnRoutine(MonsterSpawnConfig config)
     {
-        while (config.isInRapidSpawnMode && config.currentCount < config.maxCount)
+        while (config.isInRapidSpawnMode && config.currentCount < GetEffectiveMaxCount(config))
         {
             // 生成怪物
             SpawnSpecificMonster(config);
 
             // 等待指定的间隔
-            yield return new WaitForSeconds(config.rapidSpawnInterval);
+            yield return new WaitForSeconds(GetEffectiveRapidSpawnInterval(config));
 
             // 检查是否还需要继续快速刷怪
-            if (config.currentCount >= config.maxCount || !config.isInRapidSpawnMode)
+            if (config.currentCount >= GetEffectiveMaxCount(config) || !config.isInRapidSpawnMode)
             {
                 break;
             }
@@ -396,7 +404,7 @@ public class MonsterSpawner : MonoBehaviour
 
         foreach (var config in spawnConfigs)
         {
-            if (config.monsterPrefab != null && config.currentCount < config.maxCount)
+            if (config.monsterPrefab != null && config.currentCount < GetEffectiveMaxCount(config))
             {
                 availableConfigs.Add(config);
                 probabilities.Add(config.spawnProbability);
@@ -460,7 +468,7 @@ public class MonsterSpawner : MonoBehaviour
     /// </summary>
     private void SpawnSpecificMonster(MonsterSpawnConfig config, bool isWarmUp = false)
     {
-        if (config.currentCount >= config.maxCount) return;
+        if (config.currentCount >= GetEffectiveMaxCount(config)) return;
 
         // 实例化怪物（父物体设为当前脚本所在场景，附加式加载时怪物会留在本场景层级下）
         Vector3 spawnPosition = GetRandomSpawnPosition();
@@ -491,7 +499,7 @@ public class MonsterSpawner : MonoBehaviour
 
         if (showDebug && !isWarmUp)
         {
-            Debug.Log($"{gameObject.name}: 生成 {config.monsterPrefab.name}，当前数量: {config.currentCount}/{config.maxCount}");
+            Debug.Log($"{gameObject.name}: 生成 {config.monsterPrefab.name}，当前数量: {config.currentCount}/{GetEffectiveMaxCount(config)}");
         }
     }
 
@@ -607,7 +615,7 @@ public class MonsterSpawner : MonoBehaviour
         if (configIndex >= 0 && configIndex < spawnConfigs.Count)
         {
             var config = spawnConfigs[configIndex];
-            if (!config.isInRapidSpawnMode && config.currentCount < config.maxCount)
+            if (!config.isInRapidSpawnMode && config.currentCount < GetEffectiveMaxCount(config))
             {
                 StartRapidSpawnMode(config);
             }
@@ -630,7 +638,7 @@ public class MonsterSpawner : MonoBehaviour
             if (config.monsterPrefab != null)
             {
                 status += $"  {config.monsterPrefab.name}: {config.currentCount}/{config.maxCount} ";
-                status += $"(预热: {config.warmUpCount}, 等待: {config.timeSinceLastDecrease:F1}/{config.waitTimeAfterDecrease:F1}s) ";
+                status += $"(预热: {config.warmUpCount}, 等待: {config.timeSinceLastDecrease:F1}/{GetEffectiveWaitTimeAfterDecrease(config):F1}s) ";
                 status += $"{(config.isInRapidSpawnMode ? "[补充中]" : "")}\n";
             }
         }
@@ -794,6 +802,62 @@ public class MonsterSpawner : MonoBehaviour
         {
             StopCoroutine(warmUpCoroutine);
         }
+    }
+
+    private int GetEffectiveMaxCount(MonsterSpawnConfig config)
+    {
+        float rate = 1f;
+        if (WeaponStatsManager.Instance != null)
+        {
+            rate = WeaponStatsManager.Instance.GetMonsterCountRate(statsId);
+        }
+
+        return Mathf.Max(1, Mathf.RoundToInt(config.maxCount * rate));
+    }
+
+    private float GetEffectiveRapidSpawnInterval(MonsterSpawnConfig config)
+    {
+        float rate = 1f;
+        if (WeaponStatsManager.Instance != null)
+        {
+            rate = WeaponStatsManager.Instance.GetMonsterRapidSpawnIntervalRate(statsId);
+        }
+
+        return Mathf.Max(0.01f, config.rapidSpawnInterval * rate);
+    }
+
+    private float GetEffectiveWaitTimeAfterDecrease(MonsterSpawnConfig config)
+    {
+        float rate = 1f;
+        if (WeaponStatsManager.Instance != null)
+        {
+            rate = WeaponStatsManager.Instance.GetMonsterWaitTimeRate(statsId);
+        }
+
+        return Mathf.Max(0.01f, config.waitTimeAfterDecrease * rate);
+    }
+
+    private int GetWarmUpTargetCount(MonsterSpawnConfig config, int effectiveMaxCount)
+    {
+        effectiveMaxCount = Mathf.Max(1, effectiveMaxCount);
+
+        // warmUpCountRate >= 0 时优先使用比例
+        if (config.warmUpCountRate >= 0f)
+        {
+            float ratio = Mathf.Clamp01(config.warmUpCountRate);
+            int target = Mathf.RoundToInt(effectiveMaxCount * ratio);
+            return Mathf.Clamp(target, 0, effectiveMaxCount);
+        }
+
+        // 兼容旧配置：把 warmUpCount 转成比例后再乘有效maxCount
+        if (config.maxCount > 0)
+        {
+            float ratio = Mathf.Clamp01(config.warmUpCount / (float)config.maxCount);
+            int target = Mathf.RoundToInt(effectiveMaxCount * ratio);
+            return Mathf.Clamp(target, 0, effectiveMaxCount);
+        }
+
+        return 0;
     }
 }
 

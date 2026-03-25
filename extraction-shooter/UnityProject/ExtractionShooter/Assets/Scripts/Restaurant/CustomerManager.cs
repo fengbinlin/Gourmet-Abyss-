@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using UnityEngine.UI;
 public class CustomerManager : MonoBehaviour
 {
     public static CustomerManager instance;
@@ -25,6 +26,7 @@ public class CustomerManager : MonoBehaviour
     [Header("餐厅人数限制")]
     public int maxCustomersInside = 3;
     public float queueSpacing = 1.5f;
+    public Text restaurantCustomerCountText;
 
     [Header("自动生成设置")]
     public bool enableAutoSpawn = true; // 是否启用自动生成
@@ -42,6 +44,7 @@ public class CustomerManager : MonoBehaviour
     public Transform moneyBoxTransform;
     // 🔹 当前正在与玩家交互的 NPC（全局唯一）
     public CustomerNPC currentInteractingNPC = null;
+    private bool hasSubscribedCustomerStats = false;
     void Awake()
     {
         instance = this;
@@ -49,11 +52,29 @@ public class CustomerManager : MonoBehaviour
 
     void Start()
     {
+        StartCoroutine(WaitAndBindCustomerStats());
+        UpdateCustomerCountDisplay();
+
         // 设置第一次自动生成时间
         if (enableAutoSpawn)
         {
             nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
         }
+    }
+
+    private void OnEnable()
+    {
+        TrySubscribeCustomerStats();
+        StartCoroutine(WaitAndBindCustomerStats());
+    }
+
+    private void OnDisable()
+    {
+        if (WeaponStatsManager.Instance != null && hasSubscribedCustomerStats)
+        {
+            WeaponStatsManager.Instance.OnCustomerStatsChanged -= ApplyCustomerStatsFromManager;
+        }
+        hasSubscribedCustomerStats = false;
     }
 
     void Update()
@@ -86,6 +107,8 @@ public class CustomerManager : MonoBehaviour
             //print("DA测试相互喜欢的顾客");
             CheckForLikedPairChat();
         }
+
+        UpdateCustomerCountDisplay();
     }
 
     // 生成顾客
@@ -118,10 +141,17 @@ public class CustomerManager : MonoBehaviour
             }
         }
 
-        // 1️⃣ 筛选可生成的预制体：跳过已经是厨师的类型
-        List<GameObject> availablePrefabs = new List<GameObject>();
-        foreach (var prefab in customerPrefabs)
+        // 1️⃣ 筛选可生成的预制体：只使用前N个，并跳过已经是厨师的类型
+        int allowedPrefabCount = customerPrefabs.Count;
+        if (WeaponStatsManager.Instance != null)
         {
+            allowedPrefabCount = Mathf.Clamp(WeaponStatsManager.Instance.restaurantCustomerPrefabCount, 1, customerPrefabs.Count);
+        }
+
+        List<GameObject> availablePrefabs = new List<GameObject>();
+        for (int i = 0; i < allowedPrefabCount; i++)
+        {
+            GameObject prefab = customerPrefabs[i];
             if (prefab == null) continue;
 
             CustomerNPC prefabNPC = prefab.GetComponent<CustomerNPC>();
@@ -155,11 +185,9 @@ public class CustomerManager : MonoBehaviour
         // 3️⃣ 记录这个NPC类型
         activeNPCTypes.Add(selectedType);
 
-        // 4️⃣ 生成并初始化（挂到 SceneTitle 单例下便于场景层级管理）
+        // 4️⃣ 生成并初始化（挂到 CustomerManager 自身下便于层级管理）
         Transform randomSpawn = spawnPoints[Random.Range(0, spawnPoints.Count)];
-        GameObject go = Instantiate(selectedPrefab, randomSpawn.position, Quaternion.identity);
-        if (SceneTitle.instance != null)
-            go.transform.SetParent(SceneTitle.instance.transform);
+        GameObject go = Instantiate(selectedPrefab, randomSpawn.position, Quaternion.identity, transform);
         CustomerNPC npcInstance = go.GetComponent<CustomerNPC>();
 
         npcInstance.Init();
@@ -187,6 +215,7 @@ public class CustomerManager : MonoBehaviour
 
         // ✅ 最后加入顾客列表
         activeCustomers.Add(npcInstance);
+        UpdateCustomerCountDisplay();
     }
     // 处理顾客到入口
     // 所有顾客都先排队进入餐厅
@@ -357,6 +386,47 @@ public class CustomerManager : MonoBehaviour
         {
             UpdateQueueMemberPositions();
         }
+
+        UpdateCustomerCountDisplay();
+    }
+
+    private void ApplyCustomerStatsFromManager()
+    {
+        if (WeaponStatsManager.Instance == null) return;
+
+        maxCustomersInside = Mathf.Max(1, WeaponStatsManager.Instance.restaurantMaxCustomersInside);
+        maxTotalCustomers = Mathf.Max(1, WeaponStatsManager.Instance.restaurantMaxTotalCustomers);
+        UpdateCustomerCountDisplay();
+    }
+
+    private void TrySubscribeCustomerStats()
+    {
+        if (WeaponStatsManager.Instance == null || hasSubscribedCustomerStats) return;
+
+        WeaponStatsManager.Instance.OnCustomerStatsChanged -= ApplyCustomerStatsFromManager;
+        WeaponStatsManager.Instance.OnCustomerStatsChanged += ApplyCustomerStatsFromManager;
+        hasSubscribedCustomerStats = true;
+    }
+
+    private IEnumerator WaitAndBindCustomerStats()
+    {
+        float timeout = 5f;
+        while (WeaponStatsManager.Instance == null && timeout > 0f)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        TrySubscribeCustomerStats();
+        ApplyCustomerStatsFromManager();
+    }
+
+    private void UpdateCustomerCountDisplay()
+    {
+        if (restaurantCustomerCountText == null) return;
+
+        int insideCount = GetInsideCustomerCount();
+        restaurantCustomerCountText.text = $"餐厅人数: {insideCount}/{maxCustomersInside}";
     }
 
     // 获取随机生成点（用于生成顾客）

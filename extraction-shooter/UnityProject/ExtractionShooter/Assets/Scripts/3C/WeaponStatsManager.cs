@@ -16,6 +16,16 @@ public class EnemyLootBinding
     public float lootDensityMultiplier = 1f; // 乘积因子
 }
 
+[System.Serializable]
+public class LevelParamRateItem
+{
+    public string id;
+    public float monsterCountRate = 1f;
+    public float monsterRapidSpawnIntervalRate = 1f;
+    public float monsterWaitTimeRate = 1f;
+    public float propProbabilityRate = 1f;
+}
+
 public class WeaponStatsManager : MonoBehaviour
 {
     public static WeaponStatsManager Instance { get; private set; }
@@ -60,6 +70,20 @@ public class WeaponStatsManager : MonoBehaviour
     public int shopSlotCount = 4;
     public int slotCapacity = 4;
 
+    [Header("餐厅数值")]
+    public int restaurantPotCount = 3;
+    public int restaurantPlateCount = 3;
+    [Tooltip("烹饪时间倍率：最终时间 = 原时间 * cookingTimeMultiplier")]
+    public float cookingTimeMultiplier = 1f;
+    [Tooltip("售卖价格加成比例：最终价格 = 原价格 * (1 + restaurantSellBonusRate)")]
+    public float restaurantSellBonusRate = 0f;
+
+    [Header("顾客数值")]
+    public int restaurantCustomerPrefabCount = 3;
+    public int restaurantMaxCustomersInside = 3;
+    public int restaurantMaxTotalCustomers = 20;
+    public float customerMoveSpeedMultiplier = 1f;
+
     [Header("背包数值")]
     public int inventorySlotCount = 4;        // 背包插槽个数
     public int inventorySlotCapacity = 4;    // 背包每个插槽的容量
@@ -92,6 +116,9 @@ public class WeaponStatsManager : MonoBehaviour
     public List<MapDensityBinding> mapDensityBindings = new List<MapDensityBinding>();
     [Tooltip("各掉落物专属密度乘积绑定")]
     public List<EnemyLootBinding> enemtLootDensityBindings = new List<EnemyLootBinding>();
+
+    [Header("关卡参数")]
+    public List<LevelParamRateItem> levelParamRateItems = new List<LevelParamRateItem>();
     // 运行时用的快速查找字典
     private Dictionary<string, float> mapDensityMultipliers = new Dictionary<string, float>();
 
@@ -99,6 +126,10 @@ public class WeaponStatsManager : MonoBehaviour
     public event System.Action OnShopStatsChanged;
     public event System.Action OnInventoryStatsChanged;
     public event System.Action OnBattleStatsChanged;
+    public event System.Action OnRestaurantStatsChanged;
+    public event System.Action OnCustomerStatsChanged;
+    public event System.Action OnLevelStatsChanged;
+    public event System.Action OnWeaponStatsChanged;
 
     private void Awake()
     {
@@ -115,6 +146,29 @@ public class WeaponStatsManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        // 让 Inspector 里直接改值也能实时同步到餐厅
+        restaurantPotCount = Mathf.Max(1, restaurantPotCount);
+        restaurantPlateCount = Mathf.Max(1, restaurantPlateCount);
+        cookingTimeMultiplier = Mathf.Max(0.01f, cookingTimeMultiplier);
+        restaurantSellBonusRate = Mathf.Max(0f, restaurantSellBonusRate);
+        restaurantCustomerPrefabCount = Mathf.Max(1, restaurantCustomerPrefabCount);
+        restaurantMaxCustomersInside = Mathf.Max(1, restaurantMaxCustomersInside);
+        restaurantMaxTotalCustomers = Mathf.Max(1, restaurantMaxTotalCustomers);
+        customerMoveSpeedMultiplier = Mathf.Max(0.01f, customerMoveSpeedMultiplier);
+
+        if (Instance == this)
+        {
+            OnRestaurantStatsChanged?.Invoke();
+            OnCustomerStatsChanged?.Invoke();
+            OnLevelStatsChanged?.Invoke();
+            OnWeaponStatsChanged?.Invoke();
+        }
+    }
+#endif
 
     /// <summary>
     /// 从List重建字典
@@ -146,6 +200,38 @@ public class WeaponStatsManager : MonoBehaviour
         OnBattleStatsChanged?.Invoke();
     }
 
+    public void OnRestaurantStatsChangedInvoke()
+    {
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void OnCustomerStatsChangedInvoke()
+    {
+        OnCustomerStatsChanged?.Invoke();
+    }
+
+    public void OnLevelStatsChangedInvoke()
+    {
+        OnLevelStatsChanged?.Invoke();
+    }
+
+    public void OnWeaponStatsChangedInvoke()
+    {
+        OnWeaponStatsChanged?.Invoke();
+    }
+
+    public void SetPrimaryReloadDuration(float duration)
+    {
+        primaryReloadDuration = Mathf.Max(0.01f, duration);
+        OnWeaponStatsChanged?.Invoke();
+    }
+
+    public void SetSecondaryReloadDuration(float duration)
+    {
+        secondaryReloadDuration = Mathf.Max(0.01f, duration);
+        OnWeaponStatsChanged?.Invoke();
+    }
+
     public void SetSellPriceMultiplier(float multiplier)
     {
         sellPriceMultiplier = multiplier;
@@ -168,6 +254,54 @@ public class WeaponStatsManager : MonoBehaviour
     {
         slotCapacity = capacity;
         OnShopStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantPotCount(int count)
+    {
+        restaurantPotCount = Mathf.Max(1, count);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantPlateCount(int count)
+    {
+        restaurantPlateCount = Mathf.Max(1, count);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetCookingTimeMultiplier(float multiplier)
+    {
+        cookingTimeMultiplier = Mathf.Max(0.01f, multiplier);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantSellBonusRate(float bonusRate)
+    {
+        restaurantSellBonusRate = Mathf.Max(0f, bonusRate);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantCustomerPrefabCount(int count)
+    {
+        restaurantCustomerPrefabCount = Mathf.Max(1, count);
+        OnCustomerStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantMaxCustomersInside(int count)
+    {
+        restaurantMaxCustomersInside = Mathf.Max(1, count);
+        OnCustomerStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantMaxTotalCustomers(int count)
+    {
+        restaurantMaxTotalCustomers = Mathf.Max(1, count);
+        OnCustomerStatsChanged?.Invoke();
+    }
+
+    public void SetCustomerMoveSpeedMultiplier(float multiplier)
+    {
+        customerMoveSpeedMultiplier = Mathf.Max(0.01f, multiplier);
+        OnCustomerStatsChanged?.Invoke();
     }
 
     /// <summary>
@@ -301,6 +435,40 @@ public class WeaponStatsManager : MonoBehaviour
         {
             return defaultMapDensityMultiplier;
         }
+    }
+
+    public float GetMonsterCountRate(string id)
+    {
+        return GetLevelRateItem(id)?.monsterCountRate ?? 1f;
+    }
+
+    public float GetMonsterRapidSpawnIntervalRate(string id)
+    {
+        return GetLevelRateItem(id)?.monsterRapidSpawnIntervalRate ?? 1f;
+    }
+
+    public float GetMonsterWaitTimeRate(string id)
+    {
+        return GetLevelRateItem(id)?.monsterWaitTimeRate ?? 1f;
+    }
+
+    public float GetPropProbabilityRate(string id)
+    {
+        return GetLevelRateItem(id)?.propProbabilityRate ?? 1f;
+    }
+
+    private LevelParamRateItem GetLevelRateItem(string id)
+    {
+        if (string.IsNullOrEmpty(id) || levelParamRateItems == null) return null;
+
+        for (int i = 0; i < levelParamRateItems.Count; i++)
+        {
+            LevelParamRateItem item = levelParamRateItems[i];
+            if (item == null) continue;
+            if (item.id == id) return item;
+        }
+
+        return null;
     }
 
     /// <summary>

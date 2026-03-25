@@ -199,6 +199,7 @@ MonoBehaviour:
   rb: {fileID: 581884878868557643}
   spawnHeight: 3
   randomHorizontalRange: 0
+  spawnHorizontalRangeFallback: 0.6
   initialTorque: 50
   gravityScale: 1
   destroyDelayAfterHit: 0
@@ -206,3 +207,11 @@ MonoBehaviour:
   potDistanceThreshold: 1
   ingredientType: 0
   hasLandedInPot: 0
+  stirVerticalAmplitude: 0.5
+  stirVerticalFrequency: 9
+  stirHorizontalAmplitude: 0.5
+  stirHorizontalNoiseSpeed: 3.6
+  stirRotateSpeed: 180
+  stirEaseInTime: 0.2
+  landedInsidePotHorizontalRange: 0.24
+  destroyDelayAfterCookDone: 0

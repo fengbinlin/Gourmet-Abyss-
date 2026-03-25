@@ -24,23 +24,154 @@ public class RestaurantPanel : MonoBehaviour
     private List<GameObject> currentDishes = new List<GameObject>();
     [Header("锅数据")]
     public List<Pot> potsList = new List<Pot>(); //餐厅有的锅
+    [Header("锅数据（全部候选）")]
+    public List<Pot> allPots = new List<Pot>();
     [Header("食材实例效果")]
     public GameObject ingredientInstancePrefab;  // 食材实例预制体
     public Transform ingredientSpawnParent;      // 生成父物体
     [Header("菜碟配置")]
     public List<Plate> platesList = new List<Plate>(); //餐厅有的菜碟
+    [Header("菜碟配置（全部候选）")]
+    public List<Plate> allPlates = new List<Plate>();
     void Awake()
     {
         instance = this;
+
+        if (allPots.Count == 0 && potsList.Count > 0)
+        {
+            allPots.AddRange(potsList);
+        }
+
+        if (allPlates.Count == 0 && platesList.Count > 0)
+        {
+            allPlates.AddRange(platesList);
+        }
+
+        // 不在这里强制同步：避免 WeaponStatsManager 加载顺序导致 Instance 为空
+    }
+
+    private void OnEnable()
+    {
+        if (WeaponStatsManager.Instance != null)
+        {
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncRestaurantUnitsFromStats;
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged += SyncRestaurantUnitsFromStats;
+        }
+
+        // 无论菜单UI能否立即生成，都先确保锅/盘数量同步（隐藏多余对象）
+        StartCoroutine(WaitAndSyncRestaurantUnits());
+
+        if (GameValManager.Instance == null || foodItemParent == null) return;
+        GenerateFoodItems();
+        GenerateDishList();
+    }
+
+    private void OnDisable()
+    {
+        if (WeaponStatsManager.Instance != null)
+        {
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncRestaurantUnitsFromStats;
+        }
+    }
+
+    private IEnumerator WaitAndSyncRestaurantUnits()
+    {
+        // 等待 WeaponStatsManager 单例创建完成
+        float timeout = 3f;
+        while (WeaponStatsManager.Instance == null && timeout > 0f)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (WeaponStatsManager.Instance != null)
+        {
+            // 确保无论加载顺序如何，都能订阅到实时变更事件
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncRestaurantUnitsFromStats;
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged += SyncRestaurantUnitsFromStats;
+        }
+
+        SyncRestaurantUnitsFromStats();
     }
     /// <summary>
     /// 每次面板显示时刷新：根据 GameValManager 重新生成食材种类与数量、菜肴列表。
     /// </summary>
-    void OnEnable()
+    
+    private void SyncRestaurantUnitsFromStats()
     {
-        if (GameValManager.Instance == null || foodItemParent == null) return;
-        GenerateFoodItems();
-        GenerateDishList();
+        if (WeaponStatsManager.Instance == null)
+        {
+            return;
+        }
+
+        EnsureAllUnitsPopulated();
+        SyncPotsByCount(WeaponStatsManager.Instance.restaurantPotCount);
+        SyncPlatesByCount(WeaponStatsManager.Instance.restaurantPlateCount);
+    }
+
+    private void EnsureAllUnitsPopulated()
+    {
+        // 兜底：如果 Inspector 没填 allPots/allPlates，则自动从场景里收集（包含未激活对象）
+        if (allPots == null) allPots = new List<Pot>();
+        if (allPlates == null) allPlates = new List<Plate>();
+
+        if (allPots.Count == 0)
+        {
+            Pot[] potsInScene = FindObjectsOfType<Pot>(true);
+            allPots.AddRange(potsInScene);
+        }
+
+        if (allPlates.Count == 0)
+        {
+            Plate[] platesInScene = FindObjectsOfType<Plate>(true);
+            allPlates.AddRange(platesInScene);
+        }
+    }
+
+    private void SyncPotsByCount(int targetCount)
+    {
+        potsList.Clear();
+
+        int activeCount = Mathf.Clamp(targetCount, 0, allPots.Count);
+        for (int i = 0; i < allPots.Count; i++)
+        {
+            Pot pot = allPots[i];
+            if (pot == null) continue;
+
+            bool shouldActive = i < activeCount;
+            if (pot.gameObject.activeSelf != shouldActive)
+            {
+                pot.gameObject.SetActive(shouldActive);
+            }
+
+            if (shouldActive)
+            {
+                potsList.Add(pot);
+            }
+        }
+    }
+
+    private void SyncPlatesByCount(int targetCount)
+    {
+        platesList.Clear();
+
+        int activeCount = Mathf.Clamp(targetCount, 0, allPlates.Count);
+        for (int i = 0; i < allPlates.Count; i++)
+        {
+            Plate plate = allPlates[i];
+            if (plate == null) continue;
+
+            bool shouldActive = i < activeCount;
+            if (plate.gameObject.activeSelf != shouldActive)
+            {
+                plate.gameObject.SetActive(shouldActive);
+            }
+
+            if (shouldActive)
+            {
+                platesList.Add(plate);
+            }
+        }
     }
     public void GenerateFoodItems()
     {

@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class PropSpawnerManager : MonoBehaviour
 {
+    [Header("关卡参数ID")]
+    public string statsId = "default";
+
     [Header("Spawner管理")]
     [Tooltip("参与抽样的 PropSpawner 列表")]
     public List<PropSpawner> propSpawners = new List<PropSpawner>();
@@ -42,8 +45,9 @@ public class PropSpawnerManager : MonoBehaviour
         }
 
         int total = available.Count;
-        int targetCount = Mathf.RoundToInt(total * Mathf.Clamp01(spawnSpawnerPercent));
-        if (ensureAtLeastOneWhenPositivePercent && spawnSpawnerPercent > 0f)
+        float effectivePercent = GetEffectiveSpawnSpawnerPercent();
+        int targetCount = Mathf.RoundToInt(total * effectivePercent);
+        if (ensureAtLeastOneWhenPositivePercent && effectivePercent > 0f)
         {
             targetCount = Mathf.Max(1, targetCount);
         }
@@ -63,7 +67,7 @@ public class PropSpawnerManager : MonoBehaviour
 
         if (showDebug)
         {
-            Debug.Log($"{gameObject.name}: 计划生成 {targetCount}/{total} 个Spawner，实际成功 {success}。");
+            Debug.Log($"{gameObject.name}: 计划生成 {targetCount}/{total} 个Spawner，实际成功 {success}。概率倍率后Percent={effectivePercent:F2}");
         }
     }
 
@@ -104,6 +108,17 @@ public class PropSpawnerManager : MonoBehaviour
             list[i] = list[j];
             list[j] = tmp;
         }
+    }
+
+    private float GetEffectiveSpawnSpawnerPercent()
+    {
+        float rate = 1f;
+        if (WeaponStatsManager.Instance != null)
+        {
+            rate = WeaponStatsManager.Instance.GetPropProbabilityRate(statsId);
+        }
+
+        return Mathf.Clamp01(spawnSpawnerPercent * rate);
     }
 }
 
