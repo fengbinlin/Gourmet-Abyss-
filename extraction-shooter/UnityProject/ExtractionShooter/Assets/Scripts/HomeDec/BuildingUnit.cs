@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 /// <summary>建筑单元类型枚举</summary>
 public enum BuildingUnitType
 {
@@ -36,6 +39,17 @@ public class BuildingUnit : MonoBehaviour
     [HideInInspector]
     public BuildingUnit originPrefab; // 来源预制体引用，用于重新生成摆放阶段实例
 
+    [Header("占用掩码 — Scene 调试")]
+    [Tooltip("未选中物体时也在 Scene 中绘制占用预览")]
+    public bool showOccupancyInScene = true;
+    [Tooltip("在每个格子中心显示「占 / 空」文字（仅编辑器）")]
+    public bool showOccupancyCellLabels = false;
+    public Color occupyGizmoBoundsColor = new Color(0.25f, 0.55f, 1f, 0.95f);
+    public Color occupyGizmoOccupiedFillColor = new Color(0.15f, 0.8f, 0.3f, 0.35f);
+    public Color occupyGizmoOccupiedWireColor = new Color(0.1f, 0.65f, 0.2f, 1f);
+    public Color occupyGizmoEmptyFillColor = new Color(0.55f, 0.55f, 0.6f, 0.12f);
+    public Color occupyGizmoEmptyWireColor = new Color(0.45f, 0.45f, 0.5f, 0.65f);
+
     [Header("视觉反馈")]
     public Color normalColor = Color.white;
     public Color selectedColor = Color.yellow;
@@ -46,12 +60,49 @@ public class BuildingUnit : MonoBehaviour
     private Vector2Int gridBasePosition;
 
     private GridManager cachedGridManager;
+
+    /// <summary>
+    /// 解析当前 <see cref="gridId"/> 对应的网格；cellSize / 世界坐标均应以该对象为准。
+    /// </summary>
     private GridManager GetGridManager()
     {
-        if (cachedGridManager != null) return cachedGridManager;
-        cachedGridManager = GridManager.GetById(gridId);
-        if (cachedGridManager == null) cachedGridManager = GridManager.Instance; // 兼容旧场景/旧逻辑
-        return cachedGridManager;
+        if (cachedGridManager == null || cachedGridManager.gridId != gridId)
+            cachedGridManager = null;
+
+        if (cachedGridManager != null)
+            return cachedGridManager;
+
+        GridManager gm = GridManager.GetById(gridId);
+        if (gm != null)
+        {
+            cachedGridManager = gm;
+            return cachedGridManager;
+        }
+
+#if UNITY_EDITOR
+        // 编辑模式下尚未 Awake/注册时，GetById 可能为空，按编号在场景中查找以正确取 cellSize
+        if (!Application.isPlaying)
+        {
+            GridManager[] inScene = Object.FindObjectsByType<GridManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < inScene.Length; i++)
+            {
+                if (inScene[i] != null && inScene[i].gridId == gridId)
+                {
+                    cachedGridManager = inScene[i];
+                    return cachedGridManager;
+                }
+            }
+        }
+#endif
+
+        // 仅当默认实例与当前 gridId 一致时使用，避免误用其他网格的 cellSize
+        if (GridManager.Instance != null && GridManager.Instance.gridId == gridId)
+        {
+            cachedGridManager = GridManager.Instance;
+            return cachedGridManager;
+        }
+
+        return null;
     }
 
     public bool canRotate = true;
@@ -345,27 +396,76 @@ public class BuildingUnit : MonoBehaviour
         // 如果是矩形建筑，这里会返回交换后的尺寸，但你的建筑是方形的，所以尺寸不变
     }
 
+    private void OnDrawGizmos()
+    {
+        if (!showOccupancyInScene)
+            return;
+        DrawOccupancyGizmos(false);
+    }
+
     private void OnDrawGizmosSelected()
     {
-        if (occupyMaskFlat == null || occupyMaskFlat.Length != size * size) return;
-        GridManager gm = GetGridManager();
-        if (gm == null) return;
+        // 与 OnDrawGizmos 二选一，避免选中时重复叠加绘制
+        if (showOccupancyInScene)
+            return;
+        DrawOccupancyGizmos(true);
+    }
 
-        Gizmos.color = Color.cyan;
+    private void DrawOccupancyGizmos(bool selected)
+    {
+        if (occupyMaskFlat == null || occupyMaskFlat.Length != size * size || size <= 0)
+            return;
+
+        GridManager gm = GetGridManager();
+        float cs = gm != null ? gm.cellSize : 1f;
+        Vector3 half = new Vector3(cs * 0.5f, cs * 0.5f, 0f);
+        float fillScale = selected ? 0.88f : 0.82f;
+
+        // 整体 S×S 范围外框（与当前旋转/镜像下的格子布局一致）
+        Gizmos.color = occupyGizmoBoundsColor;
+        Vector3 c00 = transform.position + GetCellWorldOffset(0, 0);
+        Vector3 c10 = transform.position + GetCellWorldOffset(size - 1, 0);
+        Vector3 c11 = transform.position + GetCellWorldOffset(size - 1, size - 1);
+        Vector3 c01 = transform.position + GetCellWorldOffset(0, size - 1);
+        Gizmos.DrawLine(c00 + half, c10 + half);
+        Gizmos.DrawLine(c10 + half, c11 + half);
+        Gizmos.DrawLine(c11 + half, c01 + half);
+        Gizmos.DrawLine(c01 + half, c00 + half);
+
         for (int x = 0; x < size; x++)
         {
             for (int y = 0; y < size; y++)
             {
-                if (!GetOccupy(x, y)) continue;
+                bool occupies = GetOccupy(x, y);
+                Vector3 cellCorner = transform.position + GetCellWorldOffset(x, y);
+                Vector3 center = cellCorner + half;
 
-                // 考虑旋转和锚点偏移
-                Vector3 cellOffset = GetCellWorldOffset(x, y);
-                Vector3 pos = transform.position + cellOffset;
+                if (occupies)
+                {
+                    Gizmos.color = occupyGizmoOccupiedFillColor;
+                    Gizmos.DrawCube(center, Vector3.one * (cs * fillScale));
+                    Gizmos.color = occupyGizmoOccupiedWireColor;
+                }
+                else
+                {
+                    Gizmos.color = occupyGizmoEmptyFillColor;
+                    Gizmos.DrawCube(center, Vector3.one * (cs * fillScale * 0.85f));
+                    Gizmos.color = occupyGizmoEmptyWireColor;
+                }
 
-                Gizmos.DrawWireCube(
-                    pos + new Vector3(gm.cellSize / 2, gm.cellSize / 2, 0),
-                    Vector3.one * gm.cellSize * 0.9f
-                );
+                Gizmos.DrawWireCube(center, Vector3.one * (cs * fillScale));
+
+#if UNITY_EDITOR
+                if (showOccupancyCellLabels)
+                {
+                    var style = new GUIStyle();
+                    style.normal.textColor = occupies ? occupyGizmoOccupiedWireColor : occupyGizmoEmptyWireColor;
+                    style.fontSize = 11;
+                    style.fontStyle = FontStyle.Bold;
+                    style.alignment = TextAnchor.MiddleCenter;
+                    Handles.Label(center, occupies ? "占" : "空", style);
+                }
+#endif
             }
         }
     }
@@ -377,17 +477,16 @@ public class BuildingUnit : MonoBehaviour
         GridManager gm = GetGridManager();
         float cs = gm != null ? gm.cellSize : 1f;
         if (!isRotated)
-        {
-            // 原始方向：直接使用x,y
             return new Vector3(x * cs, y * cs, 0);
-        }
-        else
+
+        if (rotationMode == RotationMode.Rotate90)
         {
-            // 旋转90度：确保锚点始终在左下角
-            // 旋转后，x轴对应原来的y轴，y轴对应原来的反向x轴
             float offsetX = y * cs;
             float offsetY = (size - 1 - x) * cs;
             return new Vector3(offsetX, offsetY, 0);
         }
+
+        // MirrorHorizontal：世界空间仍按 (x,y) 铺格，仅掩码在 X 方向镜像
+        return new Vector3(x * cs, y * cs, 0);
     }
 }

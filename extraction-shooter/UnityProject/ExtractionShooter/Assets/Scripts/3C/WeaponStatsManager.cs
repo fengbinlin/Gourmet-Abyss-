@@ -67,6 +67,8 @@ public class WeaponStatsManager : MonoBehaviour
     [Header("氧气与弹药数值")]
     public float oxygenMax = 100f;                // 氧气总量
     public float oxygenConsumeRate = 1f;          // 氧气每秒消耗速度
+    [Tooltip("BOSS 攻击命中时：伤害数值 × 该系数 = 扣除的氧气量")]
+    public float bossDamageToOxygenMultiplier = 1f;
     public int primaryAmmoMax = 100;                // 主武器弹容量
     public int primaryAmmoConsumePerShot = 1;         // 主武器每次射击消耗
     public int secondaryAmmoMax = 50;               // 副武器弹容量

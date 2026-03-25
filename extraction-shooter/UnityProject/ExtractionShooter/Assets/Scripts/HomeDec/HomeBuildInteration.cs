@@ -41,6 +41,7 @@ public class HomeBuildInteration : MonoBehaviour
 
         if (activateGridOnEnter)
             ActivateAllGrids();
+        // Game 视图网格改为仅在拖拽 BuildUnit 时按 gridId 显示，见 BuildController
 
         RefreshCache();
         SetBuildControllersEnabled(true);
@@ -62,6 +63,7 @@ public class HomeBuildInteration : MonoBehaviour
     private void ExitInteractionMode()
     {
         isInteracting = false;
+        SetAllGridsGameViewVisible(false);
         // 退出时先刷新缓存，确保把“交互过程中新增生成的家具”也一起禁用
         RefreshCache();
         SetBuildControllersEnabled(false);
@@ -101,6 +103,17 @@ public class HomeBuildInteration : MonoBehaviour
         {
             if (g == null) continue;
             g.ActivateInstance(false);
+        }
+    }
+
+    /// <summary>所有场景内 GridManager 在 Game 视图中显示/隐藏运行时网格线。</summary>
+    private void SetAllGridsGameViewVisible(bool visible)
+    {
+        GridManager[] grids = FindObjectsOfType<GridManager>(true);
+        foreach (var g in grids)
+        {
+            if (g == null) continue;
+            g.SetGameViewGridVisible(visible);
         }
     }
 

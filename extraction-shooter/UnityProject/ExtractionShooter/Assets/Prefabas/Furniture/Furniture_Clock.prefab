@@ -72,7 +72,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_Sprite: {fileID: 21300000, guid: 4eb4704189f614244a811b93fa2c8a34, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -140,6 +140,13 @@ MonoBehaviour:
   isSelected: 0
   selectedByPlayer: 
   originPrefab: {fileID: 0}
+  showOccupancyInScene: 1
+  showOccupancyCellLabels: 0
+  occupyGizmoBoundsColor: {r: 0.25, g: 0.55, b: 1, a: 0.95}
+  occupyGizmoOccupiedFillColor: {r: 0.15, g: 0.8, b: 0.3, a: 0.35}
+  occupyGizmoOccupiedWireColor: {r: 0.1, g: 0.65, b: 0.2, a: 1}
+  occupyGizmoEmptyFillColor: {r: 0.55, g: 0.55, b: 0.6, a: 0.12}
+  occupyGizmoEmptyWireColor: {r: 0.45, g: 0.45, b: 0.5, a: 0.65}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   rotationMode: 0
@@ -156,6 +163,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd6ea412270c98747b8cf86aa210aad5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gridStepPulsePeak: 1.06
+  gridStepPulseHalfTime: 0.06
 --- !u!61 &9049348781106846577
 BoxCollider2D:
   m_ObjectHideFlags: 0

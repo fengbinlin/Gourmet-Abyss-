@@ -76,6 +76,7 @@ public class EnemyHealth : MonoBehaviour
     private Vector3 originalScale;
     private CameraFollow cameraFollow;
     private EnemyAI enemyAI;
+    private BossAI bossAI;
     private Vector3 lastHitDirection; // 记录最后一次被击中的方向
     private Vector3 lastHitPoint; // 记录最后一次击中点
     private bool isDead = false;
@@ -101,6 +102,7 @@ public class EnemyHealth : MonoBehaviour
             
         cameraFollow = FindFirstObjectByType<CameraFollow>();
         enemyAI = GetComponent<EnemyAI>();
+        bossAI = GetComponent<BossAI>();
         
         // 初始化进度条
         InitializeHealthBar();
@@ -295,13 +297,14 @@ public class EnemyHealth : MonoBehaviour
         }
         
         lastHitPoint = hitPoint;
-        
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal));
-        
-        if (enemyAI != null)
-        {
+
+        bool playHitAnim = true;
+        if (bossAI != null)
+            playHitAnim = bossAI.OnHit();
+        else if (enemyAI != null)
             enemyAI.OnHit();
-        }
+
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
         
         if (currentHealth <= 0)
         {
@@ -332,13 +335,14 @@ public class EnemyHealth : MonoBehaviour
         // 调试：绘制子弹方向
         Debug.DrawRay(bulletPosition, bulletDirection * 2f, Color.red, 2f);
         Debug.DrawRay(hitPoint, lastHitDirection * 2f, Color.blue, 2f);
-        
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal));
-        
-        if (enemyAI != null)
-        {
+
+        bool playHitAnim = true;
+        if (bossAI != null)
+            playHitAnim = bossAI.OnHit();
+        else if (enemyAI != null)
             enemyAI.OnHit();
-        }
+
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
         
         if (currentHealth <= 0)
         {
@@ -372,12 +376,13 @@ public class EnemyHealth : MonoBehaviour
         Debug.DrawRay(bulletPosition, bulletDirection * 2f, Color.red, 2f);
         Debug.DrawRay(hitPoint, lastHitDirection * 2f, Color.blue, 2f);
 
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal));
-
-        if (enemyAI != null)
-        {
+        bool playHitAnim = true;
+        if (bossAI != null)
+            playHitAnim = bossAI.OnHit();
+        else if (enemyAI != null)
             enemyAI.OnHit();
-        }
+
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
 
         bool killedThisHit = false;
         if (currentHealth <= 0)
@@ -389,12 +394,13 @@ public class EnemyHealth : MonoBehaviour
         return killedThisHit;
     }
     
-    private IEnumerator HitFeedbackCoroutine(Vector3 hitPoint, Vector3 hitNormal)
+    private IEnumerator HitFeedbackCoroutine(Vector3 hitPoint, Vector3 hitNormal, bool playHitAnimation = true)
     {
         StartCoroutine(FlashWhiteCoroutine());
         StartCoroutine(ScaleBounceCoroutine());
         SpawnHitParticle(hitPoint, hitNormal);
-        PlayHitAnimation();
+        if (playHitAnimation)
+            PlayHitAnimation();
         TriggerScreenShake();
         
         yield return null;
@@ -739,10 +745,10 @@ public class EnemyHealth : MonoBehaviour
             animator.SetTrigger("Die");
         }
         
-        if (enemyAI != null)
-        {
+        if (bossAI != null)
+            bossAI.OnDeath();
+        else if (enemyAI != null)
             enemyAI.OnDeath();
-        }
         
         Collider collider = GetComponent<Collider>();
         if (collider != null)

@@ -21,6 +21,8 @@ public class BattleValManager : MonoBehaviour
 
     [Header("状态")]
     [SerializeField] private bool isActive = false;          // 是否启动消耗
+    [Header("调试")]
+    [SerializeField] private bool debugOxygenDamageLog = true;
 
     // 当前值
     public float oxygenCurrent;
@@ -86,29 +88,41 @@ public class BattleValManager : MonoBehaviour
     }
     private void Update()
     {
+        if (isActive)
+        {
+            ConsumeOxygen();
+            if (healthTips != null && oxygenBarController != null && oxygenMax > 0.0001f &&
+                oxygenCurrent / oxygenMax < oxygenBarController.pulseThreshold)
+                healthTips.SetActive(true);
+        }
+
+        RefreshOxygenDisplayOnly();
+
         if (!isActive) return;
-        oxgImage.fillAmount = OxygenCurrent * 1.0f / oxygenMax;
-        weaponImage.fillAmount = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
-        subWeaponImage.fillAmount = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
-        // 计算百分比
-        float oxygenPercent = OxygenPercentage;
+
+        if (weaponImage != null)
+            weaponImage.fillAmount = primaryAmmoCurrent * 1.0f / primaryAmmoMax;
+        if (subWeaponImage != null)
+            subWeaponImage.fillAmount = secondaryAmmoCurrent * 1.0f / secondaryAmmoMax;
+
         float primaryPercent = PrimaryAmmoPercentage;
         float secondaryPercent = SecondaryAmmoPercentage;
-        // 更新进度条效果
-        if (oxygenBarController != null)
-            oxygenBarController.UpdateProgress(oxygenPercent);
-
         if (primaryAmmoBarController != null)
             primaryAmmoBarController.UpdateProgress(primaryPercent);
-
         if (secondaryAmmoBarController != null)
             secondaryAmmoBarController.UpdateProgress(secondaryPercent);
+    }
 
-        ConsumeOxygen();
-        if (oxygenCurrent / oxygenMax < oxygenBarController.pulseThreshold)
-        {
-            healthTips.SetActive(true);
-        }
+    /// <summary>
+    /// 同步氧气 UI（无论 isActive 与否，BOSS 受击扣氧后也必须刷新）。
+    /// </summary>
+    private void RefreshOxygenDisplayOnly()
+    {
+        if (oxygenMax <= 0.0001f) return;
+        if (oxgImage != null)
+            oxgImage.fillAmount = oxygenCurrent / oxygenMax;
+        if (oxygenBarController != null)
+            oxygenBarController.UpdateProgress(OxygenPercentage);
     }
 
     #region 氧气管理
@@ -140,6 +154,29 @@ public class BattleValManager : MonoBehaviour
 
         oxygenCurrent = Mathf.Min(oxygenMax, oxygenCurrent + amount);
         OnOxygenChanged?.Invoke();
+        RefreshOxygenDisplayOnly();
+    }
+
+    /// <summary>
+    /// 受击等：按数值直接扣除氧气（BOSS 伤害等）。氧气归零时触发 OnOxygenDepleted。
+    /// </summary>
+    public void DamageOxygen(float amount)
+    {
+        if (amount <= 0f) return;
+
+        float before = oxygenCurrent;
+        oxygenCurrent = Mathf.Max(0f, oxygenCurrent - amount);
+        if (debugOxygenDamageLog)
+            Debug.Log($"[BattleValManager] DamageOxygen: -{amount:F1}  |  {before:F1} → {oxygenCurrent:F1} / {oxygenMax:F1}  | isActive={isActive}");
+
+        OnOxygenChanged?.Invoke();
+        RefreshOxygenDisplayOnly();
+
+        if (oxygenCurrent <= 0f)
+        {
+            oxygenCurrent = 0f;
+            OnOxygenDepleted?.Invoke();
+        }
     }
 
     /// <summary>

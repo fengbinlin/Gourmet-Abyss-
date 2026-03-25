@@ -53,6 +53,12 @@ public class BuildController : MonoBehaviour
     private bool hasLastGridPosForPulse = false;
     private Coroutine gridStepPulseCoroutine;
 
+    private void SetDragGridOverlayVisible(bool visible)
+    {
+        if (gm == null) return;
+        gm.SetGameViewGridVisible(visible);
+    }
+
     private void EnsureCoreInitialized()
     {
         if (coreInitialized) return;
@@ -105,6 +111,13 @@ public class BuildController : MonoBehaviour
         // 初始化旋转状态
         transform.rotation = Quaternion.Euler(0, 0, unit.isRotated ? -90f : 0f);
     }
+
+    private void OnDestroy()
+    {
+        if (gm != null)
+            gm.SetGameViewGridVisible(false);
+    }
+
     void cancelBox()
     {
         GetComponent<BoxCollider2D>().enabled = false;
@@ -190,6 +203,8 @@ public class BuildController : MonoBehaviour
                         if (HomeManager.instance == null)
                             ActiveMouseDragController = this;
 
+                        SetDragGridOverlayVisible(true);
+
                         // 计算偏移量（从建筑中心到点击点的偏移）
                         Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, Mathf.Abs(cam.transform.position.z)));
                         mouseWorld.z = 0;
@@ -236,6 +251,7 @@ public class BuildController : MonoBehaviour
         {
             isDragging = false;
             hasLastGridPosForPulse = false;
+            SetDragGridOverlayVisible(false);
             if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
             if (ActiveMouseDragController == this) ActiveMouseDragController = null;
             SnapToGrid(currentGridPos);
@@ -272,6 +288,7 @@ public class BuildController : MonoBehaviour
 
         isDragging = true;
         hasLastGridPosForPulse = false;
+        SetDragGridOverlayVisible(true);
 
         Vector3 mouseWorld = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Mathf.Abs(cam.transform.position.z)));
         mouseWorld.z = 0;
@@ -790,6 +807,7 @@ public class BuildController : MonoBehaviour
                     {
                         FurnitureUIManager.instance.GenerateItems();
                     }
+                    SetDragGridOverlayVisible(false);
                     if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
                     if (ActiveMouseDragController == this) ActiveMouseDragController = null;
                     Debug.Log($"放置失败，家具已回收入背包: {sourceResourceType}");
