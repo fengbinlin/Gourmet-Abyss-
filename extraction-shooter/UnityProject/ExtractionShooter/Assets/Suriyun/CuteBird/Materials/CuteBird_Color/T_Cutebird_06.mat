@@ -14,7 +14,6 @@ Material:
   m_ValidKeywords:
   - PROPIXELIZER_DITHERING_ON
   - RECEIVE_SHADOWS_ON
-  - USE_OBJECT_POSITION_ON
   m_InvalidKeywords:
   - _EMISSIVE_SIMPLE
   - _IS_ANGELRING_OFF
@@ -261,7 +260,7 @@ Material:
     - COLOR_GRADING: 0
     - PROPIXELIZER_DITHERING: 1
     - RECEIVE_SHADOWS: 1
-    - USE_OBJECT_POSITION: 1
+    - USE_OBJECT_POSITION: 0
     - _1st2nd_Shades_Feather: 0.1
     - _1st_ShadeColor_Feather: 0.2
     - _1st_ShadeColor_Step: 0.6
@@ -434,7 +433,7 @@ Material:
     - _PPDPrimitiveLength: 1
     - _PPDPrimitiveWidth: 1
     - _Parallax: 0.02
-    - _PixelSize: 3
+    - _PixelSize: 2
     - _ReceivesSSR: 1
     - _RefractionModel: 0
     - _RimLight: 1

@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea2ecf8d889ccb54d867106817e10c5f, type: 3}
+  m_Name: CustomerNPC_17
+  m_EditorClassIdentifier: 
+  id: 17
+  customerName: "\u6B4C\u59EC"
+  mbti: ENFJ
+  isCook: 0
+  NPCIcon: {fileID: 0}
+  NPCDescription: "\u62E5\u6709\u5929\u7C41\u4E4B\u97F3\u7684\u9EC4\u9E42\u6B4C\u5531\u5BB6\uFF0C\u611F\u6027\uFF0C\u60C5\u7EEA\u5BB9\u6613\u6CE2\u52A8\u3002"
+  SkillDescripton: 
+  isMan: 1
+  buyprobability: 0.8
+  wantToBuyDish: 0
+  moveSpeed: 5
+  affectionValue: 45
+  affectionLevel: 3
+  affectionLevelNeeds:
+  - 10
+  - 20
+  - 30
+  favouriteFood: 00000000
+  favouriteItems: 
+  likePeopleList: 0100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c0000000d0000000e0000000f000000100000001100000012000000
+  dislikePeopleList: 
+  SpawningWords:
+  - "\u613F\u4ECA\u5929\u7684\u665A\u9910\uFF0C\u5982\u4E50\u7AE0\u822C\u7F8E\u5999\u3002"
+  WalkingToQueueWords:
+  - "\u8FD9\u662F\u6F14\u51FA\u524D\u7684\u5E8F\u66F2\uFF0C\u6211\u4EAB\u53D7\u7B49\u5F85\u3002"
+  QueueingWords:
+  - "\uFF08\u8F7B\u58F0\u54FC\u5531\u7EC3\u58F0\u66F2\uFF09"
+  InsideRestaurantQueueingWords:
+  - "\u8BF7\u7ED9\u6211\u4E00\u9053\u2026\u80FD\u6FC0\u53D1\u7075\u611F\u7684\u83DC\u80B4\u3002"
+  InsideRestaurantConsumingWords:
+  - "\u8FD9\u5473\u9053\u2026\u8BA9\u6211\u60F3\u4E3A\u5B83\u8C31\u4E00\u66F2\u3002"
+  LeavingRestaurantWords:
+  - "\u8C22\u8C22\uFF0C\u6211\u611F\u89C9\u7075\u9B42\u88AB\u6ECB\u517B\u4E86\u3002"
+  noPlateFoodWords:
+  - "\u54E6\u2026\uFF08\u7565\u663E\u5931\u843D\uFF09\u90A3\u4E5F\u8BB8\u2026\u662F\u547D\u8FD0\u8BA9\u6211\u5C1D\u8BD5\u65B0\u7684\u65CB\u5F8B\u3002"
+  QueueJoinWords:
+  - "\u8BA9\u7B49\u5F85\u4E5F\u6210\u4E3A\u4E00\u6BB5\u524D\u594F\u5427\u3002"
+  LikePersonEncounterWords:
+  - "\u4EB2\u7231\u7684\uFF0C\u4F60\u7684\u5230\u6765\u8BA9\u8FD9\u91CC\u84EC\u835C\u751F\u8F89\u3002"
+  PlayerInteractionWords:
+  - "\u4EB2\u7231\u7684\u5E97\u4E3B\uFF0C\u613F\u6B4C\u58F0\u4E0E\u7F8E\u98DF\u6C38\u4F34\u4F60\u3002"
+  ConsumeStartWords:
+  - "\u611F\u8C22\u8FD9\u81EA\u7136\u7684\u6069\u8D50\uFF0C\u6211\u5F00\u52A8\u4E86\u3002"
+  FavouriteDishWords:
+  - "\u54E6\uFF01\u8FD9\u7F8E\u5999\u7684\u6ECB\u5473\uFF0C\u662F\u7075\u9B42\u7684\u5171\u9E23\uFF01"
+  NormalDishWords:
+  - "\u6E29\u6696\u7684\u5473\u9053\uFF0C\u4EE4\u4EBA\u5B89\u5FC3\u3002"
+  GiftLikedWords:
+  - "\u591A\u4E48\u7528\u5FC3\u7684\u793C\u7269\uFF01\u5B83\u8BA9\u6211\u60F3\u4E3A\u4F60\u5531\u4E00\u9996\u6B4C\u3002"
+  GiftNormalWords:
+  - "\u8C22\u8C22\u4F60\u7684\u5584\u610F\uFF0C\u6211\u6536\u5230\u4E86\u3002"
+  HomeGuestWords:
+  - "\u6B22\u8FCE\u6765\u5230\u6211\u7684\u5C0F\u5C0F\u907F\u98CE\u6E2F\u3002"
+  - "\u542C\uFF0C\u8FD9\u662F\u6211\u6700\u65B0\u7684\u521B\u4F5C\u3002"
+  - "\u4F60\u770B\u8D77\u6765\u6709\u5FC3\u4E8B\uFF0C\u613F\u610F\u548C\u6211\u804A\u804A\u5417\uFF1F"
+  - "\u8BA9\u97F3\u4E50\u629A\u6170\u4E00\u5207\u5427\u3002"
+  - "\u6211\u8BE5\u53BB\u7EC3\u4E60\u4E86\uFF0C\u613F\u7231\u4E0E\u548C\u5E73\u4E0E\u4F60\u540C\u5728\u3002"
+  RecruitCookWords:
+  - "\u8BA9\u7231\u610F\u968F\u7740\u98DF\u6750\u8D77\u821E~"
+  - "\u8C03\u5473\uFF0C\u8981\u50CF\u548C\u58F0\u822C\u548C\u8C10\u3002"
+  - "\u706B\u5019\u662F\u8282\u594F\uFF0C\u7FFB\u7092\u662F\u65CB\u5F8B\u3002"
+  - "\u8FD9\u9053\u83DC\uFF0C\u8981\u732E\u7ED9\u6700\u91CD\u8981\u7684\u4EBA\u4EEC\u3002"
+  - "\u5B8C\u6210\u4E86\uFF0C\u4E00\u9996\u732E\u7ED9\u5473\u857E\u7684\u4EA4\u54CD\u4E50\u3002"
+  CookBoostWords:
+  - "\u8BA9\u70ED\u60C5\u71C3\u70E7\u5427\uFF01"
+  PairChatGreetingWords:
+  - "\u4F60\u4ECA\u5929\u770B\u8D77\u6765\u771F\u7F8E/\u5E05\uFF01"
+  PairChatReplyWords:
+  - "\u54E6\uFF0C\u4F60\u7684\u8BDD\u8BED\u603B\u80FD\u6E29\u6696\u6211\u5FC3\u3002"
+  PairChatQuestionWords:
+  - "\u4F60\u5FC3\u4E2D\u6700\u52A8\u4EBA\u7684\u65CB\u5F8B\u662F\u4EC0\u4E48\uFF1F"
+  PairChatStatusWords:
+  - "\u6211\u5728\u7B49\u5F85\u4E00\u4EFD\u80FD\u6FC0\u53D1\u7075\u611F\u7684\u665A\u9910\u3002"
+  PairChatInviteWords:
+  - "\u660E\u665A\u6211\u7684\u97F3\u4E50\u4F1A\uFF0C\u8981\u6765\u5417\uFF1F\u6211\u4E3A\u4F60\u7559\u4E86\u4F4D\u7F6E\u3002"
+  recruitCookRequiredAffectionLevel: 3
+  timeReductionRate: 1
+  outputIncreaseRate: 1
+  priceIncreaseRate: 1

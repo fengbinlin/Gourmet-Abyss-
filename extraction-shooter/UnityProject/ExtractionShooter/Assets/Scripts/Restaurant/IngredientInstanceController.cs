@@ -147,6 +147,13 @@ public class IngredientInstanceController : MonoBehaviour
             targetPot.CookingStateChanged -= OnPotCookingStateChanged;
             targetPot.CookingStateChanged += OnPotCookingStateChanged;
 
+            // 订阅发生在“落锅时”，如果锅已提前进入烹饪状态（例如点击烹饪就先开火），
+            // 这里要立刻对齐一次当前状态，否则会错过 cooking=true 事件，导致结束时不销毁。
+            if (targetPot.isCooking)
+            {
+                OnPotCookingStateChanged(true);
+            }
+
             // 需求：每个食材一落锅立刻开始翻滚（不等锅整体进入 isCooking）
             StartStir();
         }

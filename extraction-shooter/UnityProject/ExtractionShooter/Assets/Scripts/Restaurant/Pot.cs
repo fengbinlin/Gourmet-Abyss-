@@ -196,7 +196,10 @@ public class Pot : MonoBehaviour
     /// </summary>
     private IEnumerator CookingProcess(DishRecipe recipe)
     {
-        // 1. 生成食材实例效果
+        // 1. 进入烹饪表现状态（与食材生成同步开始）
+        SetCookingEffects(true);
+
+        // 2. 生成食材实例效果
         yield return RestaurantPanel.instance.StartCoroutine(
             RestaurantPanel.instance.SpawnIngredientInstances(recipe, this)
         );
@@ -204,16 +207,13 @@ public class Pot : MonoBehaviour
         // 等待一小段时间，让食材完全落入锅中
         yield return new WaitForSeconds(0.5f);
 
-        // 2. 关闭锅盖
+        // 3. 关闭锅盖
         if (lidAnimationCoroutine != null)
         {
             StopCoroutine(lidAnimationCoroutine);
         }
         lidAnimationCoroutine = StartCoroutine(PlayLidAnimation(true));
         yield return lidAnimationCoroutine;
-
-        // 3. 启用烹饪效果组件
-        SetCookingEffects(true);
 
         // 4. 开始计时烹饪
         yield return new WaitForSeconds(recipe.cookTime);

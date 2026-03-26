@@ -1,8 +1,13 @@
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 
 public class CameraFollow : MonoBehaviour
 {
+    private static readonly Dictionary<string, float> orthoSizeRequests = new Dictionary<string, float>();
+    private static readonly Dictionary<string, float> xFocusRequests = new Dictionary<string, float>();
+    private static float originalOrthoSize = -1f;
+
     [Header("目标设置")]
     [SerializeField] private Transform target; 
     [SerializeField] private TopDownController playerController;
@@ -11,8 +16,14 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private float smoothTime = 0.3f; 
     [SerializeField] private Vector3 offset; 
     [SerializeField] private bool autoOffset = true; 
+    [Header("正交缩放参数")]
+    [SerializeField] private float orthoSizeSmoothTime = 0.18f;
+    [Header("交互横向对焦")]
+    [SerializeField] private float xFocusSmoothTime = 0.08f;
 
     private Vector3 velocity = Vector3.zero; 
+    private float orthoSizeVelocity = 0f;
+    private float xFocusVelocity = 0f;
     private Transform defaultTarget;
     private Transform overrideTarget;
     public event Action OnOverrideClearedByPlayerMove;
@@ -38,6 +49,8 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        UpdateOrthoSizeSmooth();
+
         // 如果玩家开始移动，强制回到默认跟随
         if (overrideTarget != null && playerController != null && playerController.IsMoving())
         {
@@ -50,6 +63,16 @@ public class CameraFollow : MonoBehaviour
         // 1. 计算基础的跟随位置 (平滑处理)
         Vector3 targetPosition = currentTarget.position + offset;
         Vector3 smoothedPosition = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
+        if (TryGetFocusedX(out float focusX))
+        {
+            // X 轴单独做一次平滑，避免“目标先平滑一次 + 相机再平滑一次”导致明显迟滞
+            smoothedPosition.x = Mathf.SmoothDamp(
+                transform.position.x,
+                focusX,
+                ref xFocusVelocity,
+                Mathf.Max(0.01f, xFocusSmoothTime)
+            );
+        }
 
         // 2. 叠加震动效果 (如果有震动时间剩余)
         if (shakeTimer > 0)
@@ -114,5 +137,121 @@ public class CameraFollow : MonoBehaviour
     {
         shakeTimer = duration;
         shakeMagnitude = magnitude;
+    }
+
+    public static void PushOrthoSizeRequest(string requestKey, float targetSize)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        Camera cam = FindActiveMainCamera();
+        if (cam == null || !cam.orthographic) return;
+
+        if (originalOrthoSize < 0f)
+        {
+            originalOrthoSize = cam.orthographicSize;
+        }
+
+        orthoSizeRequests[requestKey] = Mathf.Max(0.01f, targetSize);
+    }
+
+    public static void PopOrthoSizeRequest(string requestKey)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        if (!orthoSizeRequests.Remove(requestKey)) return;
+
+        Camera cam = FindActiveMainCamera();
+        if (cam == null || !cam.orthographic) return;
+    }
+
+    public static void PushXFocusRequest(string requestKey, float worldX)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        xFocusRequests[requestKey] = worldX;
+    }
+
+    public static void PopXFocusRequest(string requestKey)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        xFocusRequests.Remove(requestKey);
+    }
+
+    private void UpdateOrthoSizeSmooth()
+    {
+        Camera cam = FindActiveMainCamera();
+        if (cam == null || !cam.orthographic) return;
+
+        float desiredSize = cam.orthographicSize;
+        if (orthoSizeRequests.Count > 0)
+        {
+            if (originalOrthoSize < 0f)
+            {
+                originalOrthoSize = cam.orthographicSize;
+            }
+
+            float minSize = float.MaxValue;
+            foreach (var kv in orthoSizeRequests)
+            {
+                if (kv.Value < minSize) minSize = kv.Value;
+            }
+
+            if (minSize < float.MaxValue)
+            {
+                desiredSize = minSize;
+            }
+        }
+        else if (originalOrthoSize > 0f)
+        {
+            desiredSize = originalOrthoSize;
+        }
+
+        cam.orthographicSize = Mathf.SmoothDamp(
+            cam.orthographicSize,
+            desiredSize,
+            ref orthoSizeVelocity,
+            Mathf.Max(0.01f, orthoSizeSmoothTime)
+        );
+
+        if (orthoSizeRequests.Count == 0 && originalOrthoSize > 0f && Mathf.Abs(cam.orthographicSize - originalOrthoSize) < 0.001f)
+        {
+            originalOrthoSize = -1f;
+        }
+    }
+
+    private static Camera FindActiveMainCamera()
+    {
+        if (Camera.main != null && Camera.main.isActiveAndEnabled && Camera.main.gameObject.activeInHierarchy)
+        {
+            return Camera.main;
+        }
+
+        Camera[] allCameras = GameObject.FindObjectsOfType<Camera>(true);
+        for (int i = 0; i < allCameras.Length; i++)
+        {
+            Camera c = allCameras[i];
+            if (c == null) continue;
+            if (!c.CompareTag("MainCamera")) continue;
+            if (!c.gameObject.activeInHierarchy || !c.isActiveAndEnabled) continue;
+            return c;
+        }
+
+        return null;
+    }
+
+    private bool TryGetFocusedX(out float focusedX)
+    {
+        focusedX = 0f;
+        if (xFocusRequests.Count == 0) return false;
+
+        // 多请求时取平均，避免跳变；当前场景通常只有一个请求
+        float sum = 0f;
+        int count = 0;
+        foreach (var kv in xFocusRequests)
+        {
+            sum += kv.Value;
+            count++;
+        }
+        if (count <= 0) return false;
+
+        focusedX = sum / count;
+        return true;
     }
 }

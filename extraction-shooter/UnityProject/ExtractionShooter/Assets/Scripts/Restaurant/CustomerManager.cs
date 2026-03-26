@@ -198,19 +198,27 @@ public class CustomerManager : MonoBehaviour
 
         if (dislikeAround)
         {
+            npcInstance.SetExpression(CustomerExpression.Speechless); // 无语
             npcInstance.donotWantToEat();
         }
         else if (likeAround)
         {
-            npcInstance.ShowCustomBubble("呀，遇见喜欢的人了～");
+            npcInstance.ShowCustomBubble(GetCustomerWord(npcInstance, npcInstance.data?.LikePersonEncounterWords, "呀，遇见喜欢的人了～"));
+            npcInstance.SetExpression(CustomerExpression.HeartEyes); // 爱心眼
             HandleEntrance(npcInstance);
         }
         else
         {
             if (Random.value > npcInstance.data.buyprobability)
+            {
+                npcInstance.SetExpression(CustomerExpression.BadTaste); // 难吃 / 不想吃
                 npcInstance.donotWantToEat();
+            }
             else
+            {
+                npcInstance.SetExpression(CustomerExpression.Serious); // 认真 / 准备排队
                 HandleEntrance(npcInstance);
+            }
         }
 
         // ✅ 最后加入顾客列表
@@ -228,7 +236,7 @@ public class CustomerManager : MonoBehaviour
         // 设置目标为当前队尾
         npc.SetTarget(GetQueueTailPosition());
 
-        npc.ShowCustomBubble("来排队啦~");
+        npc.ShowCustomBubble(GetCustomerWord(npc, npc.data?.QueueJoinWords, "来排队啦~"));
     }
 
     // 获取随机可用菜碟
@@ -254,7 +262,8 @@ public class CustomerManager : MonoBehaviour
     // 获取当前队尾位置
     private Vector3 GetQueueTailPosition()
     {
-        return queueFrontPoint.position + queueFrontPoint.right * (customersQueue.Count * queueSpacing) + queueFrontPoint.right * 0.2f;
+        int index = customersQueue.Count + walkingToQueue.Count;
+        return GetQueuePosition(index);
     }
 
     // 获取指定队列位置
@@ -266,38 +275,39 @@ public class CustomerManager : MonoBehaviour
     // 更新所有走向队列的顾客的目标点
     private void UpdateQueueTargets()
     {
-        // 计算当前队尾位置
-        Vector3 currentTail = GetQueueTailPosition();
-
-        // 更新所有正在走向队列的顾客的目标
-        for (int i = walkingToQueue.Count - 1; i >= 0; i--)
+        // 更新所有正在走向队列的顾客的目标（为每个walking分配不同的队列位置，保持间隔）
+        // 用正向索引保证“第0个walking”总是去最近的空位，避免反向遍历导致索引跳动。
+        for (int i = 0; i < walkingToQueue.Count; i++)
         {
             CustomerNPC npc = walkingToQueue[i];
             if (npc == null || npc.state != CustomerState.WalkingToQueue)
             {
                 walkingToQueue.RemoveAt(i);
+                i--;
                 continue;
             }
 
-            // 设置目标为当前队尾
-            npc.SetTarget(currentTail);
+            int queueIndex = customersQueue.Count + i;
+            npc.SetTarget(GetQueuePosition(queueIndex));
         }
     }
 
     // 处理顾客加入队列
     private void HandleQueueEntry()
     {
-        Vector3 currentTail = GetQueueTailPosition();
-
         for (int i = walkingToQueue.Count - 1; i >= 0; i--)
         {
             CustomerNPC npc = walkingToQueue[i];
             if (npc == null) continue;
 
-            // 检查是否到达队尾
-            float distanceToTail = Vector3.Distance(npc.transform.position, currentTail);
+            // 检查是否到达“分配给自己的队列位置”
+            Vector3 assigned = npc.CurrentTargetPosition;
+            float distanceToAssigned = Vector2.Distance(
+                new Vector2(npc.transform.position.x, npc.transform.position.z),
+                new Vector2(assigned.x, assigned.z)
+            );
 
-            if (distanceToTail < 0.3f)
+            if (distanceToAssigned < 0.3f)
             {
                 // 加入队列
                 walkingToQueue.RemoveAt(i);
@@ -451,7 +461,10 @@ public class CustomerManager : MonoBehaviour
             Transform exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
 
             // 可以再尝试几次避免和某些特定点重复
-            while (Vector3.Distance(exitPoint.position, NPCPos) < 0.5f)
+            while (Vector2.Distance(
+                       new Vector2(exitPoint.position.x, exitPoint.position.z),
+                       new Vector2(NPCPos.x, NPCPos.z)
+                   ) < 0.5f)
             {
                 exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
             }
@@ -504,6 +517,7 @@ public class CustomerManager : MonoBehaviour
     }
 
     private bool chatting = false;
+    public bool IsPairChatting => chatting;
     [SerializeField] private float likeChatDistance = 3f; // 触发聊天的距离
                                                           // 聊天发生的概率（0~1）
     [SerializeField, Range(0f, 1f)]
@@ -516,6 +530,8 @@ public class CustomerManager : MonoBehaviour
     private void CheckForLikedPairChat()
     {
         if (chatting) return;
+        // 玩家与任意NPC交互时，禁止触发顾客配对聊天
+        if (currentInteractingNPC != null) return;
 
         List<(CustomerNPC a, CustomerNPC b)> likedPairs = new List<(CustomerNPC, CustomerNPC)>();
 
@@ -541,7 +557,10 @@ public class CustomerManager : MonoBehaviour
                     continue;
 
                 // 距离判定
-                float dist = Vector3.Distance(npc.transform.position, other.transform.position);
+                float dist = Vector2.Distance(
+                    new Vector2(npc.transform.position.x, npc.transform.position.z),
+                    new Vector2(other.transform.position.x, other.transform.position.z)
+                );
                 if (dist <= likeChatDistance)
                 {
                     likedPairs.Add((npc, other));
@@ -595,17 +614,17 @@ public class CustomerManager : MonoBehaviour
         }
 
         // ➤ 聊天序列
-        npcA.ShowCustomBubble("嗨～好久不见！");
-        npcB.ShowCustomBubble("哈哈，真巧呀～");
+        npcA.ShowCustomBubble(GetCustomerWord(npcA, npcA.data?.PairChatGreetingWords, "嗨～好久不见！"));
+        npcB.ShowCustomBubble(GetCustomerWord(npcB, npcB.data?.PairChatReplyWords, "哈哈，真巧呀～"));
         yield return new WaitForSeconds(2f);
 
-        npcA.ShowCustomBubble("最近在忙什么呢？");
+        npcA.ShowCustomBubble(GetCustomerWord(npcA, npcA.data?.PairChatQuestionWords, "最近在忙什么呢？"));
         yield return new WaitForSeconds(2f);
 
-        npcB.ShowCustomBubble("还在那家餐厅工作～哈哈～");
+        npcB.ShowCustomBubble(GetCustomerWord(npcB, npcB.data?.PairChatStatusWords, "还在那家餐厅工作～哈哈～"));
         yield return new WaitForSeconds(2f);
 
-        npcA.ShowCustomBubble("改天一起吃饭呀！");
+        npcA.ShowCustomBubble(GetCustomerWord(npcA, npcA.data?.PairChatInviteWords, "改天一起吃饭呀！"));
         yield return new WaitForSeconds(2f);
 
         // 聊天结束
@@ -628,5 +647,16 @@ public class CustomerManager : MonoBehaviour
         // 若其中有人在队列中，强制刷新一次队列站位，避免聊天暂停后队列错位/卡住
         UpdateQueueMemberPositions();
         chatting = false;
+    }
+
+    private string GetCustomerWord(CustomerNPC npc, List<string> words, string fallback)
+    {
+        if (npc != null && words != null && words.Count > 0)
+        {
+            int idx = Random.Range(0, words.Count);
+            string pick = words[idx];
+            if (!string.IsNullOrEmpty(pick)) return pick;
+        }
+        return fallback;
     }
 }

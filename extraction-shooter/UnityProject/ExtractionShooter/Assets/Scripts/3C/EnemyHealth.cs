@@ -304,7 +304,7 @@ public class EnemyHealth : MonoBehaviour
         else if (enemyAI != null)
             enemyAI.OnHit();
 
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim, spawnHitParticle: true));
         
         if (currentHealth <= 0)
         {
@@ -342,7 +342,8 @@ public class EnemyHealth : MonoBehaviour
         else if (enemyAI != null)
             enemyAI.OnHit();
 
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
+        // 子弹命中特效由子弹决定（Projectile 会自行生成 impactVFX / criticalHitEffext）
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim, spawnHitParticle: false));
         
         if (currentHealth <= 0)
         {
@@ -382,7 +383,8 @@ public class EnemyHealth : MonoBehaviour
         else if (enemyAI != null)
             enemyAI.OnHit();
 
-        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim));
+        // 子弹命中特效由子弹决定（Projectile 会自行生成 impactVFX / criticalHitEffext）
+        StartCoroutine(HitFeedbackCoroutine(hitPoint, hitNormal, playHitAnim, spawnHitParticle: false));
 
         bool killedThisHit = false;
         if (currentHealth <= 0)
@@ -394,11 +396,14 @@ public class EnemyHealth : MonoBehaviour
         return killedThisHit;
     }
     
-    private IEnumerator HitFeedbackCoroutine(Vector3 hitPoint, Vector3 hitNormal, bool playHitAnimation = true)
+    private IEnumerator HitFeedbackCoroutine(Vector3 hitPoint, Vector3 hitNormal, bool playHitAnimation = true, bool spawnHitParticle = true)
     {
         StartCoroutine(FlashWhiteCoroutine());
         StartCoroutine(ScaleBounceCoroutine());
-        SpawnHitParticle(hitPoint, hitNormal);
+        if (spawnHitParticle)
+        {
+            SpawnHitParticle(hitPoint, hitNormal);
+        }
         if (playHitAnimation)
             PlayHitAnimation();
         TriggerScreenShake();

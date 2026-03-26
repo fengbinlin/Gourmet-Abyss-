@@ -18,6 +18,10 @@ public class CompanionHomingProjectile : MonoBehaviour
     private Vector3 perProjectileHomingOffset = Vector3.zero;
     private bool initialized;
 
+    [Header("命中特效（由子弹决定）")]
+    [SerializeField] private GameObject impactVfxPrefab;
+    [SerializeField] private float impactVfxLifeTime = 2f;
+
     public void Initialize(
         EnemyHealth targetHealth,
         float projectileDamage,
@@ -29,7 +33,8 @@ public class CompanionHomingProjectile : MonoBehaviour
         float projectileHomingPathOffsetRadius,
         Vector3 projectileHomingOffset,
         float projectileSlowRatioOnHit,
-        float projectileSlowDurationOnHit)
+        float projectileSlowDurationOnHit,
+        GameObject projectileImpactVfxPrefab = null)
     {
         target = targetHealth;
         damage = projectileDamage;
@@ -42,6 +47,10 @@ public class CompanionHomingProjectile : MonoBehaviour
         slowRatioOnHit = Mathf.Clamp01(projectileSlowRatioOnHit);
         slowDurationOnHit = Mathf.Max(0f, projectileSlowDurationOnHit);
         perProjectileHomingOffset = projectileHomingOffset;
+        if (projectileImpactVfxPrefab != null)
+        {
+            impactVfxPrefab = projectileImpactVfxPrefab;
+        }
         if (perProjectileHomingOffset.sqrMagnitude > homingPathOffsetRadius * homingPathOffsetRadius && homingPathOffsetRadius > 0.001f)
         {
             perProjectileHomingOffset = perProjectileHomingOffset.normalized * homingPathOffsetRadius;
@@ -114,6 +123,13 @@ public class CompanionHomingProjectile : MonoBehaviour
         {
             Vector3 hitNormal = (target.transform.position - transform.position).normalized;
             Vector3 bulletDirection = transform.forward;
+
+            if (impactVfxPrefab != null)
+            {
+                Quaternion rot = hitNormal.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(hitNormal) : Quaternion.identity;
+                GameObject vfx = Instantiate(impactVfxPrefab, hitPoint, rot);
+                if (impactVfxLifeTime > 0f) Destroy(vfx, impactVfxLifeTime);
+            }
             target.TakeDamageFromProjectile(damage, hitPoint, hitNormal, transform.position, bulletDirection);
 
             EnemyAI enemyAI = target.GetComponent<EnemyAI>();

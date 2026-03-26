@@ -457,4 +457,11 @@ public class RestaurantPanel : MonoBehaviour
         // 如果餐厅面板当前是打开状态，刷新一次菜单显示
         GenerateDishList();
     }
+
+    public Sprite GetDishIconByID(int dishID)
+    {
+        DishRecipe recipe = dishRecipes.Find(d => d.dishID == dishID);
+        if (recipe == null) return null;
+        return recipe.dishIcon;
+    }
 }

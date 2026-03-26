@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using System;
+using UnityEngine.EventSystems;
 [RequireComponent(typeof(Collider))]
 public class PlayerInteractionController : MonoBehaviour
 {
@@ -21,6 +22,8 @@ public class PlayerInteractionController : MonoBehaviour
     [Header("Detection Settings")]
     [SerializeField] private LayerMask buildingLayer;          // 建筑层级
     [SerializeField] private string buildingTag = "InteractableBuilding"; // 建筑标签
+    [SerializeField] private bool blockNpcClickWhenPointerOverUI = true;  // 鼠标在UI上时不触发NPC点击
+    [SerializeField] private bool debugNpcClickRaycast = false;            // 输出点击命中调试日志
 
     [Header("Hold Progress Settings")]
     [SerializeField] private Image holdProgress;               // 长按进度条
@@ -323,13 +326,36 @@ public class PlayerInteractionController : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
+            if (blockNpcClickWhenPointerOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                if (debugNpcClickRaycast) Debug.Log("[NPC Click] Pointer is over UI, skip NPC raycast.");
+                return;
+            }
+
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit[] hits = Physics.RaycastAll(ray, 10000f);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
             foreach (var hit in hits)
             {
-                CustomerNPC npc = hit.collider.GetComponent<CustomerNPC>();
+                CustomerNPC npc = null;
+                if (hit.collider != null)
+                {
+                    // 兼容：点击命中的是子物体Collider时，从父节点查找CustomerNPC
+                    npc = hit.collider.GetComponent<CustomerNPC>();
+                    if (npc == null) npc = hit.collider.GetComponentInParent<CustomerNPC>();
+                    if (npc == null && hit.collider.attachedRigidbody != null)
+                    {
+                        npc = hit.collider.attachedRigidbody.GetComponent<CustomerNPC>();
+                        if (npc == null) npc = hit.collider.attachedRigidbody.GetComponentInParent<CustomerNPC>();
+                    }
+                }
+
+                if (debugNpcClickRaycast && hit.collider != null)
+                {
+                    Debug.Log($"[NPC Click] hit={hit.collider.name}, layer={LayerMask.LayerToName(hit.collider.gameObject.layer)}, npc={(npc != null ? npc.name : "null")}");
+                }
+
                 if (npc != null)
                 {
                     npc.ClickCustomer();
