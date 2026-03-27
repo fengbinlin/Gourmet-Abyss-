@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 幼崽剧情逻辑：
@@ -85,6 +86,7 @@ public class CarrotCubStory : MonoBehaviour
     [Header("引导前置条件（需要玩家进入幼崽范围）")]
     [SerializeField] private bool requirePlayerEnterRangeToProceed = true;
     [SerializeField] private float playerEnterRangeRecheckInterval = 0.15f;
+    [SerializeField] private float playerProceedDistance = 2.2f; // 引路继续所需的玩家距离
     [SerializeField] private List<string> waitingForPlayerLines = new List<string>
     {
         "怎么不跟上呀！快进来！",
@@ -92,14 +94,22 @@ public class CarrotCubStory : MonoBehaviour
         "快点！再晚恶霸就要动手了！"
     };
     [SerializeField] private float waitingForPlayerLineInterval = 1.2f;
-    [SerializeField] private float triggerInsideEpsilon = 0.05f;
 
     private Collider triggerCollider;
     private Transform playerTransform;
     private bool playerInCubTrigger;
 
+    private StoryDialogueManager GetDialogueManager()
+    {
+        if (dialogueManager != null) return dialogueManager;
+        return StoryDialogueManager.Instance;
+    }
+
     private void Awake()
     {
+        StripDontDestroyMarker();
+        MoveToActiveSceneIfInDontDestroy();
+
         //dialogueManager = StoryDialogueManager.Instance;
         // 优先拿 IsTrigger 的 collider，避免脚本挂在带多个 collider 的物体上时拿错引用。
         Collider[] cols = GetComponents<Collider>();
@@ -115,6 +125,24 @@ public class CarrotCubStory : MonoBehaviour
             triggerCollider = GetComponent<Collider>();
     }
 
+    private void StripDontDestroyMarker()
+    {
+        DonotDestroy marker = GetComponent<DonotDestroy>();
+        if (marker != null)
+        {
+            Debug.LogError("[CarrotCubStory] 移除了 DonotDestroy 组件，CarrotCub 不能常驻 DontDestroyOnLoad。");
+            Destroy(marker);
+        }
+    }
+
+    private void MoveToActiveSceneIfInDontDestroy()
+    {
+        if (gameObject.scene.buildIndex != -1 && gameObject.scene.name != "DontDestroyOnLoad") return;
+        Scene activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, activeScene);
+        Debug.LogError($"[CarrotCubStory] 对象在 DontDestroyOnLoad，已强制移回当前场景：{activeScene.name}");
+    }
+
     private void Start()
     {
         State = CubState.Waiting;
@@ -122,16 +150,45 @@ public class CarrotCubStory : MonoBehaviour
         SetText("");
         SetIsMoving(false);
 
+        if (gameObject.scene.buildIndex == -1 || gameObject.scene.name == "DontDestroyOnLoad")
+        {
+            Debug.LogError("[CarrotCubStory] 当前对象处于 DontDestroyOnLoad 场景。这样会导致关卡卸载后路标引用丢失。请移除 CarrotCub（或其父物体）上的 DonotDestroy/DontDestroyOnLoad。");
+        }
+
         playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
+
+        if (waypoints == null || waypoints.Length == 0)
+        {
+            Debug.LogError("[CarrotCubStory] waypoints 未配置或长度为0，幼崽无法引导移动。");
+        }
+        else
+        {
+            for (int i = 0; i < waypoints.Length; i++)
+            {
+                if (waypoints[i] == null)
+                {
+                    Debug.LogError($"[CarrotCubStory] waypoints[{i}] 为空引用。通常是该路标对象被销毁/场景卸载后引用失效。");
+                }
+            }
+        }
 
         // 若已通关：本关不再激活幼崽/BOSS/姐姐（直接跳过剧情）
         if (StoryDialogueManager.Instance != null && StoryDialogueManager.Instance.IsStoryClearedThisScene)
         {
+            Debug.LogError($"[CarrotCubStory] 启动即销毁：检测到本场景剧情已通关。{StoryDialogueManager.Instance.GetCurrentStoryProgressDebugText()}");
             if (bossRoot != null) bossRoot.SetActive(false);
             if (sisterRoot != null) sisterRoot.SetActive(false);
             if (canvasRoot != null) canvasRoot.SetActive(false);
             Destroy(gameObject);
             return;
+        }
+        else if (StoryDialogueManager.Instance == null)
+        {
+            Debug.LogError("[CarrotCubStory] StoryDialogueManager.Instance 为空，无法读取剧情进度，按未通关继续。");
+        }
+        else
+        {
+            Debug.Log($"[CarrotCubStory] 正常启动（未通关）。{StoryDialogueManager.Instance.GetCurrentStoryProgressDebugText()}");
         }
 
         if (deactivateBossAndSisterAtStart)
@@ -202,7 +259,11 @@ public class CarrotCubStory : MonoBehaviour
 
         if (canvasRoot != null) canvasRoot.SetActive(true);
         // 冻结：玩家不动/氧气不掉/相机聚焦
-        dialogueManager?.BeginDialogueLock(introFocusOrthographicSize, transform);
+        StoryDialogueManager mgr = GetDialogueManager();
+        if (mgr != null)
+        {
+            mgr.BeginDialogueLock(introFocusOrthographicSize, transform);
+        }
 
         if (introDialogueLines != null && introDialogueLines.Count > 0)
         {
@@ -218,7 +279,10 @@ public class CarrotCubStory : MonoBehaviour
             yield return new WaitForSeconds(1.5f);
         }
 
-        dialogueManager?.EndDialogueLock();
+        if (mgr != null)
+        {
+            mgr.EndDialogueLock();
+        }
 
         State = CubState.GuidingMove;
         moveRoutine = StartCoroutine(GuidingMoveRoutine());
@@ -268,10 +332,17 @@ public class CarrotCubStory : MonoBehaviour
             }
             else if (lockDuringGuideText && i < guideLinesByWaypoint.Count && !string.IsNullOrWhiteSpace(guideLinesByWaypoint[i]))
             {
-                dialogueManager?.BeginDialogueLock(guideFocusOrthographicSize, transform);
+                StoryDialogueManager guideMgr = GetDialogueManager();
+                if (guideMgr != null)
+                {
+                    guideMgr.BeginDialogueLock(guideFocusOrthographicSize, transform);
+                }
                 SetText(guideLinesByWaypoint[i]);
                 yield return new WaitForSeconds(guideLineDuration);
-                dialogueManager?.EndDialogueLock();
+                if (guideMgr != null)
+                {
+                    guideMgr.EndDialogueLock();
+                }
             }
 
             // 到达本路标后：等待玩家进入幼崽范围，才继续下一个点
@@ -301,15 +372,9 @@ public class CarrotCubStory : MonoBehaviour
         float timeSinceLastPrompt = 0f;
         int promptIdx = 0;
 
-        // 让一个帧给 collider/位置同步，避免“到点瞬间玩家已在体内但事件没来”的情况。
-        yield return null;
-
-        // 若刚到点时玩家本来就在体内，这里做兜底判定（避免依赖 OnTriggerEnter）。
-        playerInCubTrigger = IsPlayerInsideTriggerByClosestPoint();
-
         while (true)
         {
-            if (playerInCubTrigger || IsPlayerInsideTriggerByClosestPoint())
+            if (IsPlayerWithinProceedDistance())
                 yield break;
 
             timeSinceLastPrompt += Time.deltaTime;
@@ -325,16 +390,16 @@ public class CarrotCubStory : MonoBehaviour
         }
     }
 
-    private bool IsPlayerInsideTriggerByClosestPoint()
+    private bool IsPlayerWithinProceedDistance()
     {
-        if (triggerCollider == null) return false;
         if (playerTransform == null) return false;
 
-        // 用最近点距离来判断“是否在 collider 内部”，比 bounds.Contains 更可靠。
-        Vector3 playerPos = playerTransform.position;
-        Vector3 closest = triggerCollider.ClosestPoint(playerPos);
-        float dist = Vector3.Distance(closest, playerPos);
-        return dist <= triggerInsideEpsilon;
+        Vector3 a = transform.position;
+        Vector3 b = playerTransform.position;
+        a.y = 0f;
+        b.y = 0f;
+        float dist = Vector3.Distance(a, b);
+        return dist <= Mathf.Max(0.1f, playerProceedDistance);
     }
 
     private void HandleBossDefeated()

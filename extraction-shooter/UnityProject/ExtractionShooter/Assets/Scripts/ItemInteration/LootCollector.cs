@@ -41,6 +41,11 @@ public class LootCollector : MonoBehaviour
     [Header("背包已满设置")]
     [Tooltip("背包已满时是否仍然飞向玩家并销毁")]
     [SerializeField] private bool flyAndDestroyWhenFull = true; // 背包已满时是否仍然飞向玩家并销毁
+    [Tooltip("背包满时重试检测间隔（秒）")]
+    [SerializeField] private float fullRetryInterval = 0.5f;
+    [Tooltip("背包满提示消息冷却（秒），防止刷屏")]
+    [SerializeField] private float fullMessageCooldown = 1.5f;
+    [SerializeField] private string fullInventoryMessage = "背包已满，无法收集";
 
     private Transform player;
     private Rigidbody rb;
@@ -56,6 +61,7 @@ public class LootCollector : MonoBehaviour
     private bool playerInTrigger = false; // 标记玩家是否在触发器中
     private Coroutine waitForCollectionCoroutine; // 等待收集的协程
     private bool isInventoryFull = false; // 标记背包是否已满
+    private float lastFullMessageTime = -999f;
 
     private void Awake()
     {
@@ -229,10 +235,12 @@ public class LootCollector : MonoBehaviour
                         // 即使背包已满，也直接开始飞向玩家
                         canBeCollected = true;
                         isInventoryFull = true;
+                        ShowFullInventoryMessage();
                         StartFlyToPlayer();
                     }
                     else
                     {
+                        ShowFullInventoryMessage();
                         // 背包已满，开始等待重试
                         if (waitForCollectionCoroutine != null)
                         {
@@ -272,7 +280,7 @@ public class LootCollector : MonoBehaviour
     {
         while (playerInTrigger && !canBeCollected)
         {
-            yield return new WaitForSeconds(0.5f); // 每0.5秒检查一次
+            yield return new WaitForSeconds(Mathf.Max(0.1f, fullRetryInterval));
 
             bool hasSpace = CheckInventorySpace();
             isInventoryFull = !hasSpace;
@@ -288,8 +296,13 @@ public class LootCollector : MonoBehaviour
                 // 即使背包已满，也直接开始飞向玩家
                 canBeCollected = true;
                 isInventoryFull = true;
+                ShowFullInventoryMessage();
                 StartFlyToPlayer();
                 yield break;
+            }
+            else
+            {
+                ShowFullInventoryMessage();
             }
         }
     }
@@ -382,6 +395,7 @@ public class LootCollector : MonoBehaviour
         if (!hasSpaceNow && !flyAndDestroyWhenFull)
         {
             Debug.LogWarning($"收集时背包已满: {resourceAmount} 个 {resourceType}");
+            ShowFullInventoryMessage();
             canBeCollected = false;
             isFlyingToPlayer = false;
 
@@ -431,6 +445,7 @@ public class LootCollector : MonoBehaviour
         {
             // 背包已满，不添加任何数值，但仍然销毁物品
             Debug.Log($"背包已满，物品销毁但未添加数值: {resourceAmount} 个 {resourceType}");
+            ShowFullInventoryMessage();
             addedSuccessfully = true; // 标记为成功，以便销毁物品
         }
 
@@ -457,7 +472,7 @@ public class LootCollector : MonoBehaviour
     {
         while (!canBeCollected)
         {
-            yield return new WaitForSeconds(0.5f); // 每0.5秒检查一次
+            yield return new WaitForSeconds(Mathf.Max(0.1f, fullRetryInterval));
 
             bool hasSpace = CheckInventorySpace();
             isInventoryFull = !hasSpace;
@@ -473,10 +488,26 @@ public class LootCollector : MonoBehaviour
                 // 即使背包已满，也直接开始飞向玩家
                 canBeCollected = true;
                 isInventoryFull = true;
+                ShowFullInventoryMessage();
                 StartFlyToPlayer();
                 yield break;
             }
+            else
+            {
+                ShowFullInventoryMessage();
+            }
         }
+    }
+
+    private void ShowFullInventoryMessage()
+    {
+        if (Time.time - lastFullMessageTime < Mathf.Max(0.1f, fullMessageCooldown))
+        {
+            return;
+        }
+
+        lastFullMessageTime = Time.time;
+        GlobalMessageUI.Show(fullInventoryMessage);
     }
 
     private void TriggerPlayerFeedback()

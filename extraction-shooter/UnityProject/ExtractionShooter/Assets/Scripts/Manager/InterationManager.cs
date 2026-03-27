@@ -30,6 +30,7 @@ public class InterationManager : MonoBehaviour
     public void SwitchToHomeScene()
     {
         ShopManager.Instance.ShowShop();
+        LevelManager.instance?.RestoreRestaurantFromSkillTree();
         skillTreeObject.SetActive(false);
         mainSceneObject.SetActive(true);
         mainUI.SetActive(true);
@@ -41,6 +42,7 @@ public class InterationManager : MonoBehaviour
     public void SwitchToSkillTree()
     {
         ShopManager.Instance.HideShop();
+        LevelManager.instance?.MoveRestaurantForSkillTree();
         skillTreeObject.SetActive(true);
         mainSceneObject.SetActive(false);
         mainUI.SetActive(false);

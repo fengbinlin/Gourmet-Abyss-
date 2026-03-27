@@ -1,6 +1,9 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// 剧情对话期间：冻结玩家移动/射击、暂停扣氧气、聚焦相机（orthographicSize）。
@@ -13,9 +16,12 @@ public class StoryDialogueManager : MonoBehaviour
     [Header("剧情完成本地存档（按关卡）")]
     [Tooltip("用于生成 PlayerPrefs Key；建议每套剧情用不同 ID。留空会自动用场景名作为区分。")]
     [SerializeField] private string storyId = "CarrotCubBossSister";
+    [Tooltip("剧情进度数据资产（右键 Create -> Story -> Story Progress Data 创建）")]
+    [SerializeField] private StoryProgressData storyProgressData;
 
     private bool storyClearedThisScene;
     private string completionKey;
+    private string currentSceneName;
 
     [Header("引用（可不填：运行时自动查找）")]
     [SerializeField] private Camera targetCamera;
@@ -45,13 +51,24 @@ public class StoryDialogueManager : MonoBehaviour
 
     private void Awake()
     {
+        StripDontDestroyMarker();
+        MoveToActiveSceneIfInDontDestroy();
+
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
-            return;
+            // 如果旧实例来自 DontDestroyOnLoad（上一次关卡残留），优先替换为当前场景实例，避免“场景内管理器被秒销毁”
+            if (Instance.gameObject.scene.buildIndex == -1 || Instance.gameObject.scene.name == "DontDestroyOnLoad")
+            {
+                Debug.LogError("[StoryDialogueManager] 检测到残留的 DontDestroyOnLoad 实例，已销毁旧实例并使用当前场景实例。");
+                Destroy(Instance.gameObject);
+            }
+            else
+            {
+                Destroy(gameObject);
+                return;
+            }
         }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
 
         ResolveTargetCamera();
 
@@ -59,8 +76,6 @@ public class StoryDialogueManager : MonoBehaviour
 
         InitCompletionKeyForCurrentScene();
         LoadStoryProgress();
-
-        SceneManager.sceneLoaded += OnSceneLoaded;
 
         if (playerController == null)
         {
@@ -70,27 +85,51 @@ public class StoryDialogueManager : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
+    private void StripDontDestroyMarker()
     {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
+        DonotDestroy marker = GetComponent<DonotDestroy>();
+        if (marker != null)
+        {
+            Debug.LogError("[StoryDialogueManager] 移除了 DonotDestroy 组件，剧情对象不允许进入 DontDestroyOnLoad。");
+            Destroy(marker);
+        }
     }
 
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void MoveToActiveSceneIfInDontDestroy()
     {
-        InitCompletionKeyForCurrentScene();
-        LoadStoryProgress();
+        if (gameObject.scene.buildIndex != -1 && gameObject.scene.name != "DontDestroyOnLoad") return;
+        Scene activeScene = SceneManager.GetActiveScene();
+        SceneManager.MoveGameObjectToScene(gameObject, activeScene);
+        Debug.LogError($"[StoryDialogueManager] 对象在 DontDestroyOnLoad，已强制移回当前场景：{activeScene.name}");
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 
     private void InitCompletionKeyForCurrentScene()
     {
         string sceneName = SceneManager.GetActiveScene().name;
+        currentSceneName = sceneName;
         string idPart = string.IsNullOrWhiteSpace(storyId) ? "Auto" : storyId;
         completionKey = $"StoryCleared_{idPart}_{sceneName}";
     }
 
     private void LoadStoryProgress()
     {
-        storyClearedThisScene = PlayerPrefs.GetInt(completionKey, 0) == 1;
+        if (storyProgressData == null)
+        {
+            storyClearedThisScene = false;
+            Debug.LogError($"[StoryDialogueManager] 未绑定 StoryProgressData，默认按未通关处理。storyId={storyId}, scene={currentSceneName}");
+            return;
+        }
+
+        bool exists = storyProgressData.TryGetCleared(GetEffectiveStoryId(), currentSceneName, out bool cleared);
+        storyClearedThisScene = exists && cleared;
     }
 
     public bool IsStoryClearedThisScene => storyClearedThisScene;
@@ -99,8 +138,75 @@ public class StoryDialogueManager : MonoBehaviour
     {
         if (storyClearedThisScene) return;
         storyClearedThisScene = true;
-        PlayerPrefs.SetInt(completionKey, 1);
-        PlayerPrefs.Save();
+        if (storyProgressData == null)
+        {
+            Debug.LogError($"[StoryDialogueManager] 标记通关失败：StoryProgressData 未绑定。storyId={storyId}, scene={currentSceneName}");
+            return;
+        }
+
+        storyProgressData.SetCleared(GetEffectiveStoryId(), currentSceneName, true);
+        SaveStoryProgressAsset();
+    }
+
+    /// <summary>
+    /// 清除“当前场景 + 当前 storyId”对应的剧情完成标记。
+    /// </summary>
+    public void ClearStoryClearedFlagForCurrentScene()
+    {
+        InitCompletionKeyForCurrentScene();
+        if (storyProgressData == null)
+        {
+            Debug.LogError($"[StoryDialogueManager] 清除通关标记失败：StoryProgressData 未绑定。storyId={storyId}, scene={currentSceneName}");
+            storyClearedThisScene = false;
+            return;
+        }
+
+        storyProgressData.SetCleared(GetEffectiveStoryId(), currentSceneName, false);
+        SaveStoryProgressAsset();
+        storyClearedThisScene = false;
+        Debug.Log($"[StoryDialogueManager] 已清除剧情完成标记: {completionKey}");
+    }
+
+    /// <summary>
+    /// 静态入口：清除当前场景剧情完成标记。
+    /// </summary>
+    public static void ClearCurrentSceneStoryProgress()
+    {
+        if (Instance == null)
+        {
+            Debug.LogWarning("[StoryDialogueManager] 实例不存在，无法清除剧情标记。");
+            return;
+        }
+
+        Instance.ClearStoryClearedFlagForCurrentScene();
+    }
+
+    [ContextMenu("Debug/Clear Current Scene Story Key")]
+    private void DebugClearCurrentSceneStoryKey()
+    {
+        ClearStoryClearedFlagForCurrentScene();
+    }
+
+    public string GetCurrentStoryProgressDebugText()
+    {
+        string dataName = storyProgressData != null ? storyProgressData.name : "null";
+        return $"storyId={GetEffectiveStoryId()}, scene={currentSceneName}, key={completionKey}, cleared={storyClearedThisScene}, dataAsset={dataName}";
+    }
+
+    private string GetEffectiveStoryId()
+    {
+        return string.IsNullOrWhiteSpace(storyId) ? "Auto" : storyId;
+    }
+
+    private void SaveStoryProgressAsset()
+    {
+#if UNITY_EDITOR
+        if (storyProgressData != null)
+        {
+            EditorUtility.SetDirty(storyProgressData);
+            AssetDatabase.SaveAssets();
+        }
+#endif
     }
 
     public void BeginDialogueLock(float focusOrthographicSize)

@@ -32,6 +32,7 @@ public class LevelManager : MonoBehaviour
     private List<string> loadedLevels = new List<string>();
     private Vector3 restaurantInitialPosition;
     private bool hasCachedRestaurantInitialPosition = false;
+    private bool movedForSkillTree = false;
 
     private void Awake()
     {
@@ -547,5 +548,31 @@ public class LevelManager : MonoBehaviour
         if (restaurantObject == null) return;
         CacheRestaurantInitialPosition();
         restaurantObject.transform.position = restaurantInitialPosition;
+    }
+
+    /// <summary>
+    /// 打开技能树时把餐厅移开（仅在地面场景使用）
+    /// </summary>
+    public void MoveRestaurantForSkillTree()
+    {
+        if (restaurantObject == null) return;
+        CacheRestaurantInitialPosition();
+        if (movedForSkillTree) return;
+
+        Vector3 targetPos = restaurantInitialPosition;
+        targetPos.x += 1000f;
+        restaurantObject.transform.position = targetPos;
+        movedForSkillTree = true;
+    }
+
+    /// <summary>
+    /// 关闭技能树时恢复餐厅位置
+    /// </summary>
+    public void RestoreRestaurantFromSkillTree()
+    {
+        if (restaurantObject == null) return;
+        CacheRestaurantInitialPosition();
+        restaurantObject.transform.position = restaurantInitialPosition;
+        movedForSkillTree = false;
     }
 }

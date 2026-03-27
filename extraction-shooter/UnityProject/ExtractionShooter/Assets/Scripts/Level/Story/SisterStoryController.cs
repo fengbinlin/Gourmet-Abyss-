@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 姐姐剧情逻辑：
@@ -67,6 +68,12 @@ public class SisterStoryController : MonoBehaviour
     private Coroutine cryRoutine;
     private bool cryingLockActive;
 
+    private StoryDialogueManager GetDialogueManager()
+    {
+        if (dialogueManager != null) return dialogueManager;
+        return StoryDialogueManager.Instance;
+    }
+
     private void OnEnable()
     {
         // 当姐姐被 setActive(true 后：直接开始持续求救，直到 Boss 死亡。
@@ -80,8 +87,29 @@ public class SisterStoryController : MonoBehaviour
 
     private void Awake()
     {
+        StripDontDestroyMarker();
+        MoveToActiveSceneIfInDontDestroy();
+
         //dialogueManager = StoryDialogueManager.Instance;
         if (sisterRoot == null) sisterRoot = gameObject;
+    }
+
+    private void StripDontDestroyMarker()
+    {
+        DonotDestroy marker = GetComponent<DonotDestroy>();
+        if (marker != null)
+        {
+            Debug.LogError("[SisterStoryController] 移除了 DonotDestroy 组件，姐姐剧情对象不允许进入 DontDestroyOnLoad。");
+            Destroy(marker);
+        }
+    }
+
+    private void MoveToActiveSceneIfInDontDestroy()
+    {
+        if (gameObject.scene.buildIndex != -1 && gameObject.scene.name != "DontDestroyOnLoad") return;
+        Scene activeScene = SceneManager.GetActiveScene();
+        SceneManager.MoveGameObjectToScene(gameObject, activeScene);
+        Debug.LogError($"[SisterStoryController] 对象在 DontDestroyOnLoad，已强制移回当前场景：{activeScene.name}");
     }
 
     private void Start()
@@ -122,7 +150,11 @@ public class SisterStoryController : MonoBehaviour
         // 先确保持续求救不会抢占文本/锁，保证“遗言说完后才开始感谢”。
         if (cryingLockActive)
         {
-            dialogueManager?.EndDialogueLock();
+            StoryDialogueManager mgr = GetDialogueManager();
+            if (mgr != null)
+            {
+                mgr.EndDialogueLock();
+            }
             cryingLockActive = false;
         }
 
@@ -149,7 +181,11 @@ public class SisterStoryController : MonoBehaviour
         // 若持续求救期间用了 DialogueLock，协程被 Disable 时可能来不及 End，这里兜底修复。
         if (cryingLockActive)
         {
-            dialogueManager?.EndDialogueLock();
+            StoryDialogueManager mgr = GetDialogueManager();
+            if (mgr != null)
+            {
+                mgr.EndDialogueLock();
+            }
             cryingLockActive = false;
         }
     }
@@ -174,8 +210,14 @@ public class SisterStoryController : MonoBehaviour
         if (canvasRoot != null) canvasRoot.SetActive(true);
 
         if (battleStartUsesDialogueLock)
-            dialogueManager?.BeginDialogueLock(battleStartFocusOrthographicSize,
-                sisterRoot != null ? sisterRoot.transform : transform);
+        {
+            StoryDialogueManager mgr = GetDialogueManager();
+            if (mgr != null)
+            {
+                mgr.BeginDialogueLock(battleStartFocusOrthographicSize,
+                    sisterRoot != null ? sisterRoot.transform : transform);
+            }
+        }
 
         if (battleStartLines != null && battleStartLines.Count > 0)
         {
@@ -194,7 +236,13 @@ public class SisterStoryController : MonoBehaviour
         SetText("");
 
         if (battleStartUsesDialogueLock)
-            dialogueManager?.EndDialogueLock();
+        {
+            StoryDialogueManager mgr = GetDialogueManager();
+            if (mgr != null)
+            {
+                mgr.EndDialogueLock();
+            }
+        }
 
         // 如果你没用“激活后持续求救”，才在这里额外启动循环。
         if (continuousCryingAfterActivation == false && cryRoutine == null && !bossDefeated)
@@ -214,8 +262,12 @@ public class SisterStoryController : MonoBehaviour
                 if (cryingUsesDialogueLock)
                 {
                     cryingLockActive = true;
-                    dialogueManager?.BeginDialogueLock(cryingFocusOrthographicSize,
-                        sisterRoot != null ? sisterRoot.transform : transform);
+                    StoryDialogueManager mgr = GetDialogueManager();
+                    if (mgr != null)
+                    {
+                        mgr.BeginDialogueLock(cryingFocusOrthographicSize,
+                            sisterRoot != null ? sisterRoot.transform : transform);
+                    }
                 }
 
                 SetText(line);
@@ -223,7 +275,11 @@ public class SisterStoryController : MonoBehaviour
                 if (cryingUsesDialogueLock)
                 {
                     yield return new WaitForSeconds(Mathf.Max(0.5f, cryingInterval * 0.75f));
-                    dialogueManager?.EndDialogueLock();
+                    StoryDialogueManager mgr = GetDialogueManager();
+                    if (mgr != null)
+                    {
+                        mgr.EndDialogueLock();
+                    }
                     cryingLockActive = false;
                 }
                 else
@@ -268,8 +324,12 @@ public class SisterStoryController : MonoBehaviour
 
         bossStory?.RequestDeathDestroyDelayForSisterThanks(thanksDurationSeconds);
 
-        dialogueManager?.BeginDialogueLock(focusOrthographicSize,
-            sisterRoot != null ? sisterRoot.transform : transform);
+        StoryDialogueManager thanksMgr = GetDialogueManager();
+        if (thanksMgr != null)
+        {
+            thanksMgr.BeginDialogueLock(focusOrthographicSize,
+                sisterRoot != null ? sisterRoot.transform : transform);
+        }
 
         if (thankLines != null && thankLines.Count > 0)
         {
@@ -285,7 +345,10 @@ public class SisterStoryController : MonoBehaviour
             yield return new WaitForSeconds(1.1f);
         }
 
-        dialogueManager?.EndDialogueLock();
+        if (thanksMgr != null)
+        {
+            thanksMgr.EndDialogueLock();
+        }
 
         TryEnablePetAndSpawn();
 

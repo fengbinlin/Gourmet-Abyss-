@@ -80,6 +80,8 @@ public class EnemyHealth : MonoBehaviour
     private Vector3 lastHitDirection; // 记录最后一次被击中的方向
     private Vector3 lastHitPoint; // 记录最后一次击中点
     private bool isDead = false;
+
+    public bool IsDead => isDead;
     
     // 进度条相关变量
     private Coroutine redFillCoroutine;

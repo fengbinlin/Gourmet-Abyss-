@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 恶霸剧情逻辑：
@@ -85,6 +86,12 @@ public class BossStoryController : MonoBehaviour
     private Coroutine threatCoroutine;
     private Coroutine attackCoroutine;
 
+    private StoryDialogueManager GetDialogueManager()
+    {
+        if (dialogueManager != null) return dialogueManager;
+        return StoryDialogueManager.Instance;
+    }
+
     /// <summary>
     /// 剧情用途：在 Boss 死亡后延长销毁时间，确保姐姐感谢对话完成后再消失。
     /// </summary>
@@ -111,10 +118,31 @@ public class BossStoryController : MonoBehaviour
 
     private void Awake()
     {
+        StripDontDestroyMarker();
+        MoveToActiveSceneIfInDontDestroy();
+
         //dialogueManager = StoryDialogueManager.Instance;
         if (enemyHealth == null) enemyHealth = GetComponent<EnemyHealth>();
         if (animator == null) animator = GetComponent<Animator>();
         myTriggerCollider = GetComponent<Collider>();
+    }
+
+    private void StripDontDestroyMarker()
+    {
+        DonotDestroy marker = GetComponent<DonotDestroy>();
+        if (marker != null)
+        {
+            Debug.LogError("[BossStoryController] 移除了 DonotDestroy 组件，Boss 剧情对象不允许进入 DontDestroyOnLoad。");
+            Destroy(marker);
+        }
+    }
+
+    private void MoveToActiveSceneIfInDontDestroy()
+    {
+        if (gameObject.scene.buildIndex != -1 && gameObject.scene.name != "DontDestroyOnLoad") return;
+        Scene activeScene = SceneManager.GetActiveScene();
+        SceneManager.MoveGameObjectToScene(gameObject, activeScene);
+        Debug.LogError($"[BossStoryController] 对象在 DontDestroyOnLoad，已强制移回当前场景：{activeScene.name}");
     }
 
     private void Start()
@@ -206,7 +234,11 @@ public class BossStoryController : MonoBehaviour
         OnBossBattleStart?.Invoke();
 
         // 冻结：玩家不动/氧气不掉/相机聚焦
-        dialogueManager?.BeginDialogueLock(threatFocusOrthographicSize, transform);
+        StoryDialogueManager mgr = GetDialogueManager();
+        if (mgr != null)
+        {
+            mgr.BeginDialogueLock(threatFocusOrthographicSize, transform);
+        }
 
         if (threatLines != null && threatLines.Count > 0)
         {
@@ -222,7 +254,10 @@ public class BossStoryController : MonoBehaviour
             yield return new WaitForSeconds(1.2f);
         }
 
-        dialogueManager?.EndDialogueLock();
+        if (mgr != null)
+        {
+            mgr.EndDialogueLock();
+        }
 
         // 开始攻击循环（只要玩家仍在范围内）
         TryStartAttackLoop();
@@ -254,7 +289,7 @@ public class BossStoryController : MonoBehaviour
 
         while (playerInRange && !deathHandled)
         {
-            if (enemyHealth != null && !enemyHealth.enabled)
+            if (enemyHealth != null && enemyHealth.IsDead)
                 yield break;
 
             if (playerTransform != null && bulletEmitter != null)
@@ -348,8 +383,8 @@ public class BossStoryController : MonoBehaviour
             }
         }
 
-        // EnemyHealth 在 Die() 时会 enabled=false，因此可用来判断“死亡已开始”
-        if (!enemyHealth.enabled)
+        // 只用 EnemyHealth 的真实死亡标记判断，避免把“组件禁用”误判为死亡。
+        if (enemyHealth.IsDead)
         {
             deathHandled = true;
             StopAttackLoop();
@@ -371,7 +406,11 @@ public class BossStoryController : MonoBehaviour
         if (canvasRoot != null) canvasRoot.SetActive(true);
 
         // 冻结：避免玩家趁死亡阶段乱走、且对话期间不扣氧气
-        dialogueManager?.BeginDialogueLock(deathFocusOrthographicSize, transform);
+        StoryDialogueManager deathMgr = GetDialogueManager();
+        if (deathMgr != null)
+        {
+            deathMgr.BeginDialogueLock(deathFocusOrthographicSize, transform);
+        }
 
         if (deathLines != null && deathLines.Count > 0)
         {
@@ -387,7 +426,10 @@ public class BossStoryController : MonoBehaviour
             yield return new WaitForSeconds(1.2f);
         }
 
-        dialogueManager?.EndDialogueLock();
+        if (deathMgr != null)
+        {
+            deathMgr.EndDialogueLock();
+        }
 
         OnBossDefeated?.Invoke();
     }
