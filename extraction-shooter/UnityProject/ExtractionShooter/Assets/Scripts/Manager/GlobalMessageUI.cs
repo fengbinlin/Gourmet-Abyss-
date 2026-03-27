@@ -40,6 +40,10 @@ public class GlobalMessageUI : MonoBehaviour
     [Tooltip("到达 E 后的渐隐时长")]
     [SerializeField] private float fadeOutDuration = 0.25f;
     [SerializeField] private float defaultShowTime = 1.5f;
+    [Tooltip("是否使用不受 Time.timeScale 影响的时间（避免暂停/慢动作时消息卡住）")]
+    [SerializeField] private bool useUnscaledTime = true;
+    [Tooltip("单条消息超时上限（秒）。超过后强制结束，避免队列卡死。<=0 表示关闭。")]
+    [SerializeField] private float perMessageTimeout = 8f;
 
     [Header("淡入淡出")]
     [SerializeField] private bool useFade = true;
@@ -174,12 +178,25 @@ public class GlobalMessageUI : MonoBehaviour
         rt.localScale = Vector3.one * Mathf.Max(0.01f, startScale);
         if (cg != null) cg.alpha = 1f;
 
+        float timeoutTimer = Mathf.Max(0f, perMessageTimeout);
+        bool useTimeout = timeoutTimer > 0f;
+
         // 从 S -> E：EaseOutCubic（更丝滑）
         float t = 0f;
         float move = Mathf.Max(0.01f, moveDuration);
         while (t < move)
         {
-            t += Time.deltaTime;
+            float dt = GetDeltaTime();
+            t += dt;
+            if (useTimeout)
+            {
+                timeoutTimer -= dt;
+                if (timeoutTimer <= 0f)
+                {
+                    Destroy(go);
+                    yield break;
+                }
+            }
             float p = Mathf.Clamp01(t / move);
             float ease = 1f - Mathf.Pow(1f - p, 3f);
             rt.anchoredPosition = Vector2.LerpUnclamped(startPos, endPos, ease);
@@ -203,7 +220,23 @@ public class GlobalMessageUI : MonoBehaviour
         rt.localScale = Vector3.one * Mathf.Max(0.01f, normalScale);
 
         // 停留
-        yield return new WaitForSeconds(Mathf.Max(0f, data.showTime));
+        float hold = Mathf.Max(0f, data.showTime);
+        if (useTimeout)
+        {
+            hold = Mathf.Min(hold, timeoutTimer);
+            timeoutTimer -= hold;
+            if (timeoutTimer <= 0f && hold <= 0f)
+            {
+                Destroy(go);
+                yield break;
+            }
+        }
+        yield return WaitForSecondsSafe(hold);
+        if (useTimeout && timeoutTimer <= 0f)
+        {
+            Destroy(go);
+            yield break;
+        }
 
         // 到达 E 后渐隐消失
         if (cg != null)
@@ -212,7 +245,17 @@ public class GlobalMessageUI : MonoBehaviour
             float fade = Mathf.Max(0.01f, fadeOutDuration);
             while (t < fade)
             {
-                t += Time.deltaTime;
+                float dt = GetDeltaTime();
+                t += dt;
+                if (useTimeout)
+                {
+                    timeoutTimer -= dt;
+                    if (timeoutTimer <= 0f)
+                    {
+                        Destroy(go);
+                        yield break;
+                    }
+                }
                 float p = Mathf.Clamp01(t / fade);
                 float ease = p * p;
                 cg.alpha = 1f - ease;
@@ -249,6 +292,28 @@ public class GlobalMessageUI : MonoBehaviour
         if (normalTxt != null) normalTxt.text = data.text;
         TMP_Text normalTmp = go.GetComponentInChildren<TMP_Text>(true);
         if (normalTmp != null) normalTmp.text = data.text;
+    }
+
+    private float GetDeltaTime()
+    {
+        return useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+    }
+
+    private IEnumerator WaitForSecondsSafe(float duration)
+    {
+        if (duration <= 0f) yield break;
+        if (!useUnscaledTime)
+        {
+            yield return new WaitForSeconds(duration);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
     }
 }
 

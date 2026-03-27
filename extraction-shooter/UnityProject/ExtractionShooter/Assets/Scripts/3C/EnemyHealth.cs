@@ -701,12 +701,12 @@ public class EnemyHealth : MonoBehaviour
         // 生成掉落物
         SpawnLootItems();
         
-        // 隐藏敌人模型
-        HideEnemyModel();
-
         // 给剧情对话留出时间（尤其是你这个“恶霸死前遗言”的需求）
         if (destroyDelayAfterDeath > 0f)
             yield return new WaitForSeconds(destroyDelayAfterDeath);
+
+        // 在真正销毁前再隐藏模型，保证遗言期间仍可见
+        HideEnemyModel();
         
         // 立即销毁敌人对象，不需要等待特效完成
         Destroy(gameObject);
@@ -746,18 +746,8 @@ public class EnemyHealth : MonoBehaviour
             hideCoroutine = null;
         }
         
-        // 填满进度条
-        if (whiteBar != null) 
-        {
-            SetBarWidth(whiteBar, maxBarWidth);
-        }
-        if (redBar != null) 
-        {
-            SetBarWidth(redBar, maxBarWidth);
-        }
-        
-        // 确保血量条显示
-        ShowHealthBar();
+        // 死亡后不再显示血条，避免模型隐藏后 UI 残留
+        HideHealthBar();
         
         if (animator != null)
         {

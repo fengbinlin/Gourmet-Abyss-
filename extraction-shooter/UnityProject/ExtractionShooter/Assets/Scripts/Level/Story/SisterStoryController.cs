@@ -30,7 +30,8 @@ public class SisterStoryController : MonoBehaviour
         "感谢你救了我。",
         "以后我会在地牢中助你一臂之力。"
     };
-    [SerializeField] private float lineDuration = 1.2f;
+    [SerializeField] private float lineDuration = 2.0f;
+    [SerializeField] private float thanksEndHoldDuration = 0.8f;
     [SerializeField] private float focusOrthographicSize = 3.0f;
 
     [Header("开战对话（BOSS进入战斗模式时）")]
@@ -178,16 +179,13 @@ public class SisterStoryController : MonoBehaviour
 
     private void OnDisable()
     {
-        // 若持续求救期间用了 DialogueLock，协程被 Disable 时可能来不及 End，这里兜底修复。
-        if (cryingLockActive)
+        // 协程被中断时兜底解锁，避免玩家/相机卡在剧情状态。
+        StoryDialogueManager mgr = GetDialogueManager();
+        if (mgr != null)
         {
-            StoryDialogueManager mgr = GetDialogueManager();
-            if (mgr != null)
-            {
-                mgr.EndDialogueLock();
-            }
-            cryingLockActive = false;
+            mgr.ForceEndAllDialogueLocks();
         }
+        cryingLockActive = false;
     }
 
     private void HandleBossBattleStart()
@@ -320,15 +318,18 @@ public class SisterStoryController : MonoBehaviour
         if (thankLines != null && thankLines.Count > 0)
             thanksDurationSeconds = thankLines.Count * lineDuration;
         else
-            thanksDurationSeconds = 1.1f;
+            thanksDurationSeconds = 2.0f;
+        thanksDurationSeconds += Mathf.Max(0f, thanksEndHoldDuration);
 
         bossStory?.RequestDeathDestroyDelayForSisterThanks(thanksDurationSeconds);
 
         StoryDialogueManager thanksMgr = GetDialogueManager();
+        bool thanksLockAcquired = false;
         if (thanksMgr != null)
         {
             thanksMgr.BeginDialogueLock(focusOrthographicSize,
                 sisterRoot != null ? sisterRoot.transform : transform);
+            thanksLockAcquired = true;
         }
 
         if (thankLines != null && thankLines.Count > 0)
@@ -342,15 +343,28 @@ public class SisterStoryController : MonoBehaviour
         else
         {
             SetText("感谢你……");
-            yield return new WaitForSeconds(1.1f);
+            yield return new WaitForSeconds(2.0f);
         }
 
-        if (thanksMgr != null)
+        if (thanksEndHoldDuration > 0f)
+        {
+            yield return new WaitForSeconds(thanksEndHoldDuration);
+        }
+
+        if (thanksMgr != null && thanksLockAcquired)
         {
             thanksMgr.EndDialogueLock();
         }
 
+        // 无论锁计数是否异常，剧情收尾都强制恢复一次玩家与相机状态
+        if (thanksMgr != null)
+            thanksMgr.ForceEndAllDialogueLocks();
+
         TryEnablePetAndSpawn();
+
+        // 写入本地通关存档：不依赖宠物是否生成、当前是否 Battle
+        if (StoryDialogueManager.Instance != null)
+            StoryDialogueManager.Instance.MarkStoryClearedThisScene();
 
         if (disappearCubAfterDialogue && carrotCubStory != null)
             carrotCubStory.Disappear();
@@ -375,10 +389,6 @@ public class SisterStoryController : MonoBehaviour
         if (PlayerStateManager.instance.currentState != PlayerState.Battle) return;
 
         PetManager.Instance?.SyncPetsForBattleNow();
-
-        // 写入本地通关存档：下次进入该关卡无需再触发剧情
-        if (StoryDialogueManager.Instance != null)
-            StoryDialogueManager.Instance.MarkStoryClearedThisScene();
     }
 
     private void SetText(string s)

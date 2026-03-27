@@ -39,7 +39,8 @@ public class BossStoryController : MonoBehaviour
     {
         "……咳。你会后悔的……"
     };
-    [SerializeField] private float deathLineDuration = 1.1f;
+    [SerializeField] private float deathLineDuration = 2.2f;
+    [SerializeField] private float deathEndHoldDuration = 0.6f;
     [SerializeField] private float deathFocusOrthographicSize = 3.1f;
 
     [Header("远程攻击动画参数")]
@@ -83,6 +84,7 @@ public class BossStoryController : MonoBehaviour
     private bool threatPlayed;
     private bool playerInRange;
     private bool deathHandled;
+    private bool bossDefeatedNotified;
     private Coroutine threatCoroutine;
     private Coroutine attackCoroutine;
 
@@ -109,7 +111,10 @@ public class BossStoryController : MonoBehaviour
         if (deathLines != null && deathLines.Count > 0)
             bossDeathDialogueSeconds = deathLines.Count * deathLineDuration;
         else
-            bossDeathDialogueSeconds = 1.2f;
+            bossDeathDialogueSeconds = 2.2f;
+
+        // 把遗言结束停留时间也纳入，避免 Boss 提前销毁打断事件链
+        bossDeathDialogueSeconds += Mathf.Max(0f, deathEndHoldDuration);
 
         float extra = 0.6f; // 冗余：给击杀后协程调度/最后一帧收尾
         float total = Mathf.Max(0.1f, bossDeathDialogueSeconds + sisterThanksDurationSeconds + extra);
@@ -405,6 +410,16 @@ public class BossStoryController : MonoBehaviour
     {
         if (canvasRoot != null) canvasRoot.SetActive(true);
 
+        // 确保 Boss 至少存活到遗言播放完，避免模型/对话提前被销毁
+        if (enemyHealth != null)
+        {
+            float deathDialogueSeconds = (deathLines != null && deathLines.Count > 0)
+                ? deathLines.Count * deathLineDuration
+                : 2.2f;
+            deathDialogueSeconds += Mathf.Max(0f, deathEndHoldDuration);
+            enemyHealth.SetDestroyDelayAfterDeath(Mathf.Max(0.1f, deathDialogueSeconds + 0.3f));
+        }
+
         // 冻结：避免玩家趁死亡阶段乱走、且对话期间不扣氧气
         StoryDialogueManager deathMgr = GetDialogueManager();
         if (deathMgr != null)
@@ -423,7 +438,12 @@ public class BossStoryController : MonoBehaviour
         else
         {
             SetText("……我不会输。");
-            yield return new WaitForSeconds(1.2f);
+            yield return new WaitForSeconds(2.2f);
+        }
+
+        if (deathEndHoldDuration > 0f)
+        {
+            yield return new WaitForSeconds(deathEndHoldDuration);
         }
 
         if (deathMgr != null)
@@ -431,7 +451,26 @@ public class BossStoryController : MonoBehaviour
             deathMgr.EndDialogueLock();
         }
 
+        bossDefeatedNotified = true;
         OnBossDefeated?.Invoke();
+    }
+
+    private void OnDisable()
+    {
+        // 若 Boss 在遗言协程中途被销毁/禁用，兜底推进姐姐流程。
+        // 注意：正常销毁（已通知姐姐）时不应在这里提前解锁，否则会打断姐姐感谢阶段。
+        if (!deathHandled) return;
+
+        if (!bossDefeatedNotified)
+        {
+            StoryDialogueManager mgr = GetDialogueManager();
+            if (mgr != null)
+            {
+                mgr.ForceEndAllDialogueLocks();
+            }
+            bossDefeatedNotified = true;
+            OnBossDefeated?.Invoke();
+        }
     }
 }
 

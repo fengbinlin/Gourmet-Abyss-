@@ -388,6 +388,42 @@ public class StoryDialogueManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 兜底：强制清空所有剧情锁并恢复玩家/氧气/相机。
+    /// 用于协程被中断或事件链异常时的状态修复。
+    /// </summary>
+    public void ForceEndAllDialogueLocks()
+    {
+        lockCount = 0;
+
+        ResolveTargetCamera();
+
+        // 强制恢复玩家控制（用于异常卡锁的兜底）
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+            playerController.canPlayerMove = true;
+            playerController.SetCombatState(true);
+        }
+
+        // 强制恢复氧气消耗
+        if (bvm != null)
+            bvm.ResumeConsuming();
+
+        // 强制恢复相机缩放
+        if (targetCamera != null && targetCamera.orthographic && originalOrthographicSizeValid)
+            ApplyOrthographicSize(originalOrthographicSize, restoreLerpDuration);
+
+        // 强制清理 CameraFollow 的临时跟随
+        if (cameraFollow == null)
+            cameraFollow = FindFirstObjectByType<CameraFollow>();
+        if (cameraFollow != null)
+        {
+            cameraFollow.ClearOverrideTarget();
+            cameraFollowOverrideApplied = false;
+        }
+    }
+
     private void ApplyOrthographicSize(float toSize, float duration)
     {
         if (targetCamera == null || !targetCamera.orthographic)

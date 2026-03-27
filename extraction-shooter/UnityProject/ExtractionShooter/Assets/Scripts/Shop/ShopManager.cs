@@ -8,7 +8,6 @@ using System.Collections;
 public class ShopManager : MonoBehaviour
 {
     [Header("商店显示和隐藏")]
-    private Vector3 originPosition; // 记录初始位置
     [Header("商店设置")]
     [SerializeField] private Transform gridParent; // Grid Layout Group的父物体
     [SerializeField] private GameObject shopSlotPrefab; // 商店格子预制体
@@ -108,7 +107,6 @@ public class ShopManager : MonoBehaviour
 
     private void Start()
     {
-        originPosition = this.transform.position;
         // 初始检查商店状态
         CheckAndUpdateShopState();
 
@@ -123,12 +121,10 @@ public class ShopManager : MonoBehaviour
     public void HideShop()
     {
         print("隐藏商店");
-        this.transform.position = new Vector3(0, -1000, 0);
     }
     public void ShowShop()
     {
-        print("显示商店:" + originPosition.ToString());
-        this.transform.position = originPosition;
+        print("显示商店");
     }
     // 初始化商店
     private void InitializeShop()
