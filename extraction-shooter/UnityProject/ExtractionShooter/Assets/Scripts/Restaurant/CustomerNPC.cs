@@ -286,8 +286,24 @@ public class CustomerNPC : MonoBehaviour
     public void AddAffection(float amount)
     {
         if (data == null) return;
+        int oldLevel = data.affectionLevel;
+        float oldValue = data.affectionValue;
+
         data.AddAffection(amount);
         UpdateAffectionUI();
+
+        // 全局消息提示：好感度提升/等级提升
+        if (amount > 0f)
+        {
+            string name = string.IsNullOrEmpty(data.customerName) ? "顾客" : data.customerName;
+            GlobalMessageUI.Show($"{name} 好感度 +{amount:0.#}", 1.2f);
+        }
+
+        if (data.affectionLevel > oldLevel)
+        {
+            string name = string.IsNullOrEmpty(data.customerName) ? "顾客" : data.customerName;
+            GlobalMessageUI.Show($"{name} 好感等级提升：Lv.{data.affectionLevel}", 1.6f);
+        }
     }
 
     void Update()
@@ -380,7 +396,7 @@ public class CustomerNPC : MonoBehaviour
 
     public bool CanDoCustomerPairChat()
     {
-        // 需求：只能在进入餐厅之前、或离开餐厅准备回家时聊天
+        // 需求：只允许在离开阶段聊天（排队/去排队阶段不允许触发相互对话）
         if (data != null && data.isCook) return false;
         if (isGuesting) return false;
         if (isConsuming) return false;
@@ -396,10 +412,7 @@ public class CustomerNPC : MonoBehaviour
             if (xzDist < 0.8f) return false;
         }
 
-        return state == CustomerState.Spawning
-            || state == CustomerState.WalkingToQueue
-            || state == CustomerState.Queueing
-            || state == CustomerState.Leaving;
+        return state == CustomerState.Leaving;
     }
 
     public void BeginPairChatPositioning(Vector3 pos)
@@ -1036,8 +1049,9 @@ public class CustomerNPC : MonoBehaviour
 
     private void SetInteractionPanelVisible(bool visible)
     {
-        // 只要仍在玩家交互态，就不允许外部逻辑隐藏交互面板
-        if (!visible && isInteractingWithPlayer)
+        // 普通交互期间不允许外部逻辑随便关掉面板，
+        // 但做客状态下（isGuesting=true）需要强制隐藏，只保留对话气泡。
+        if (!visible && isInteractingWithPlayer && !isGuesting)
         {
             return;
         }
@@ -1118,6 +1132,8 @@ public class CustomerNPC : MonoBehaviour
         {
             ShowCustomBubble(GetChatText(data?.GiftNormalWords, "噢，是礼物！"), 1);
             SetExpression(CustomerExpression.Awkward);
+            // 非最爱礼物也给少量好感度，避免“送礼不加好感”的落差
+            AddAffection(1f);
         }
 
         ItemBagManager.instance.SendGift();
@@ -1191,7 +1207,17 @@ public class CustomerNPC : MonoBehaviour
         CameraFollow.PopOrthoSizeRequest(homeGuestCameraRequestKey);
         CameraFollow.PopXFocusRequest(homeGuestCameraXFocusRequestKey);
         ForceStopInteraction();
-        AddAffection(10f);
+
+        // 根据家中总魅力值，对做客结束时的好感提升进行加成
+        float baseAffection = 10f;
+        float multiplier = 1f;
+        if (FurnitureUIManager.instance != null)
+        {
+            int charm = FurnitureUIManager.instance.TotalCharmValue;
+            // 每 10 点魅力 +10% 加成，上限 3 倍
+            multiplier += Mathf.Clamp(charm / 10f * 0.1f, 0f, 2f);
+        }
+        AddAffection(baseAffection * multiplier);
     }
 
     private IEnumerator WaitWithGuestCameraFocus(float duration)

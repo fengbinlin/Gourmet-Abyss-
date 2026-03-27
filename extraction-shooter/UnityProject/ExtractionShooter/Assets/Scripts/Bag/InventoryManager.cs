@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
+using UnityEngine.UI;
 
 public class InventoryManager : MonoBehaviour
 {
@@ -12,8 +14,26 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private int slotCapacity = 4; // 每个格子的容量
     [SerializeField] private GameObject inventoryFullObject; // 背包满时激活的物体
 
+    [Header("回地面食材飞行动画")]
+    [SerializeField] private GameObject transferToRestaurantFlyPrefab; // 飞行预制体（SpriteRenderer 或 Image）
+    [SerializeField] private Transform transferFlyParent; // 可选：飞行特效父节点
+    [SerializeField] private RectTransform transferUIRoot; // 若预制体是UI，使用该根节点坐标系
+    [SerializeField] private Camera transferUICamera; // Screen Space Camera 模式可指定
+    [SerializeField] private Transform transferTarget; // 飞行终点（优先使用）
+    [SerializeField] private float transferFlyDuration = 0.4f;
+    [SerializeField] private float transferFlyArcHeight = 45f;
+    [SerializeField] private float transferSpawnInterval = 0.04f;
+
     // 格子列表
     private List<InventoryItemUI> slots = new List<InventoryItemUI>();
+
+    private struct TransferFlyRequest
+    {
+        public ResourceType itemType;
+        public Sprite icon;
+        public int count;
+        public Vector3 fromWorldPos;
+    }
 
     private void Awake()
     {
@@ -523,6 +543,7 @@ public class InventoryManager : MonoBehaviour
 
         // 按种类汇总数量
         Dictionary<ResourceType, int> typeToCount = new Dictionary<ResourceType, int>();
+        List<TransferFlyRequest> flyRequests = new List<TransferFlyRequest>();
 
         for (int i = 0; i < slots.Count; i++)
         {
@@ -534,6 +555,15 @@ public class InventoryManager : MonoBehaviour
                 typeToCount[itemType] += count;
             else
                 typeToCount[itemType] = count;
+
+            Sprite icon = GetResourceIcon(itemType);
+            flyRequests.Add(new TransferFlyRequest
+            {
+                itemType = itemType,
+                icon = icon,
+                count = Mathf.Max(0, count),
+                fromWorldPos = slots[i].transform.position
+            });
         }
 
         // 加到资源管理器
@@ -545,5 +575,133 @@ public class InventoryManager : MonoBehaviour
 
         // 清空背包
         ClearAllItems(false);
+
+        // 播放飞行动画表现（背包Item -> 商店位置）
+        if (flyRequests.Count > 0)
+        {
+            StartCoroutine(PlayTransferToRestaurantEffects(flyRequests));
+        }
+    }
+
+    private Sprite GetResourceIcon(ResourceType type)
+    {
+        if (GameValManager.Instance == null) return null;
+        ResourceItem info = GameValManager.Instance.GetResourceInfo(type);
+        return info != null ? info.Icon : null;
+    }
+
+    private IEnumerator PlayTransferToRestaurantEffects(List<TransferFlyRequest> requests)
+    {
+        if (transferToRestaurantFlyPrefab == null)
+        {
+            yield break;
+        }
+
+        Transform targetTransform = transferTarget;
+        if (targetTransform == null && ShopManager.Instance != null)
+        {
+            targetTransform = ShopManager.Instance.transform;
+        }
+        if (targetTransform == null) yield break;
+
+        for (int i = 0; i < requests.Count; i++)
+        {
+            TransferFlyRequest req = requests[i];
+            int spawnCount = Mathf.Max(1, req.count);
+
+            for (int j = 0; j < spawnCount; j++)
+            {
+                PlaySingleTransferEffect(req.icon, req.fromWorldPos, targetTransform.position);
+                float interval = Mathf.Max(0f, transferSpawnInterval);
+                if (interval > 0f) yield return new WaitForSeconds(interval);
+            }
+        }
+    }
+
+    private void PlaySingleTransferEffect(Sprite icon, Vector3 fromWorldPos, Vector3 toWorldPos)
+    {
+        GameObject flyObj = Instantiate(
+            transferToRestaurantFlyPrefab,
+            transferFlyParent != null ? transferFlyParent : null
+        );
+        if (flyObj == null) return;
+
+        SpriteRenderer sr = flyObj.GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null && icon != null)
+        {
+            sr.sprite = icon;
+        }
+
+        Image img = flyObj.GetComponentInChildren<Image>(true);
+        if (img != null && icon != null)
+        {
+            img.sprite = icon;
+        }
+
+        RectTransform flyRect = flyObj.GetComponent<RectTransform>();
+        bool isUIFly = flyRect != null && transferUIRoot != null;
+        if (isUIFly)
+        {
+            flyRect.SetParent(transferUIRoot, false);
+            Vector2 startAnchored = WorldToAnchoredPosition(transferUIRoot, fromWorldPos);
+            Vector2 endAnchored = WorldToAnchoredPosition(transferUIRoot, toWorldPos);
+            StartCoroutine(FlyUIRoutine(flyObj, flyRect, startAnchored, endAnchored));
+        }
+        else
+        {
+            StartCoroutine(FlyWorldRoutine(flyObj, fromWorldPos, toWorldPos));
+        }
+    }
+
+    private IEnumerator FlyWorldRoutine(GameObject flyObj, Vector3 startPos, Vector3 endPos)
+    {
+        float duration = Mathf.Max(0.01f, transferFlyDuration);
+        float arc = transferFlyArcHeight;
+        float elapsed = 0f;
+
+        flyObj.transform.position = startPos;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            Vector3 pos = Vector3.Lerp(startPos, endPos, t);
+            pos.y += 4f * t * (1f - t) * arc;
+            flyObj.transform.position = pos;
+            yield return null;
+        }
+
+        flyObj.transform.position = endPos;
+        Destroy(flyObj);
+    }
+
+    private IEnumerator FlyUIRoutine(GameObject flyObj, RectTransform flyRect, Vector2 startPos, Vector2 endPos)
+    {
+        float duration = Mathf.Max(0.01f, transferFlyDuration);
+        float arc = transferFlyArcHeight;
+        float elapsed = 0f;
+
+        flyRect.anchoredPosition = startPos;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            Vector2 pos = Vector2.Lerp(startPos, endPos, t);
+            pos.y += 4f * t * (1f - t) * arc;
+            flyRect.anchoredPosition = pos;
+            yield return null;
+        }
+
+        flyRect.anchoredPosition = endPos;
+        Destroy(flyObj);
+    }
+
+    private Vector2 WorldToAnchoredPosition(RectTransform root, Vector3 worldPos)
+    {
+        Camera cam = transferUICamera;
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(root, screenPos, cam, out Vector2 localPos);
+        return localPos;
     }
 }

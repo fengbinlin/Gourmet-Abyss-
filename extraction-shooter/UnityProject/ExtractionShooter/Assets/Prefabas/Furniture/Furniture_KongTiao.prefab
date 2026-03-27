@@ -65,6 +65,7 @@ MonoBehaviour:
   occupyGizmoEmptyWireColor: {r: 0.45, g: 0.45, b: 0.5, a: 0.65}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  charmValue: 10
   rotationMode: 0
   canRotate: 0
 --- !u!114 &4753587719802984811

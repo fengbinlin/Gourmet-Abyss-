@@ -23,8 +23,8 @@ MonoBehaviour:
   buyprobability: 0.8
   wantToBuyDish: 0
   moveSpeed: 5
-  affectionValue: 125
-  affectionLevel: 3
+  affectionValue: 14
+  affectionLevel: 1
   affectionLevelNeeds:
   - 10
   - 20

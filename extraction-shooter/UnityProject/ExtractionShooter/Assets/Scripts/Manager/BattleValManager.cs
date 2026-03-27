@@ -48,6 +48,13 @@ public class BattleValManager : MonoBehaviour
     [SerializeField] private ResourceBarController secondaryAmmoBarController;
 
     [SerializeField] private GameObject healthTips;
+    [Header("低氧提示缩放动效")]
+    [SerializeField] private bool enableHealthTipsScalePulse = true;
+    [SerializeField] private float healthTipsPulseSpeed = 3.5f;
+    [SerializeField] private float healthTipsPulseScaleMin = 0.95f;
+    [SerializeField] private float healthTipsPulseScaleMax = 1.08f;
+    private Vector3 healthTipsBaseScale = Vector3.one;
+    private bool healthTipsScaleCached = false;
     #region 公共属性
     public float OxygenCurrent => oxygenCurrent;
     public float OxygenMax => oxygenMax;
@@ -114,9 +121,13 @@ public class BattleValManager : MonoBehaviour
         if (isActive)
         {
             ConsumeOxygen();
-            if (healthTips != null && oxygenBarController != null && oxygenMax > 0.0001f &&
-                oxygenCurrent / oxygenMax < oxygenBarController.pulseThreshold)
-                healthTips.SetActive(true);
+            bool lowOxygen = healthTips != null && oxygenBarController != null && oxygenMax > 0.0001f &&
+                             oxygenCurrent / oxygenMax < oxygenBarController.pulseThreshold;
+            SetHealthTipsVisible(lowOxygen);
+        }
+        else
+        {
+            SetHealthTipsVisible(false);
         }
 
         RefreshOxygenDisplayOnly();
@@ -163,6 +174,8 @@ public class BattleValManager : MonoBehaviour
             primaryAmmoBarController.UpdateProgress(primaryPercent);
         if (secondaryAmmoBarController != null)
             secondaryAmmoBarController.UpdateProgress(secondaryPercent);
+
+        UpdateHealthTipsPulseScale();
     }
 
     /// <summary>
@@ -175,6 +188,51 @@ public class BattleValManager : MonoBehaviour
             oxgImage.fillAmount = oxygenCurrent / oxygenMax;
         if (oxygenBarController != null)
             oxygenBarController.UpdateProgress(OxygenPercentage);
+    }
+
+    private void SetHealthTipsVisible(bool visible)
+    {
+        if (healthTips == null) return;
+
+        if (healthTips.activeSelf != visible)
+        {
+            healthTips.SetActive(visible);
+        }
+
+        if (!visible)
+        {
+            ResetHealthTipsScale();
+        }
+    }
+
+    private void UpdateHealthTipsPulseScale()
+    {
+        if (!enableHealthTipsScalePulse || healthTips == null || !healthTips.activeSelf) return;
+
+        if (!healthTipsScaleCached)
+        {
+            healthTipsBaseScale = healthTips.transform.localScale;
+            healthTipsScaleCached = true;
+        }
+
+        float minScale = Mathf.Min(healthTipsPulseScaleMin, healthTipsPulseScaleMax);
+        float maxScale = Mathf.Max(healthTipsPulseScaleMin, healthTipsPulseScaleMax);
+        float wave = (Mathf.Sin(Time.time * Mathf.Max(0.01f, healthTipsPulseSpeed)) + 1f) * 0.5f;
+        float mul = Mathf.Lerp(minScale, maxScale, wave);
+        healthTips.transform.localScale = healthTipsBaseScale * mul;
+    }
+
+    private void ResetHealthTipsScale()
+    {
+        if (healthTips == null) return;
+
+        if (!healthTipsScaleCached)
+        {
+            healthTipsBaseScale = healthTips.transform.localScale;
+            healthTipsScaleCached = true;
+        }
+
+        healthTips.transform.localScale = healthTipsBaseScale;
     }
 
     #region 氧气管理

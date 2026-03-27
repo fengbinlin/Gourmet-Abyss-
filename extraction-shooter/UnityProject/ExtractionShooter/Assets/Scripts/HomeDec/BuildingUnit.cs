@@ -54,6 +54,11 @@ public class BuildingUnit : MonoBehaviour
     public Color normalColor = Color.white;
     public Color selectedColor = Color.yellow;
     private SpriteRenderer[] spriteRenderers;
+
+    [Header("魅力值设置")]
+    [Tooltip("该建筑/家具提供的魅力值，用于计算家中总魅力")]
+    public int charmValue = 0;
+
     [Header("旋转模式")]
     public RotationMode rotationMode = RotationMode.Rotate90;
     // 记录该单元在Grid中的基础位置

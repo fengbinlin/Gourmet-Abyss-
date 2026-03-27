@@ -200,17 +200,27 @@ public class GameValManager : MonoBehaviour
             int added = item.Add(amount);
             OnResourceAdded?.Invoke(type, added, item.count);
             OnResourceChanged?.Invoke(type, oldCount, item.count);
+
+            if (added > 0 && type != ResourceType.Money)
+            {
+                GlobalMessageUI.ShowResourceGain(item.Icon, added);
+            }
             
             if (debugMode) Debug.Log($"[资源管理器] {type} 已达到最大容量，只增加了 {added} 个，当前: {item.count}/{item.maxCapacity}");
             return false;
         }
         
-        item.Add(amount);
+        int actualAdded = item.Add(amount);
         
         if (debugMode) Debug.Log($"[资源管理器] 增加了 {amount} 个 {type}，当前: {item.count}");
         
         OnResourceAdded?.Invoke(type, amount, item.count);
         OnResourceChanged?.Invoke(type, oldCount, item.count);
+
+        if (actualAdded > 0 && type != ResourceType.Money)
+        {
+            GlobalMessageUI.ShowResourceGain(item.Icon, actualAdded);
+        }
         
         return true;
     }

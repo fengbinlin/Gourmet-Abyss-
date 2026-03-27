@@ -178,7 +178,7 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 71dd22aad8126e2449b06694d22c6f4d, type: 3}
   - {fileID: 2800000, guid: 449af99a3bba17848888fb80747a3152, type: 3}
   - {fileID: 2800000, guid: 8ff6f180e200fe840b4e1c2e73283fcd, type: 3}
-  - {fileID: 2800000, guid: cc475549f488bf04d861ddbc5c8eb525, type: 3}
+  - {fileID: 2800000, guid: 63107e4029c5df1419abbd67bd6b622d, type: 3}
   - {fileID: 2800000, guid: 63107e4029c5df1419abbd67bd6b622d, type: 3}
   expressionSkinRenderer: {fileID: 486726491416068061}
   expressionMaterialSlot: 0

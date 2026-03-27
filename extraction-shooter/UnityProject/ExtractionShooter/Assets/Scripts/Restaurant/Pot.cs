@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum PotLidState
 {
@@ -50,6 +51,15 @@ public class Pot : MonoBehaviour
     [Header("装盘配置")]
     public bool autoTransferToPlate = true;    // 是否自动装盘
     public Plate targetPlate;                  // 目标菜碟（可手动指定）
+
+    [Header("出菜飞行动画")]
+    public GameObject cookedDishFlyPrefab;     // 出菜飞行预制体（挂有 SpriteRenderer 或 Image）
+    public float cookedDishFlyDuration = 0.35f;
+    public AnimationCurve cookedDishFlyCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+    public float cookedDishFlyZOffset = 0f;    // 在世界坐标基础上的Z偏移（用于层级微调）
+    public float cookedDishFlyArcHeight = 0.6f; // 抛物线最高抬升高度（Y+）
+    public float cookedDishLandingEffectDuration = 0.15f;
+    public float cookedDishLandingScaleUp = 1.2f;
 
     void Start()
     {
@@ -256,11 +266,15 @@ public class Pot : MonoBehaviour
         {
             if (autoTransferToPlate && currentRecipe != null)
             {
-                bool transferSuccess = TransferToPlate();
+                bool transferSuccess = TransferToPlate(out Plate usedPlate);
 
                 if (!transferSuccess)
                 {
                     Debug.LogWarning($"烹饪完成但装盘失败：{currentRecipe.dishName}");
+                }
+                else
+                {
+                    PlayDishFlyEffect(currentRecipe, usedPlate);
                 }
             }
             addAmount--;
@@ -276,6 +290,14 @@ public class Pot : MonoBehaviour
     // 转移到菜碟
     public bool TransferToPlate()
     {
+        return TransferToPlate(out _);
+    }
+
+    // 转移到菜碟，并返回本次使用的目标碟子
+    public bool TransferToPlate(out Plate usedPlate)
+    {
+        usedPlate = null;
+
         if (currentRecipe == null)
         {
             Debug.LogWarning("没有菜肴可以装盘");
@@ -287,7 +309,9 @@ public class Pot : MonoBehaviour
         {
             if (targetPlate.CanAddDish(currentRecipe))
             {
-                return targetPlate.TryAddDish(currentRecipe, this);
+                bool success = targetPlate.TryAddDish(currentRecipe, this);
+                if (success) usedPlate = targetPlate;
+                return success;
             }
         }
 
@@ -295,11 +319,118 @@ public class Pot : MonoBehaviour
         Plate suitablePlate = FindSuitablePlate();
         if (suitablePlate != null)
         {
-            return suitablePlate.TryAddDish(currentRecipe, this);
+            bool success = suitablePlate.TryAddDish(currentRecipe, this);
+            if (success) usedPlate = suitablePlate;
+            return success;
         }
 
         Debug.LogWarning($"没有找到合适的菜碟来装 {currentRecipe.dishName}");
         return false;
+    }
+
+    private void PlayDishFlyEffect(DishRecipe recipe, Plate plate)
+    {
+        if (recipe == null || recipe.dishIcon == null || plate == null || cookedDishFlyPrefab == null)
+        {
+            return;
+        }
+
+        Vector3 startWorldPos = GetVisualCenterWorldPosition(transform);
+        Vector3 endWorldPos = GetVisualCenterWorldPosition(plate.transform);
+        StartCoroutine(PlayDishFlyEffectCoroutine(recipe.dishIcon, startWorldPos, endWorldPos));
+    }
+
+    private IEnumerator PlayDishFlyEffectCoroutine(Sprite dishIcon, Vector3 startWorldPos, Vector3 targetPosition)
+    {
+        GameObject flyObj = Instantiate(cookedDishFlyPrefab);
+        if (flyObj == null) yield break;
+
+        // 同时兼容 SpriteRenderer 和 UI Image
+        SpriteRenderer sr = flyObj.GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null)
+        {
+            sr.sprite = dishIcon;
+        }
+
+        Image img = flyObj.GetComponentInChildren<Image>(true);
+        if (img != null)
+        {
+            img.sprite = dishIcon;
+        }
+
+        // 使用锅/碟自身的世界坐标Z，不再强制覆盖成预制体Z
+        Vector3 startPos = startWorldPos;
+        Vector3 endPos = targetPosition;
+        startPos.z += cookedDishFlyZOffset;
+        endPos.z += cookedDishFlyZOffset;
+
+        flyObj.transform.position = startPos;
+
+        float duration = Mathf.Max(0.01f, cookedDishFlyDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float curveT = cookedDishFlyCurve.Evaluate(t);
+            Vector3 basePos = Vector3.Lerp(startPos, endPos, curveT);
+
+            // 抛物线：4t(1-t) 在 t=0.5 时达到1，叠加到Y轴正方向
+            float arc = 4f * t * (1f - t) * cookedDishFlyArcHeight;
+            basePos.y += arc;
+            flyObj.transform.position = basePos;
+            yield return null;
+        }
+
+        flyObj.transform.position = endPos;
+
+        // 落点缩放弹跳表现：放大 -> 还原
+        Vector3 originalScale = flyObj.transform.localScale;
+        Vector3 peakScale = originalScale * Mathf.Max(1f, cookedDishLandingScaleUp);
+        float landingDuration = Mathf.Max(0.01f, cookedDishLandingEffectDuration);
+        float halfDuration = landingDuration * 0.5f;
+
+        float landElapsed = 0f;
+        while (landElapsed < halfDuration)
+        {
+            landElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(landElapsed / halfDuration);
+            flyObj.transform.localScale = Vector3.LerpUnclamped(originalScale, peakScale, t);
+            yield return null;
+        }
+
+        landElapsed = 0f;
+        while (landElapsed < halfDuration)
+        {
+            landElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(landElapsed / halfDuration);
+            flyObj.transform.localScale = Vector3.LerpUnclamped(peakScale, originalScale, t);
+            yield return null;
+        }
+
+        flyObj.transform.localScale = originalScale;
+        Destroy(flyObj);
+    }
+
+    // 优先使用可视组件中心点，避免 transform 锚点与模型显示位置不一致
+    private Vector3 GetVisualCenterWorldPosition(Transform root)
+    {
+        if (root == null) return Vector3.zero;
+
+        SpriteRenderer sr = root.GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null)
+        {
+            return sr.bounds.center;
+        }
+
+        Collider2D col2D = root.GetComponentInChildren<Collider2D>(true);
+        if (col2D != null)
+        {
+            return col2D.bounds.center;
+        }
+
+        return root.position;
     }
 
     // 寻找合适的菜碟

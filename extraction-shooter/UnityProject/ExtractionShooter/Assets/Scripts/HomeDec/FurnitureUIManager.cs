@@ -16,6 +16,20 @@ public class FurnitureUIManager : MonoBehaviour
     public Text informationTitle;
     public Text informationDescription;
 
+    [Header("家中魅力显示")]
+    [Tooltip("显示当前家中总魅力值的文本")]
+    public Text totalCharmText;
+
+    /// <summary>
+    /// 当前家中所有已放置家具的总魅力值
+    /// </summary>
+    public int TotalCharmValue { get; private set; }
+
+    [Header("魅力值刷新设置")]
+    [Tooltip("多久重新统计一次场景中的家具魅力（秒），用于保证数值和场景实时同步")]
+    [SerializeField] private float charmRecalcInterval = 0.2f;
+    private float charmRecalcTimer = 0f;
+
     private readonly List<GameObject> currentItems = new List<GameObject>();
 
     // 当前是否按单一 ResourceKind 过滤显示
@@ -33,11 +47,27 @@ public class FurnitureUIManager : MonoBehaviour
     private void Start()
     {
         GenerateItems();
+        // 场景加载时，统计当前场景中已经存在的所有家具魅力值
+        RecalculateCharmFromScene();
     }
 
     private void OnEnable()
     {
         GenerateItems();
+        // 重新开启时也做一次同步，避免中途有物体被创建/删除
+        RecalculateCharmFromScene();
+    }
+
+    private void Update()
+    {
+        // 周期性重新统计一次场景中的魅力值，确保即使有其他逻辑增减家具、
+        // 也能在不需要额外点击的情况下自动刷新 UI。
+        charmRecalcTimer += Time.deltaTime;
+        if (charmRecalcTimer >= charmRecalcInterval)
+        {
+            charmRecalcTimer = 0f;
+            RecalculateCharmFromScene();
+        }
     }
 
     /// <summary>
@@ -90,6 +120,69 @@ public class FurnitureUIManager : MonoBehaviour
 
             currentItems.Add(go);
         }
+    }
+
+    /// <summary>
+    /// 有家具成功放置到家中时调用，增加总魅力
+    /// </summary>
+    /// <param name="unit">成功放置的建筑单元（家具）</param>
+    public void OnFurniturePlaced(BuildingUnit unit)
+    {
+        if (unit == null) return;
+
+        TotalCharmValue += Mathf.Max(0, unit.charmValue);
+        RefreshCharmText();
+    }
+
+    /// <summary>
+    /// 家具被收回背包（或从场景中移除）时调用，减少总魅力
+    /// </summary>
+    /// <param name="unit">被收回的建筑单元（家具）</param>
+    public void OnFurnitureReturnedToBag(BuildingUnit unit)
+    {
+        if (unit == null) return;
+
+        TotalCharmValue -= Mathf.Max(0, unit.charmValue);
+        if (TotalCharmValue < 0) TotalCharmValue = 0;
+        RefreshCharmText();
+    }
+
+    private void RefreshCharmText()
+    {
+        if (totalCharmText != null)
+        {
+            totalCharmText.text = TotalCharmValue.ToString();
+        }
+    }
+
+    /// <summary>
+    /// 从当前场景中重新统计所有已存在家具的总魅力值。
+    /// 适用于开局时场景里本来就摆好的家具。
+    /// </summary>
+    private void RecalculateCharmFromScene()
+    {
+        TotalCharmValue = 0;
+
+        // 找到场景中所有 BuildingUnit（默认认为都是已经“在场景中”的家具/建筑）
+        BuildingUnit[] units = Object.FindObjectsOfType<BuildingUnit>();
+        foreach (var unit in units)
+        {
+            if (unit == null) continue;
+
+            int v = Mathf.Max(0, unit.charmValue);
+            if (v <= 0) continue;
+
+            TotalCharmValue += v;
+
+            // 告诉它的 BuildController：这个家具已经被计入过总魅力，后续移动不要重复加
+            BuildController ctrl = unit.GetComponent<BuildController>();
+            if (ctrl != null)
+            {
+                ctrl.MarkCharmCountedInTotal();
+            }
+        }
+
+        RefreshCharmText();
     }
 
     /// <summary>

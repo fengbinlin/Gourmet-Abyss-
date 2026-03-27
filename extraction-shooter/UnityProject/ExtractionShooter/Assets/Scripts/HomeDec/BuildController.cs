@@ -44,6 +44,8 @@ public class BuildController : MonoBehaviour
 
     private bool coreInitialized = false;
     private bool visualsInitialized = false;
+    // 该建筑的魅力是否已经计入过总魅力（避免移动时重复累加）
+    private bool charmCountedInTotal = false;
 
     [Header("网格步进缩放波动（交互反馈）")]
     [SerializeField] private float gridStepPulsePeak = 1.06f;   // 轻微放大峰值
@@ -717,6 +719,13 @@ public class BuildController : MonoBehaviour
             isKeyboardControlled = false;
             Debug.Log($"键盘放置成功于: {currentKeyboardGridPos}");
 
+            // 只在第一次成功放置时把该建筑的魅力计入总魅力
+            if (!charmCountedInTotal && FurnitureUIManager.instance != null && unit != null)
+            {
+                FurnitureUIManager.instance.OnFurniturePlaced(unit);
+                charmCountedInTotal = true;
+            }
+
             // 通知PlaceManager该玩家已完成摆放
             if (!string.IsNullOrEmpty(controllingPlayerID) && PlaceManager.Instance != null)
             {
@@ -787,6 +796,13 @@ public class BuildController : MonoBehaviour
             transform.position = GetSnappedPosition(gridPos); // 确保位置吸附
             SetColor(normalColor);
             Debug.Log("放置成功");
+
+            // 只在第一次成功放置时把该建筑的魅力计入总魅力
+            if (!charmCountedInTotal && FurnitureUIManager.instance != null && unit != null)
+            {
+                FurnitureUIManager.instance.OnFurniturePlaced(unit);
+                charmCountedInTotal = true;
+            }
         }
         else
         {
@@ -806,6 +822,12 @@ public class BuildController : MonoBehaviour
                     if (FurnitureUIManager.instance != null)
                     {
                         FurnitureUIManager.instance.GenerateItems();
+                        // 如果之前曾经计入过魅力，现在彻底收入背包/销毁时要减掉一次
+                        if (charmCountedInTotal && unit != null)
+                        {
+                            FurnitureUIManager.instance.OnFurnitureReturnedToBag(unit);
+                            charmCountedInTotal = false;
+                        }
                     }
                     SetDragGridOverlayVisible(false);
                     if (HomeManager.instance != null) HomeManager.instance.EndDrag(this);
@@ -867,5 +889,14 @@ public class BuildController : MonoBehaviour
 
         Debug.Log($"✅ {playerID} 键盘控制已启用");
         Debug.Log($"   控制说明: {movementKeys}, {rotationKey}旋转, {confirmKey}, ESC取消");
+    }
+
+    /// <summary>
+    /// 由外部（例如 FurnitureUIManager）调用，标记该建筑的魅力已经计入总魅力。
+    /// 用于场景一开始就已经存在的家具，避免之后再移动时重复累计。
+    /// </summary>
+    public void MarkCharmCountedInTotal()
+    {
+        charmCountedInTotal = true;
     }
 }

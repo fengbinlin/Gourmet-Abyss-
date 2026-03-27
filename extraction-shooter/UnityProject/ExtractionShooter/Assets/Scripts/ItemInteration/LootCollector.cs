@@ -297,12 +297,6 @@ public class LootCollector : MonoBehaviour
     // 检查背包空间
     private bool CheckInventorySpace()
     {
-        // 植物资源直接加入数值管理器，不需要检查背包
-        if (isPlantResource && plantDirectToGameVal)
-        {
-            return true;
-        }
-
         InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
         if (inventoryManager != null)
         {
@@ -381,26 +375,22 @@ public class LootCollector : MonoBehaviour
 
     private void Collect()
     {
-        // 如果是植物资源并且直接加入数值管理器，则不检查背包空间
-        if (!isPlantResource || !plantDirectToGameVal)
+        // 统一走战斗背包：收集前都要检查背包空间
+        bool hasSpaceNow = CheckInventorySpace();
+        isInventoryFull = !hasSpaceNow;
+
+        if (!hasSpaceNow && !flyAndDestroyWhenFull)
         {
-            // 双重检查背包空间
-            bool hasSpace = CheckInventorySpace();
-            isInventoryFull = !hasSpace;
-            
-            if (!hasSpace && !flyAndDestroyWhenFull)
-            {
-                Debug.LogWarning($"收集时背包已满: {resourceAmount} 个 {resourceType}");
-                canBeCollected = false;
-                isFlyingToPlayer = false;
+            Debug.LogWarning($"收集时背包已满: {resourceAmount} 个 {resourceType}");
+            canBeCollected = false;
+            isFlyingToPlayer = false;
 
-                // 重置位置和状态
-                transform.position = startPosition;
+            // 重置位置和状态
+            transform.position = startPosition;
 
-                // 重新等待空间
-                StartCoroutine(WaitAndRetryCollection());
-                return;
-            }
+            // 重新等待空间
+            StartCoroutine(WaitAndRetryCollection());
+            return;
         }
 
         // 播放收集特效
@@ -424,40 +414,17 @@ public class LootCollector : MonoBehaviour
         if (!isInventoryFull)
         {
             AudioManager.Instance.PlayAudio("2");
-            // 如果是植物资源并且直接加入数值管理器
-            if (isPlantResource && plantDirectToGameVal)
+
+            // 统一逻辑：战斗中掉落物只加入临时背包，不直接写入 GameValManager
+            InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
+            if (inventoryManager != null)
             {
-                // 直接加入数值管理器
-                if (GameValManager.Instance != null)
-                {
-                    addedSuccessfully = GameValManager.Instance.AddResource(resourceType, resourceAmount);
-                    Debug.Log($"植物资源直接加入数值管理器: {resourceAmount} 个 {resourceType}");
-                }
-                else
-                {
-                    Debug.LogError("GameValManager实例为空，无法添加植物资源");
-                    addedSuccessfully = false;
-                }
+                addedSuccessfully = inventoryManager.AddItem(resourceType, resourceAmount);
             }
-            else
+
+            if (addedSuccessfully)
             {
-                // 正常流程：先添加到背包，再更新数值管理器
-                InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
-
-                if (inventoryManager != null)
-                {
-                    addedSuccessfully = inventoryManager.AddItem(resourceType, resourceAmount);
-                }
-
-                if (addedSuccessfully)
-                {
-                    // 同时更新资源管理器
-                    if (GameValManager.Instance != null)
-                    {
-                        GameValManager.Instance.AddResource(resourceType, resourceAmount);
-                    }
-                    Debug.Log($"已收集: {resourceAmount} 个 {resourceType}");
-                }
+                Debug.Log($"已收集到战斗背包: {resourceAmount} 个 {resourceType}");
             }
         }
         else
@@ -480,16 +447,8 @@ public class LootCollector : MonoBehaviour
             isFlyingToPlayer = false;
             transform.position = startPosition;
 
-            // 如果是植物资源，直接等待然后重试
-            if (isPlantResource && plantDirectToGameVal)
-            {
-                StartCoroutine(WaitAndRetryCollection());
-            }
-            else
-            {
-                // 重新等待背包空间
-                StartCoroutine(WaitAndRetryCollection());
-            }
+            // 统一等待背包空间后重试
+            StartCoroutine(WaitAndRetryCollection());
         }
     }
 
