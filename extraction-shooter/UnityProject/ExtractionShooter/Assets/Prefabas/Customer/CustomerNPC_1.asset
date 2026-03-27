@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CustomerNPC_1
   m_EditorClassIdentifier: 
   id: 1
-  customerName: "\u963F\u55B3"
+  customerName: "\u5C0F\u55B3"
   mbti: ESFP
   isCook: 0
   NPCIcon: {fileID: 0}
@@ -46,7 +46,7 @@ MonoBehaviour:
   LeavingRestaurantWords:
   - "\u6EE1\u8DB3\uFF01\u660E\u5929\u518D\u6765\u63A2\u7D22\u65B0\u53E3\u5473\uFF01"
   noPlateFoodWords:
-  - "\u54CE\u5440\uFF0C\u90A3\u7ED9\u6211\u6765\u4EFD\u53A8\u5E08\u4ECA\u5929\u7684\u201C\u7075\u611F\u4E4B\u4F5C\u201D\u5427\uFF01"
+  - "\u54CE\u5440\uFF0C\u600E\u4E48\u6CA1\u83DC\u4E86\uFF01"
   QueueJoinWords:
   - "\u54C8\u55BD\uFF01\u6211\u52A0\u5165\u961F\u4F0D\u5566\uFF01"
   LikePersonEncounterWords:

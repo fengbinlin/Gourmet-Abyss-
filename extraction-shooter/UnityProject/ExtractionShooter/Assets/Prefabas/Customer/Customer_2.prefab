@@ -60,7 +60,7 @@ MonoBehaviour:
   affectionProgressImage: {fileID: 1635285347940756435}
   isInteractingWithPlayer: 0
   isPairChatPositioning: 0
-  maxPlayerInteractionDistance: 8
+  maxPlayerInteractionDistance: 5
   data: {fileID: 11400000, guid: daa850e701ad6c742b6db7194b5708c1, type: 2}
   state: 0
   expressionTextures:

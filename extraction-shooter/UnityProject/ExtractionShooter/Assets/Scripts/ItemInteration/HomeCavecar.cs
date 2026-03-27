@@ -24,12 +24,19 @@ public class HomeCavecar : MonoBehaviour
     private bool isUIActive = false;
     private bool isAnimating = false;
 
+    [Header("交互反馈-波动")]
+    [SerializeField] private float pulseDuration = 0.12f;
+    [SerializeField] private float pulseScaleMultiplier = 1.12f;
+    private Vector3 originalCarScale;
+    private Tween carPulseTween;
+
     private void Start()
     {
         homeCavecar = this;
         
         // 获取颜色过渡组件
         colorTransition = GetComponent<VehicleColorTransition>();
+        originalCarScale = transform.localScale;
         
         InitializeMapUI();
     }
@@ -38,6 +45,7 @@ public class HomeCavecar : MonoBehaviour
     {
         if (isPlayerEnter && Input.GetKeyDown(KeyCode.E) && !isAnimating && canUse)
         {
+            PlayPulse();
             AudioManager.Instance.PlayAudio("3");
             ToggleMapUI();
 
@@ -56,6 +64,7 @@ public class HomeCavecar : MonoBehaviour
         if (other.CompareTag("Player") && canUse)
         {
             GetComponent<InteractiveFeedback>()?.PlayFeedback();
+            PlayPulse();
             isPlayerEnter = true;
         }
     }
@@ -168,6 +177,19 @@ public class HomeCavecar : MonoBehaviour
     {
         return isUIActive;
     }
+
+    /// <summary>
+    /// 设置当前物体及所有子物体的 Layer（包含未激活子物体）。
+    /// 可在 UnityEvent 中直接调用。
+    /// </summary>
+    public void SetLayerForSelfAndChildren(int targetLayer)
+    {
+        var transforms = GetComponentsInChildren<Transform>(includeInactive: true);
+        foreach (var t in transforms)
+        {
+            t.gameObject.layer = targetLayer;
+        }
+    }
     
     private void OnDestroy()
     {
@@ -175,5 +197,29 @@ public class HomeCavecar : MonoBehaviour
         {
             currentUITween.Kill();
         }
+        if (carPulseTween != null && carPulseTween.IsActive())
+        {
+            carPulseTween.Kill();
+        }
+    }
+
+    private void PlayPulse()
+    {
+        if (!isActiveAndEnabled) return;
+        if (carPulseTween != null && carPulseTween.IsActive())
+        {
+            carPulseTween.Kill();
+        }
+
+        transform.localScale = originalCarScale;
+        Vector3 peak = originalCarScale * Mathf.Max(1f, pulseScaleMultiplier);
+        float duration = Mathf.Max(0.01f, pulseDuration);
+
+        carPulseTween = transform.DOScale(peak, duration * 0.5f)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                carPulseTween = transform.DOScale(originalCarScale, duration * 0.5f).SetEase(Ease.InQuad);
+            });
     }
 }

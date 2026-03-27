@@ -23,7 +23,7 @@ MonoBehaviour:
   buyprobability: 0.8
   wantToBuyDish: 0
   moveSpeed: 5
-  affectionValue: 175
+  affectionValue: 180
   affectionLevel: 3
   affectionLevelNeeds:
   - 10
@@ -46,7 +46,7 @@ MonoBehaviour:
   LeavingRestaurantWords:
   - "\u8C22\u8C22\u6B3E\u5F85\u2026\uFF08\u5C0F\u58F0\uFF09"
   noPlateFoodWords:
-  - "\u6CA1\u3001\u6CA1\u5173\u7CFB\uFF01\u6211\u6362\u522B\u7684\uFF01"
+  - "\u6CA1\u3001\u6CA1\u5173\u7CFB\uFF01\u6211\u53BB\u522B\u7684\u5E97\uFF01"
   QueueJoinWords:
   - "\u90A3\u3001\u90A3\u4E2A\u2026\u6211\u4E5F\u6392\u961F\u2026"
   LikePersonEncounterWords:

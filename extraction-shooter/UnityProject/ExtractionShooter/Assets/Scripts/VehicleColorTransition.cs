@@ -275,7 +275,12 @@ public class VehicleColorTransition : MonoBehaviour
     /// </summary>
     public void SetLayer(int layer)
     {
-        gameObject.layer = layer;
+        // 同步设置自身及所有子物体层级（包含未激活子物体）
+        var transforms = GetComponentsInChildren<Transform>(includeInactive: true);
+        foreach (var t in transforms)
+        {
+            t.gameObject.layer = layer;
+        }
         //Debug.Log($"车辆 {gameObject.name} 层级已设置为: {layer}");
     }
     

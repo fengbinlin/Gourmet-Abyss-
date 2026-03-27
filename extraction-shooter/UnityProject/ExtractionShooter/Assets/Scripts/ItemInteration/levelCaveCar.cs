@@ -1,4 +1,5 @@
 // levelCaveCar.cs
+using System.Collections;
 using UnityEngine;
 
 public class levelCaveCar : MonoBehaviour
@@ -12,6 +13,12 @@ public class levelCaveCar : MonoBehaviour
     
     // 颜色过渡组件引用
     private VehicleColorTransition colorTransition;
+
+    [Header("交互反馈-波动")]
+    [SerializeField] private float pulseDuration = 0.12f;
+    [SerializeField] private float pulseScaleMultiplier = 1.12f;
+    private Vector3 originalScale;
+    private Coroutine pulseCoroutine;
     
     private void Awake()
     {
@@ -22,12 +29,14 @@ public class levelCaveCar : MonoBehaviour
     {
         // 获取颜色过渡组件
         colorTransition = GetComponent<VehicleColorTransition>();
+        originalScale = transform.localScale;
     }
     
     private void Update()
     {
         if (isPlayerInTrigger && canUse && Input.GetKeyDown(KeyCode.E))
         {
+            PlayPulse();
             AudioManager.Instance.PlayAudio("3");
             ToHome();
         }
@@ -58,6 +67,7 @@ public class levelCaveCar : MonoBehaviour
         {
             isPlayerInTrigger = true;
             player = other.gameObject;
+            PlayPulse();
         }
     }
     
@@ -68,5 +78,46 @@ public class levelCaveCar : MonoBehaviour
             isPlayerInTrigger = false;
             player = null;
         }
+    }
+
+    private void PlayPulse()
+    {
+        if (!isActiveAndEnabled) return;
+        if (pulseCoroutine != null)
+        {
+            StopCoroutine(pulseCoroutine);
+            pulseCoroutine = null;
+        }
+        transform.localScale = originalScale;
+        pulseCoroutine = StartCoroutine(PulseRoutine());
+    }
+
+    private IEnumerator PulseRoutine()
+    {
+        float duration = Mathf.Max(0.01f, pulseDuration);
+        float half = duration * 0.5f;
+        float mul = Mathf.Max(1f, pulseScaleMultiplier);
+        Vector3 peak = originalScale * mul;
+
+        float t = 0f;
+        while (t < half)
+        {
+            float k = t / half;
+            transform.localScale = Vector3.Lerp(originalScale, peak, k);
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < half)
+        {
+            float k = t / half;
+            transform.localScale = Vector3.Lerp(peak, originalScale, k);
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.localScale = originalScale;
+        pulseCoroutine = null;
     }
 }

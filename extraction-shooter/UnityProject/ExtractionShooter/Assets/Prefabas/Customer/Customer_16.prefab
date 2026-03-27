@@ -175,7 +175,7 @@ MonoBehaviour:
   affectionProgressImage: {fileID: 4113218966985011610}
   isInteractingWithPlayer: 0
   isPairChatPositioning: 0
-  maxPlayerInteractionDistance: 8
+  maxPlayerInteractionDistance: 5
   data: {fileID: 11400000, guid: 9e1a05359ab742548bc319f406681234, type: 2}
   state: 0
   expressionTextures:

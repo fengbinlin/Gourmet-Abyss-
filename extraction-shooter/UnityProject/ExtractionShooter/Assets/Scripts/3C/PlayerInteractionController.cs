@@ -38,7 +38,7 @@ public class PlayerInteractionController : MonoBehaviour
     private Vector3 popupOriginalPosition;
     private Coroutine popupCoroutine;
     private bool isCanvasActive = false;
-    private int buildingCount = 0;  // 追踪进入的建筑数量
+    private readonly HashSet<Collider> activeBuildingColliders = new HashSet<Collider>(); // 当前仍在触发中的建筑Collider
     private bool isHolding = false; // 是否正在长按
     private float currentProgress = 0f; // 当前进度
 
@@ -73,6 +73,7 @@ public class PlayerInteractionController : MonoBehaviour
         isCanvasActive = false;
         isHolding = false;
         currentProgress = 0f;
+        activeBuildingColliders.Clear();
 
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
@@ -97,6 +98,7 @@ public class PlayerInteractionController : MonoBehaviour
         isCanvasActive = false;
         isHolding = false;
         currentProgress = 0f;
+        activeBuildingColliders.Clear();
 
         // 停止之前的动画（如果有）
         if (popupCoroutine != null)
@@ -125,7 +127,7 @@ public class PlayerInteractionController : MonoBehaviour
         // 检查是否是可交互建筑
         if (IsInteractableBuilding(other))
         {
-            buildingCount++;
+            activeBuildingColliders.Add(other);
             AudioManager.Instance.PlayAudio("3");
             // 如果Canvas还未激活，激活并播放弹出动画
             if (!isCanvasActive)
@@ -177,10 +179,10 @@ public class PlayerInteractionController : MonoBehaviour
         // 检查是否离开可交互建筑
         if (IsInteractableBuilding(other))
         {
-            buildingCount = Mathf.Max(0, buildingCount - 1);
+            activeBuildingColliders.Remove(other);
 
             // 如果离开了所有建筑，隐藏Canvas
-            if (buildingCount == 0 && isCanvasActive)
+            if (activeBuildingColliders.Count == 0 && isCanvasActive)
             {
                 HideInteractionCanvas();
             }
@@ -312,18 +314,20 @@ public class PlayerInteractionController : MonoBehaviour
 
     public void ForceHideCanvas()
     {
-        buildingCount = 0;
+        activeBuildingColliders.Clear();
         HideInteractionCanvas();
     }
 
     public void ForceShowCanvas()
     {
-        buildingCount = 1;
+        activeBuildingColliders.Clear();
         ShowInteractionCanvas();
     }
 
     void Update()
     {
+        CleanupInvalidBuildingColliders();
+
         if (Input.GetMouseButtonDown(0))
         {
             if (blockNpcClickWhenPointerOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
@@ -491,4 +495,21 @@ public class PlayerInteractionController : MonoBehaviour
     }
 
     public bool IsCanvasActive => isCanvasActive;
+
+    private void CleanupInvalidBuildingColliders()
+    {
+        if (activeBuildingColliders.Count == 0) return;
+
+        // 触发器被禁用/销毁/改层时可能不会触发 OnTriggerExit，这里兜底清理
+        activeBuildingColliders.RemoveWhere(c =>
+            c == null ||
+            !c.enabled ||
+            !c.gameObject.activeInHierarchy ||
+            !IsInteractableBuilding(c));
+
+        if (activeBuildingColliders.Count == 0 && isCanvasActive)
+        {
+            HideInteractionCanvas();
+        }
+    }
 }

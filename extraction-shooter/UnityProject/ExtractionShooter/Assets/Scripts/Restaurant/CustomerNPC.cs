@@ -422,8 +422,12 @@ public class CustomerNPC : MonoBehaviour
         // 交互中或做客中，不再播放点击特效，避免反复点击导致视觉异常
         bool shouldPlayClickPulse = !isInteractingWithPlayer && !isGuesting;
 
-        // 顾客配对聊天期间，禁止玩家开启交互
-        if (CustomerManager.instance != null && CustomerManager.instance.IsPairChatting)
+        // 仅禁止“正在配对聊天中的该NPC”被点击，其他NPC仍可交互
+        if (isPairChatPositioning)
+        {
+            return;
+        }
+        if (CustomerManager.instance != null && CustomerManager.instance.IsPairChatting && isInteractingWithPlayer)
         {
             return;
         }
@@ -501,12 +505,18 @@ public class CustomerNPC : MonoBehaviour
         if (hireButton != null) hireButton.gameObject.SetActive(CanBeRecruitedAsCook());
 
         animator.SetBool("isRunning", false);
-        ShowCustomBubble(GetChatText(data?.PlayerInteractionWords, "你好呀～"), interactionDuration);
+        // 玩家交互中的聊天气泡常驻显示，不使用定时隐藏
+        if (bubbleHideCoroutine != null)
+            StopCoroutine(bubbleHideCoroutine);
+        if (bubble != null && bubbleText != null)
+        {
+            bubbleText.text = GetChatText(data?.PlayerInteractionWords, "你好呀～");
+            bubble.SetActive(true);
+        }
         SetExpression(CustomerExpression.Shy);
 
-        // 对话期间：持续面向玩家（仅左/右），并在玩家超出距离时解除交互
-        float elapsed = 0f;
-        while (elapsed < interactionDuration)
+        // 交互期间：持续面向玩家；只在超出交互距离时解除交互
+        while (true)
         {
             if (playerTransform == null)
             {
@@ -514,7 +524,6 @@ public class CustomerNPC : MonoBehaviour
                 yield break;
             }
 
-            // 持续面向玩家方向（2D：只左右）
             FaceToward(playerTransform.position);
 
             float dist = Vector3.Distance(playerTransform.position, transform.position);
@@ -524,29 +533,8 @@ public class CustomerNPC : MonoBehaviour
                 yield break;
             }
 
-            // 若玩家进入送礼流程，则暂停结束对话的计时；提交礼物后再继续计时
-            if (!isInGiftFlow)
-            {
-                elapsed += Time.deltaTime;
-            }
             yield return null;
         }
-
-        // 🔸 结束交互
-        isInteractingWithPlayer = false;
-        isInGiftFlow = false;
-        SetInteractionPanelVisible(false);
-        SetGiftPanelVisible(false);
-        SetBagUIVisible(false);
-        if (CustomerManager.instance.currentInteractingNPC == this)
-            CustomerManager.instance.currentInteractingNPC = null;
-        ItemBagManager.instance.giftResourceType = ResourceType.None;
-        ItemBagManager.instance.customerGiftImage = null;
-        CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
-        CameraFollow.PopXFocusRequest(interactionCameraXFocusRequestKey);
-
-        // 交互结束后回到状态默认表情
-        SetExpression(GetDefaultExpressionForCurrentContext());
     }
 
     private void UpdateBubblePosition()
@@ -650,10 +638,18 @@ public class CustomerNPC : MonoBehaviour
     {
         yield return new WaitForSeconds(bubbleDuration);
 
+        // 玩家交互中不自动隐藏聊天气泡，由交互退出逻辑统一关闭
+        if (isInteractingWithPlayer)
+        {
+            bubbleHideCoroutine = null;
+            yield break;
+        }
+
         if (bubble != null)
             bubble.SetActive(false);
 
         // ⚠️ 这里不再重启 StartBubbleRoutine()，避免协程冲突
+        bubbleHideCoroutine = null;
     }
 
     public void SetTarget(Vector3 pos)
@@ -1040,6 +1036,11 @@ public class CustomerNPC : MonoBehaviour
 
     private void SetInteractionPanelVisible(bool visible)
     {
+        // 只要仍在玩家交互态，就不允许外部逻辑隐藏交互面板
+        if (!visible && isInteractingWithPlayer)
+        {
+            return;
+        }
         if (interactionPanel != null) interactionPanel.SetActive(visible);
     }
 
@@ -1047,6 +1048,12 @@ public class CustomerNPC : MonoBehaviour
     {
         GameObject panel = giftPanel != null ? giftPanel : GiftPanel;
         if (panel != null) panel.SetActive(visible);
+    }
+
+    private bool IsGiftPanelVisible()
+    {
+        GameObject panel = giftPanel != null ? giftPanel : GiftPanel;
+        return panel != null && panel.activeSelf;
     }
 
     private void SetBagUIVisible(bool visible)

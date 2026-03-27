@@ -293,7 +293,8 @@ public class MapUIManager : MonoBehaviour
             LevelManager.instance.EnterLevel(regionData.sceneName);
             GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = false;
             //UnityEngine.SceneManagement.SceneManager.LoadScene(regionData.sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
-            mapContent.parent.gameObject.SetActive(false);
+            // 统一通过 HomeCavecar 关闭，避免仅隐藏对象导致 isUIActive 状态残留
+            HomeCavecar.homeCavecar?.CloseMapUI();
         }
     }
 
