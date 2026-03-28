@@ -307,8 +307,6 @@ public class LevelManager : MonoBehaviour
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
-        // 成功从关卡返回地面：将背包中战利品统一结算到 GameValManager 再清空背包
-        InventoryManager.instance?.TransferAllToGameValAndClear();
     }
 
     private IEnumerator FromLevelToHomeProcess(string levelName)
@@ -391,8 +389,6 @@ public class LevelManager : MonoBehaviour
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
-        // 成功从关卡返回地面：将背包中战利品统一结算到 GameValManager 再清空背包
-        InventoryManager.instance?.TransferAllToGameValAndClear();
     }
 
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)

@@ -33,6 +33,31 @@ public class RestaurantPanel : MonoBehaviour
     public List<Plate> platesList = new List<Plate>(); //餐厅有的菜碟
     [Header("菜碟配置（全部候选）")]
     public List<Plate> allPlates = new List<Plate>();
+    [Header("烹饪排队槽（UI，顺序即队列下标 0=队首）")]
+    [Tooltip("仅下标 0（第一个槽）的菜会下锅；锅空闲后仍从当前队首 0 取菜；队首空则整列左移递补。")]
+    public List<DishQueueSlot> allDishQueueSlots = new List<DishQueueSlot>();
+    [Tooltip("单槽最大叠堆份数；若已存在 WeaponStatsManager 则优先使用其 slotCapacity")]
+    [SerializeField] private int cookQueueMaxPerSlotFallback = 20;
+
+    private class CookQueueStackEntry
+    {
+        public DishRecipe recipe;
+        public int count;
+        public bool IsEmpty => recipe == null || count <= 0;
+        public void Clear() { recipe = null; count = 0; }
+    }
+
+    private readonly List<CookQueueStackEntry> _cookQueueData = new List<CookQueueStackEntry>();
+    private int _lastCookQueueActiveCount = -1;
+
+    /// <summary>判断是否同一道菜（用于装盘唯一性、叠堆判定）。</summary>
+    public static bool RecipesMatch(DishRecipe a, DishRecipe b)
+    {
+        if (a == null || b == null) return false;
+        if (a.dishID != b.dishID) return false;
+        return a.dishName == b.dishName && Mathf.Approximately(a.baseDishPrice, b.baseDishPrice);
+    }
+
     void Awake()
     {
         instance = this;
@@ -48,6 +73,7 @@ public class RestaurantPanel : MonoBehaviour
         }
 
         // 不在这里强制同步：避免 WeaponStatsManager 加载顺序导致 Instance 为空
+        EnsureCookQueueDataSize();
     }
 
     private void OnEnable()
@@ -56,6 +82,12 @@ public class RestaurantPanel : MonoBehaviour
         {
             WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncRestaurantUnitsFromStats;
             WeaponStatsManager.Instance.OnRestaurantStatsChanged += SyncRestaurantUnitsFromStats;
+        }
+
+        if (ShopSlotManager.Instance != null)
+        {
+            ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged -= SyncRestaurantUnitsFromStats;
+            ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged += SyncRestaurantUnitsFromStats;
         }
 
         // 无论菜单UI能否立即生成，都先确保锅/盘数量同步（隐藏多余对象）
@@ -71,6 +103,11 @@ public class RestaurantPanel : MonoBehaviour
         if (WeaponStatsManager.Instance != null)
         {
             WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncRestaurantUnitsFromStats;
+        }
+
+        if (ShopSlotManager.Instance != null)
+        {
+            ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged -= SyncRestaurantUnitsFromStats;
         }
     }
 
@@ -91,6 +128,12 @@ public class RestaurantPanel : MonoBehaviour
             WeaponStatsManager.Instance.OnRestaurantStatsChanged += SyncRestaurantUnitsFromStats;
         }
 
+        if (ShopSlotManager.Instance != null)
+        {
+            ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged -= SyncRestaurantUnitsFromStats;
+            ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged += SyncRestaurantUnitsFromStats;
+        }
+
         SyncRestaurantUnitsFromStats();
     }
     /// <summary>
@@ -106,7 +149,298 @@ public class RestaurantPanel : MonoBehaviour
 
         EnsureAllUnitsPopulated();
         SyncPotsByCount(WeaponStatsManager.Instance.restaurantPotCount);
-        SyncPlatesByCount(WeaponStatsManager.Instance.restaurantPlateCount);
+        SyncPlatesByCount(GetTargetPlateSlotCount());
+        SyncCookQueueSlotsFromStats();
+    }
+
+    /// <summary>餐碟数量：优先 ShopSlotManager，否则 WeaponStatsManager.restaurantPlateCount。</summary>
+    private int GetTargetPlateSlotCount()
+    {
+        if (allPlates == null || allPlates.Count == 0) return 0;
+        if (ShopSlotManager.Instance != null)
+            return Mathf.Clamp(ShopSlotManager.Instance.restaurantPlateSlotCount, 1, allPlates.Count);
+        return Mathf.Clamp(WeaponStatsManager.Instance.restaurantPlateCount, 1, allPlates.Count);
+    }
+
+    private int GetActiveCookQueueSlotCount()
+    {
+        if (allDishQueueSlots == null || allDishQueueSlots.Count == 0) return 0;
+        if (WeaponStatsManager.Instance == null)
+            return Mathf.Min(allDishQueueSlots.Count, 4);
+        return Mathf.Clamp(WeaponStatsManager.Instance.restaurantDishQueueSlotCount, 1, allDishQueueSlots.Count);
+    }
+
+    private int GetCookQueueMaxPerSlot()
+    {
+        if (WeaponStatsManager.Instance != null)
+            return Mathf.Max(1, WeaponStatsManager.Instance.slotCapacity);
+        return Mathf.Max(1, cookQueueMaxPerSlotFallback);
+    }
+
+    private void EnsureCookQueueDataSize()
+    {
+        if (allDishQueueSlots == null) return;
+        while (_cookQueueData.Count < allDishQueueSlots.Count)
+            _cookQueueData.Add(new CookQueueStackEntry());
+    }
+
+    private void SyncCookQueueSlotsFromStats()
+    {
+        if (allDishQueueSlots == null || allDishQueueSlots.Count == 0)
+            return;
+
+        EnsureCookQueueDataSize();
+        int newActive = GetActiveCookQueueSlotCount();
+
+        if (_lastCookQueueActiveCount < 0)
+            _lastCookQueueActiveCount = newActive;
+
+        if (newActive < _lastCookQueueActiveCount)
+            ShrinkCookQueueActiveRegion(_lastCookQueueActiveCount, newActive);
+
+        _lastCookQueueActiveCount = newActive;
+
+        for (int i = 0; i < allDishQueueSlots.Count; i++)
+        {
+            DishQueueSlot slot = allDishQueueSlots[i];
+            if (slot == null) continue;
+            bool on = i < newActive;
+            if (slot.gameObject.activeSelf != on)
+                slot.gameObject.SetActive(on);
+        }
+
+        RefreshCookQueueUI();
+    }
+
+    private void ShrinkCookQueueActiveRegion(int oldActive, int newActive)
+    {
+        List<(DishRecipe r, int c)> order = new List<(DishRecipe, int)>();
+        for (int i = 0; i < oldActive && i < _cookQueueData.Count; i++)
+        {
+            CookQueueStackEntry e = _cookQueueData[i];
+            if (!e.IsEmpty) order.Add((e.recipe, e.count));
+        }
+
+        for (int i = 0; i < _cookQueueData.Count; i++)
+            _cookQueueData[i].Clear();
+
+        if (order.Count > newActive)
+            Debug.LogWarning($"[餐厅] 烹饪排队槽减至 {newActive}，将丢失末尾 {order.Count - newActive} 条队列。");
+
+        for (int i = 0; i < order.Count && i < newActive; i++)
+        {
+            _cookQueueData[i].recipe = order[i].r;
+            _cookQueueData[i].count = order[i].c;
+        }
+    }
+
+    private void RefreshCookQueueUI()
+    {
+        if (allDishQueueSlots == null) return;
+        EnsureCookQueueDataSize();
+        int active = GetActiveCookQueueSlotCount();
+        for (int i = 0; i < allDishQueueSlots.Count; i++)
+        {
+            DishQueueSlot ui = allDishQueueSlots[i];
+            if (ui == null) continue;
+            if (i >= active || i >= _cookQueueData.Count)
+            {
+                ui.SetEmpty();
+                continue;
+            }
+            CookQueueStackEntry e = _cookQueueData[i];
+            ui.SetVisual(e.recipe, e.count);
+        }
+    }
+
+    /// <summary>点击菜谱：入队（扣食材），再由空闲锅自动开始烹饪。</summary>
+    public bool TryEnqueueDishForCooking(DishRecipe recipe)
+    {
+        if (recipe == null) return false;
+        EnsureCookQueueDataSize();
+        if (!CheckIngredientsAvailableForRecipe(recipe))
+        {
+            Debug.Log("食材不足，无法加入烹饪队列：" + recipe.dishName);
+            return false;
+        }
+
+        int idx = FindSuitableCookQueueSlotIndex(recipe);
+        if (idx < 0)
+        {
+            Debug.Log("烹饪排队已满：" + recipe.dishName);
+            return false;
+        }
+
+        if (!ConsumeIngredientsForRecipe(recipe))
+            return false;
+
+        CookQueueStackEntry e = _cookQueueData[idx];
+        if (e.IsEmpty)
+        {
+            e.recipe = recipe;
+            e.count = 1;
+        }
+        else
+            e.count++;
+
+        RefreshCookQueueUI();
+        TryDispatchQueueToPots();
+
+        StartCoroutine(CoRefreshMenuUiDeferred());
+
+        return true;
+    }
+
+    private IEnumerator CoRefreshMenuUiDeferred()
+    {
+        yield return null;
+        if (GameValManager.Instance != null && foodItemParent != null)
+            GenerateFoodItems();
+        if (dishParent != null)
+            GenerateDishList();
+    }
+
+    private int FindSuitableCookQueueSlotIndex(DishRecipe recipe)
+    {
+        int active = GetActiveCookQueueSlotCount();
+        int maxPer = GetCookQueueMaxPerSlot();
+        int best = -1;
+        int bestRemaining = int.MaxValue;
+
+        for (int i = 0; i < active && i < _cookQueueData.Count; i++)
+        {
+            CookQueueStackEntry e = _cookQueueData[i];
+            if (e.IsEmpty) continue;
+            if (!RecipesMatch(e.recipe, recipe)) continue;
+            int remaining = maxPer - e.count;
+            if (remaining > 0 && remaining < bestRemaining)
+            {
+                bestRemaining = remaining;
+                best = i;
+            }
+        }
+
+        if (best >= 0) return best;
+
+        for (int i = 0; i < active && i < _cookQueueData.Count; i++)
+        {
+            if (_cookQueueData[i].IsEmpty)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private bool CheckIngredientsAvailableForRecipe(DishRecipe recipe)
+    {
+        if (recipe == null || recipe.ingredients == null || InventoryManager.instance == null)
+            return false;
+
+        foreach (DishIngredient ingredient in recipe.ingredients)
+        {
+            if (ingredient.requiredCount <= 0) continue;
+            if (InventoryManager.instance.GetItemCount(ingredient.resourceType) < ingredient.requiredCount)
+                return false;
+        }
+        return true;
+    }
+
+    private bool ConsumeIngredientsForRecipe(DishRecipe recipe)
+    {
+        if (InventoryManager.instance == null || recipe == null) return false;
+        return InventoryManager.instance.TryConsumeIngredientsForRecipe(recipe);
+    }
+
+    /// <summary>餐厅仅一口锅：使用 <see cref="potsList"/> 中第一个锅位（下标 0）。</summary>
+    public Pot FindAvailablePotForRecipe(List<potType> acceptablePotTypes)
+    {
+        if (acceptablePotTypes == null || potsList == null || potsList.Count == 0) return null;
+        Pot pot = potsList[0];
+        if (pot != null && pot.IsAvailable() && acceptablePotTypes.Contains(pot.potType))
+            return pot;
+        return null;
+    }
+
+    /// <summary>
+    /// 将队首排队菜派给唯一空闲锅。只从 <see cref="_cookQueueData"/> 下标 0 取一份；每轮最多开始 1 次烹饪。
+    /// </summary>
+    private void TryDispatchQueueToPots()
+    {
+        if (!isActiveAndEnabled || potsList == null || potsList.Count == 0) return;
+        TryDispatchOneCookFromQueueFront();
+    }
+
+    /// <summary>仅从排队槽第 1 格（下标 0）取 1 份菜；唯一锅空闲且接受该菜谱时开始烹饪。</summary>
+    private bool TryDispatchOneCookFromQueueFront()
+    {
+        EnsureCookQueueDataSize();
+        int active = GetActiveCookQueueSlotCount();
+        if (active <= 0 || _cookQueueData.Count == 0) return false;
+
+        if (_cookQueueData[0].IsEmpty)
+            CompactCookQueueLeftPreserveOrder();
+
+        if (_cookQueueData[0].IsEmpty)
+            return false;
+
+        DishRecipe r = _cookQueueData[0].recipe;
+        if (r == null) return false;
+
+        Pot pot = FindAvailablePotForRecipe(r.acceptablePot);
+        if (pot == null)
+            return false;
+
+        // 食材实例仅在 Pot.CookingProcess 内生成一次（勿在此处再 StartCoroutine，否则会与锅内协程重复实例化）
+        if (!pot.StartCooking(r))
+            return false;
+
+        _cookQueueData[0].count--;
+        if (_cookQueueData[0].count <= 0)
+        {
+            _cookQueueData[0].Clear();
+            CompactCookQueueLeftPreserveOrder();
+        }
+        else
+            RefreshCookQueueUI();
+
+        return true;
+    }
+
+    /// <summary>队列槽 0 卖空概念：与餐碟一致，非空槽整体左移。</summary>
+    private void CompactCookQueueLeftPreserveOrder()
+    {
+        int active = GetActiveCookQueueSlotCount();
+        EnsureCookQueueDataSize();
+        List<(DishRecipe r, int c)> filled = new List<(DishRecipe, int)>();
+        for (int i = 0; i < active && i < _cookQueueData.Count; i++)
+        {
+            CookQueueStackEntry e = _cookQueueData[i];
+            if (!e.IsEmpty) filled.Add((e.recipe, e.count));
+        }
+
+        for (int i = 0; i < active && i < _cookQueueData.Count; i++)
+            _cookQueueData[i].Clear();
+
+        for (int i = 0; i < filled.Count && i < active; i++)
+        {
+            _cookQueueData[i].recipe = filled[i].r;
+            _cookQueueData[i].count = filled[i].c;
+        }
+
+        RefreshCookQueueUI();
+    }
+
+    public void NotifyCookingPotFreed()
+    {
+        TryDispatchQueueToPots();
+    }
+
+    private int _dispatchFrameCounter;
+
+    private void Update()
+    {
+        if ((_dispatchFrameCounter++ % 12) != 0) return;
+        TryDispatchQueueToPots();
     }
 
     private void EnsureAllUnitsPopulated()
@@ -198,10 +532,12 @@ public class RestaurantPanel : MonoBehaviour
             foodGO.GetComponent<foodItemPrefabs>().resourceType = item.type;
             if (script != null)
             {
-                // 设置图标和数量
+                int invCount = InventoryManager.instance != null
+                    ? InventoryManager.instance.GetItemCount(item.type)
+                    : 0;
+                // 设置图标和数量（数量来自背包）
                 script.foodIcon.sprite = item.Icon;
-                
-                script.foodAmount.text = item.count.ToString();
+                script.foodAmount.text = invCount.ToString();
                 //print("EEEAAAAA"+item.name);
                 //print("EEEAAAAA"+item.count);
             }
@@ -282,8 +618,10 @@ public class RestaurantPanel : MonoBehaviour
                 Debug.Log($"    - 食材 {j}: 类型={ingredient.resourceType}, 需要数量={ingredient.requiredCount}");
 
                 // 检查GameValManager中是否有对应的资源
-                ResourceItem resItem = GameValManager.Instance.resources.Find(r => r.type == ingredient.resourceType);
-                Debug.Log($"      当前拥有数量: {(resItem != null ? resItem.count.ToString() : "资源未找到")}");
+                int invAmt = InventoryManager.instance != null
+                    ? InventoryManager.instance.GetItemCount(ingredient.resourceType)
+                    : 0;
+                Debug.Log($"      当前背包数量: {invAmt}");
             }
             // 清空旧的食材UI（如果有）
             for (int j = script.dishFoodParent.childCount - 1; j >= 0; j--)
@@ -302,18 +640,22 @@ public class RestaurantPanel : MonoBehaviour
                     continue;
                 }
 
-                // 获取图标和当前拥有数量
-                ResourceItem resItem = GameValManager.Instance.resources.Find(r => r.type == ing.resourceType);
+                ResourceItem resItem = GameValManager.Instance != null
+                    ? GameValManager.Instance.GetResourceInfo(ing.resourceType)
+                    : null;
+                int owned = InventoryManager.instance != null
+                    ? InventoryManager.instance.GetItemCount(ing.resourceType)
+                    : 0;
 
                 if (resItem != null)
                 {
                     foodScript.foodIcon.sprite = resItem.Icon;
-                    foodScript.foodAmount.text = $"{resItem.count}/{ing.requiredCount}";
+                    foodScript.foodAmount.text = $"{owned}/{ing.requiredCount}";
                     foodScript.resourceType = ing.resourceType;
                 }
                 else
                 {
-                    foodScript.foodAmount.text = $"0/{ing.requiredCount}";
+                    foodScript.foodAmount.text = $"{owned}/{ing.requiredCount}";
                 }
             }
 
@@ -349,37 +691,29 @@ public class RestaurantPanel : MonoBehaviour
 
         foreach (DishIngredient ingredient in recipe.ingredients)
         {
-            print("AAA");
-            // 获取食材的图标
-            ResourceItem resource = GameValManager.Instance.resources.Find(r => r.type == ingredient.resourceType);
+            ResourceItem resource = GameValManager.Instance != null
+                ? GameValManager.Instance.GetResourceInfo(ingredient.resourceType)
+                : null;
             if (resource == null || resource.Icon == null)
             {
                 Debug.LogWarning($"找不到食材 {ingredient.resourceType} 的图标");
                 continue;
             }
 
-            // 根据需求数量生成多个实例
             for (int i = 0; i < ingredient.requiredCount; i++)
             {
-                print("BBB");
-                // 实例化食材预制体
                 Transform spawnParent = RestaurantPanel.instance.ingredientSpawnParent != null ?
                     RestaurantPanel.instance.ingredientSpawnParent : pot.transform;
 
                 GameObject instance = Instantiate(
                     RestaurantPanel.instance.ingredientInstancePrefab
-
                 );
 
-                // 获取控制器并初始化
                 IngredientInstanceController controller = instance.GetComponent<IngredientInstanceController>();
                 if (controller != null)
                 {
                     controller.Initialize(ingredient.resourceType, pot, resource.Icon);
                 }
-
-                // 添加随机延迟，让食材依次下落
-                yield return new WaitForSeconds(Random.Range(0.1f, 0.3f));
             }
         }
     }
@@ -406,14 +740,99 @@ public class RestaurantPanel : MonoBehaviour
     /// </summary>
     public Plate FindAvailablePlateForDish(DishRecipe recipe)
     {
-        foreach (Plate plate in platesList)
+        return FindSuitablePlateForOutgoingRecipe(recipe);
+    }
+
+    /// <summary>
+    /// 出锅装盘：优先填满已装着同菜的碟子（剩余容量最少的最优先；并列时取更靠前的碟子），否则取最靠前的空碟（可在多盘上堆同一种菜）。
+    /// </summary>
+    public Plate FindSuitablePlateForOutgoingRecipe(DishRecipe recipe)
+    {
+        if (recipe == null || platesList == null || platesList.Count == 0) return null;
+
+        Plate mostFilledSameType = null;
+        int mostFilledRemainingCap = int.MaxValue;
+
+        for (int i = 0; i < platesList.Count; i++)
         {
-            if (plate != null && plate.CanAddDish(recipe))
+            Plate plate = platesList[i];
+            if (plate == null || plate.currentDish == null || plate.currentDish.IsEmpty()) continue;
+            if (!RecipesMatch(plate.currentDish.recipe, recipe)) continue;
+
+            int remaining = plate.GetRemainingCapacity();
+            if (remaining > 0 && remaining < mostFilledRemainingCap)
             {
-                return plate;
+                mostFilledRemainingCap = remaining;
+                mostFilledSameType = plate;
             }
         }
+
+        if (mostFilledSameType != null)
+            return mostFilledSameType;
+
+        for (int i = 0; i < platesList.Count; i++)
+        {
+            Plate plate = platesList[i];
+            if (plate == null) continue;
+            if (!plate.IsPlateEmpty()) continue;
+            if (plate.CanAddDish(recipe))
+                return plate;
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// 首碟卖空后：将其余碟子上有食物的盘整体按顺序左移补位（不改变相对顺序）。
+    /// </summary>
+    public void CompactPlatesLeftPreserveOrder()
+    {
+        if (platesList == null || platesList.Count == 0) return;
+
+        List<Dish> dishes = new List<Dish>(platesList.Count);
+        List<Pot> pots = new List<Pot>(platesList.Count);
+
+        for (int i = 0; i < platesList.Count; i++)
+        {
+            Plate p = platesList[i];
+            if (p == null) continue;
+            if (p.currentDish != null && !p.currentDish.IsEmpty())
+            {
+                dishes.Add(p.currentDish);
+                pots.Add(p.sourcePot);
+            }
+        }
+
+        if (dishes.Count > platesList.Count)
+            Debug.LogWarning($"[餐厅] 食物种类数量({dishes.Count})多于碟子数，将只保留前 {platesList.Count} 盘。");
+
+        for (int i = 0; i < platesList.Count; i++)
+        {
+            Plate p = platesList[i];
+            if (p == null) continue;
+            if (p.IsRestaurantPrimarySellPlate())
+                p.StopConsumeOnly();
+            else
+                p.CancelConsume();
+            p.ClearDishDataFieldsOnly();
+        }
+
+        int n = Mathf.Min(dishes.Count, platesList.Count);
+        for (int i = 0; i < n; i++)
+        {
+            Plate p = platesList[i];
+            if (p == null) continue;
+            p.ApplyContentForRebalance(dishes[i], pots[i]);
+        }
+
+        for (int i = 0; i < platesList.Count; i++)
+        {
+            if (platesList[i] != null)
+            {
+                platesList[i].RefreshDisplay();
+                platesList[i].EnsureAutoSellRunning();
+            }
+        }
     }
 
     /// <summary>

@@ -113,6 +113,8 @@ public class WeaponStatsManager : MonoBehaviour
     [Header("餐厅数值")]
     public int restaurantPotCount = 3;
     public int restaurantPlateCount = 3;
+    [Tooltip("烹饪排队槽位数量（与 RestaurantPanel.allDishQueueSlots 下标对应）")]
+    public int restaurantDishQueueSlotCount = 4;
     [Tooltip("烹饪时间倍率：最终时间 = 原时间 * cookingTimeMultiplier")]
     public float cookingTimeMultiplier = 1f;
     [Tooltip("售卖价格加成比例：最终价格 = 原价格 * (1 + restaurantSellBonusRate)")]
@@ -199,6 +201,7 @@ public class WeaponStatsManager : MonoBehaviour
         // 让 Inspector 里直接改值也能实时同步到餐厅
         restaurantPotCount = Mathf.Max(1, restaurantPotCount);
         restaurantPlateCount = Mathf.Max(1, restaurantPlateCount);
+        restaurantDishQueueSlotCount = Mathf.Max(1, restaurantDishQueueSlotCount);
         cookingTimeMultiplier = Mathf.Max(0.01f, cookingTimeMultiplier);
         restaurantSellBonusRate = Mathf.Max(0f, restaurantSellBonusRate);
         restaurantCustomerPrefabCount = Mathf.Max(1, restaurantCustomerPrefabCount);
@@ -316,6 +319,12 @@ public class WeaponStatsManager : MonoBehaviour
     public void SetRestaurantPlateCount(int count)
     {
         restaurantPlateCount = Mathf.Max(1, count);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantDishQueueSlotCount(int count)
+    {
+        restaurantDishQueueSlotCount = Mathf.Max(1, count);
         OnRestaurantStatsChanged?.Invoke();
     }
 

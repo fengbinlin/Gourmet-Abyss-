@@ -116,6 +116,7 @@ public class CustomerNPC : MonoBehaviour
     // 气泡相关变量
     private Coroutine bubbleRoutineCoroutine;  // 循环更新协程
     private Coroutine bubbleHideCoroutine;     // 气泡隐藏协程
+    private Coroutine restaurantAmbienceRoutine;
     private float bubbleDuration = 4f;         // 气泡显示持续时间
     private float bubbleInterval = 3f;         // 气泡更新间隔
     private float bubbleRandomness = 2f;       // 气泡随机性
@@ -484,6 +485,7 @@ public class CustomerNPC : MonoBehaviour
         if (!isInteractingWithPlayer) return;
 
         StopAllCoroutines();  // 停止当前交互协程
+        restaurantAmbienceRoutine = null;
         isInteractingWithPlayer = false;
         isInGiftFlow = false;
         if (bubble != null) bubble.SetActive(false);
@@ -672,6 +674,16 @@ public class CustomerNPC : MonoBehaviour
         targetPosition = pos;
     }
 
+    /// <summary>进入餐厅用餐区（不绑定餐碟；收入来自首碟自动售卖）。</summary>
+    public void EnterRestaurantAmbience(Vector3 insidePosition)
+    {
+        targetPlate = null;
+        state = CustomerState.InsideRestaurant;
+        SetExpression(CustomerExpression.Serious);
+        SetTarget(new Vector3(insidePosition.x, insidePosition.y, transform.position.z));
+        ShowBubble(GetRandomThought(data.InsideRestaurantQueueingWords.ToArray()));
+    }
+
     public void GoToPlate(Plate plate)
     {
         if (plate == null)
@@ -831,6 +843,36 @@ public class CustomerNPC : MonoBehaviour
             transform.position = p;
             StartCoroutine(ConsumeDishCoroutine());
         }
+        else if (state == CustomerState.InsideRestaurant && targetPlate == null)
+        {
+            if (restaurantAmbienceRoutine != null)
+                return;
+            Vector3 p = transform.position;
+            p.y = baseGroundYInitialized ? baseGroundY : targetPosition.y;
+            transform.position = p;
+            restaurantAmbienceRoutine = StartCoroutine(RestaurantAmbienceOnlyCoroutine());
+        }
+    }
+
+    private IEnumerator RestaurantAmbienceOnlyCoroutine()
+    {
+        isConsuming = true;
+        if (data != null && data.InsideRestaurantConsumingWords != null && data.InsideRestaurantConsumingWords.Count > 0)
+        {
+            string thought = GetRandomThought(data.InsideRestaurantConsumingWords.ToArray());
+            if (!string.IsNullOrEmpty(thought))
+                ShowBubble(thought);
+        }
+        float wait = Random.Range(4f, 8f);
+        float elapsed = 0f;
+        while (elapsed < wait)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        isConsuming = false;
+        restaurantAmbienceRoutine = null;
+        LeaveRestaurant();
     }
 
     private IEnumerator ConsumeDishCoroutine()
@@ -1262,6 +1304,7 @@ public class CustomerNPC : MonoBehaviour
     {
         // 中断原有顾客行为
         StopAllCoroutines();
+        restaurantAmbienceRoutine = null;
         isInteractingWithPlayer = false;
         isConsuming = false;
         state = CustomerState.Spawning;

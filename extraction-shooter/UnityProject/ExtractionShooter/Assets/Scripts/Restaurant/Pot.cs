@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,7 +24,8 @@ public class Pot : MonoBehaviour
 
     [Header("锅盖动画配置")]
     public Transform lidTransform; // 锅盖的Transform组件
-    public float lidAnimationTime = 0.5f; // 锅盖动画时间
+    [Tooltip("0 = 瞬时到位；总烹饪耗时以菜谱读条为主")]
+    public float lidAnimationTime = 0f;
     public Vector3 closedRotation = new Vector3(0, 0, -90f); // 关闭时的旋转角度
     public Vector3 openRotation = Vector3.zero; // 打开时的旋转角度
 
@@ -48,6 +49,9 @@ public class Pot : MonoBehaviour
     private Coroutine cookingCoroutine;
     private Coroutine lidAnimationCoroutine; // 锅盖动画协程
 
+    /// <summary>煮完但尚未全部装碟的份数；&gt;0 时锅仍为占用，且不给食材发「烹饪结束」事件。</summary>
+    private int pendingPostCookServings;
+
     [Header("装盘配置")]
     public bool autoTransferToPlate = true;    // 是否自动装盘
     public Plate targetPlate;                  // 目标菜碟（可手动指定）
@@ -61,8 +65,13 @@ public class Pot : MonoBehaviour
     public float cookedDishLandingEffectDuration = 0.15f;
     public float cookedDishLandingScaleUp = 1.2f;
 
+    private Vector3 _defaultLocalScaleForAttentionPulse;
+    private Sequence _attentionPulseSequence;
+
     void Start()
     {
+        _defaultLocalScaleForAttentionPulse = transform.localScale;
+
         // 初始化锅状态
         potState = potState.unUsed;
         lidState = PotLidState.Open;
@@ -79,29 +88,51 @@ public class Pot : MonoBehaviour
         Debug.Log("锅初始化完成，锅盖打开，效果组件休眠");
     }
 
-    /// <summary>
-    /// 设置烹饪效果组件的激活状态
-    /// </summary>
-    private void SetCookingEffects(bool isActive)
+    /// <summary>短时间放大再缩回，用于玩家进入餐厅区域时对首锅的提示。</summary>
+    public void PlayAttentionScalePulse(float peakMultiplier, float upDuration, float downDuration)
     {
-        if (isCooking == isActive)
-        {
-            if (Fire != null) Fire.gameObject.SetActive(isActive);
-            if (Fog != null) Fog.gameObject.SetActive(isActive);
-            return;
-        }
+        peakMultiplier = Mathf.Max(1.001f, peakMultiplier);
+        upDuration = Mathf.Max(0.01f, upDuration);
+        downDuration = Mathf.Max(0.01f, downDuration);
 
-        isCooking = isActive;
+        _attentionPulseSequence?.Kill();
+        transform.localScale = _defaultLocalScaleForAttentionPulse;
 
-        if (animator != null && !string.IsNullOrEmpty(animatorIsCookingBool))
+        Vector3 peak = _defaultLocalScaleForAttentionPulse * peakMultiplier;
+        _attentionPulseSequence = DOTween.Sequence()
+            .Append(transform.DOScale(peak, upDuration).SetEase(Ease.OutQuad))
+            .Append(transform.DOScale(_defaultLocalScaleForAttentionPulse, downDuration).SetEase(Ease.InOutQuad));
+    }
+
+    public void CancelAttentionScalePulse()
+    {
+        _attentionPulseSequence?.Kill();
+        _attentionPulseSequence = null;
+        transform.localScale = _defaultLocalScaleForAttentionPulse;
+    }
+
+    private void OnDestroy()
+    {
+        _attentionPulseSequence?.Kill();
+    }
+
+    /// <param name="notifySubscribers">为 false 时不触发 <see cref="CookingStateChanged"/>（锅内食材实例不会销毁）。</param>
+    private void SetCookingEffects(bool isActive, bool notifySubscribers = true)
+    {
+        bool stateChanged = isCooking != isActive;
+
+        if (stateChanged)
         {
-            animator.SetBool(animatorIsCookingBool, isActive);
+            isCooking = isActive;
+            if (animator != null && !string.IsNullOrEmpty(animatorIsCookingBool))
+                animator.SetBool(animatorIsCookingBool, isActive);
         }
 
         if (Fire != null) Fire.gameObject.SetActive(isActive);
         if (Fog != null) Fog.gameObject.SetActive(isActive);
 
-        CookingStateChanged?.Invoke(isActive);
+        if (notifySubscribers && stateChanged)
+            CookingStateChanged?.Invoke(isActive);
     }
 
     /// <summary>
@@ -116,6 +147,13 @@ public class Pot : MonoBehaviour
 
         Vector3 startRotation = isClosing ? openRotation : closedRotation;
         Vector3 targetRotation = isClosing ? closedRotation : openRotation;
+
+        if (lidAnimationTime <= 0f)
+        {
+            lidTransform.localEulerAngles = targetRotation;
+            lidState = isClosing ? PotLidState.Closed : PotLidState.Open;
+            yield break;
+        }
 
         float elapsedTime = 0f;
 
@@ -165,7 +203,7 @@ public class Pot : MonoBehaviour
         if (WeaponStatsManager.Instance != null)
         {
             currentRecipe.cookTime *= WeaponStatsManager.Instance.cookingTimeMultiplier;
-            currentRecipe.baseDishPrice *= (1f + WeaponStatsManager.Instance.restaurantSellBonusRate);
+            currentRecipe.baseDishPrice *= Mathf.Max(0.01f, WeaponStatsManager.Instance.sellPriceMultiplier);
         }
 
 
@@ -196,6 +234,7 @@ public class Pot : MonoBehaviour
         cloned.ingredients = source.ingredients != null ? new List<DishIngredient>(source.ingredients) : new List<DishIngredient>();
         cloned.acceptablePot = source.acceptablePot != null ? new List<potType>(source.acceptablePot) : new List<potType>();
         cloned.cookTime = source.cookTime;
+        cloned.sellTime = source.sellTime;
         cloned.baseDishPrice = source.baseDishPrice;
         cloned.category = source.category;
         cloned.locked = source.locked;
@@ -214,10 +253,7 @@ public class Pot : MonoBehaviour
             RestaurantPanel.instance.SpawnIngredientInstances(recipe, this)
         );
 
-        // 等待一小段时间，让食材完全落入锅中
-        yield return new WaitForSeconds(0.5f);
-
-        // 3. 关闭锅盖
+        // 3. 关闭锅盖（表现延迟已压到最低；读条见下方 recipe.cookTime）
         if (lidAnimationCoroutine != null)
         {
             StopCoroutine(lidAnimationCoroutine);
@@ -235,56 +271,77 @@ public class Pot : MonoBehaviour
     // 烹饪完成
     private void OnCookingComplete()
     {
-        Debug.Log($"烹饪完成：{currentRecipe.dishName}，锅 {potType} 已空闲");
+        Debug.Log($"烹饪完成：{currentRecipe.dishName}，锅 {potType}");
 
-        // 启用厨师加成产出提示
         if (assignedCook != null)
         {
             assignedCook.ShowCustomBubble($"{currentRecipe.dishName}完成啦！", 2f);
-            // 可以额外增加奖励：厨师产出加成
-            // if (currentRecipe != null)
-            // {
-            //     currentRecipe.baseDishPrice *= assignedCook.data.priceIncreaseRate;
-            //     // 产出数量逻辑（如果菜碟有数量概念）：
-            //     // plate.currentDish.currentAmount += (int)(assignedCook.data.outputIncreaseRate - 1);
-            // }
         }
 
-        // 原有逻辑
-        SetCookingEffects(false);
+        CustomerNPC cookRef = assignedCook;
+
         if (lidAnimationCoroutine != null)
-        {
             StopCoroutine(lidAnimationCoroutine);
-        }
         lidAnimationCoroutine = StartCoroutine(PlayLidAnimation(false));
-        int addAmount = 1;
-        if (assignedCook)
-        {
-            addAmount = math.max(1, (int)assignedCook.data.outputIncreaseRate);
-        }
-        while (addAmount > 0)
-        {
-            if (autoTransferToPlate && currentRecipe != null)
-            {
-                bool transferSuccess = TransferToPlate(out Plate usedPlate);
 
-                if (!transferSuccess)
-                {
-                    Debug.LogWarning($"烹饪完成但装盘失败：{currentRecipe.dishName}");
-                }
-                else
-                {
-                    PlayDishFlyEffect(currentRecipe, usedPlate);
-                }
-            }
-            addAmount--;
+        // 关火/烟与烹饪动画，但不通知锅内食材销毁（无碟时食材需留在锅里）
+        SetCookingEffects(false, false);
+
+        cookingCoroutine = null;
+        assignedCook = null;
+
+        int portions = 1;
+        if (cookRef != null && cookRef.data != null)
+            portions = math.max(1, (int)cookRef.data.outputIncreaseRate);
+
+        if (!autoTransferToPlate || currentRecipe == null)
+        {
+            FinishPotAndNotifyIngredientsReleased();
+            return;
         }
 
+        int served = 0;
+        for (int i = 0; i < portions; i++)
+        {
+            if (!TransferToPlate(out Plate usedPlate))
+                break;
+            PlayDishFlyEffect(currentRecipe, usedPlate);
+            served++;
+        }
 
+        pendingPostCookServings = portions - served;
+
+        if (pendingPostCookServings > 0)
+        {
+            Debug.LogWarning($"无可用餐碟，{currentRecipe.dishName} 仍有 {pendingPostCookServings} 份留在锅内，待有碟子后自动装盘。");
+            potState = potState.Used;
+            return;
+        }
+
+        FinishPotAndNotifyIngredientsReleased();
+    }
+
+    /// <summary>全部装碟完毕或取消烹饪：销毁锅内食材实例并释放锅（通知烹饪队列）。</summary>
+    private void FinishPotAndNotifyIngredientsReleased()
+    {
+        pendingPostCookServings = 0;
+        CookingStateChanged?.Invoke(false);
         potState = potState.unUsed;
         currentRecipe = null;
-        cookingCoroutine = null;
-        assignedCook = null;  // 清除厨师引用
+        RestaurantPanel.instance?.NotifyCookingPotFreed();
+    }
+
+    /// <summary>尝试消耗一份待装盘；成功则飞出特效。</summary>
+    private void TryServeOnePendingPortion()
+    {
+        if (pendingPostCookServings <= 0 || currentRecipe == null) return;
+        if (!TransferToPlate(out Plate usedPlate))
+            return;
+
+        PlayDishFlyEffect(currentRecipe, usedPlate);
+        pendingPostCookServings--;
+        if (pendingPostCookServings <= 0)
+            FinishPotAndNotifyIngredientsReleased();
     }
 
     // 转移到菜碟
@@ -304,15 +361,12 @@ public class Pot : MonoBehaviour
             return false;
         }
 
-        // 如果指定了目标菜碟，尝试使用它
-        if (targetPlate != null)
+        Plate resolvedTarget = targetPlate;
+        if (resolvedTarget != null && resolvedTarget.CanAddDish(currentRecipe))
         {
-            if (targetPlate.CanAddDish(currentRecipe))
-            {
-                bool success = targetPlate.TryAddDish(currentRecipe, this);
-                if (success) usedPlate = targetPlate;
-                return success;
-            }
+            bool success = resolvedTarget.TryAddDish(currentRecipe, this);
+            if (success) usedPlate = resolvedTarget;
+            return success;
         }
 
         // 否则在餐厅中寻找合适的菜碟
@@ -437,98 +491,47 @@ public class Pot : MonoBehaviour
     // 在 Pot 类中修改 FindSuitablePlate 方法
     private Plate FindSuitablePlate()
     {
-        if (RestaurantPanel.instance == null ||
-            RestaurantPanel.instance.platesList == null)
+        if (RestaurantPanel.instance == null || currentRecipe == null)
         {
-            Debug.LogError("RestaurantPanel或platesList未初始化！");
+            Debug.LogError("RestaurantPanel 未初始化或菜谱为空！");
             return null;
         }
 
-        // 步骤1: 首先寻找已经装有同种菜肴且还有容量的菜碟（优先填满）
-        Plate mostFilledSameTypePlate = null;
-        int mostFilledSameTypeRemainingCapacity = int.MaxValue; // 剩余容量越小表示越满
-
-        // 步骤2: 寻找空菜碟
-        Plate emptyPlate = null;
-
-        foreach (Plate plate in RestaurantPanel.instance.platesList)
-        {
-            if (plate == null) continue;
-
-            // 检查是否是同类型菜肴的菜碟
-            if (plate.GetCurrentDishName() == currentRecipe.dishName&&plate.currentDish.recipe.baseDishPrice==currentRecipe.baseDishPrice)
-            {
-                int remainingCapacity = plate.GetRemainingCapacity();
-
-                // 如果还有容量
-                if (remainingCapacity > 0)
-                {
-                    // 寻找最满的菜碟（剩余容量最小的）
-                    if (remainingCapacity < mostFilledSameTypeRemainingCapacity)
-                    {
-                        mostFilledSameTypeRemainingCapacity = remainingCapacity;
-                        mostFilledSameTypePlate = plate;
-                    }
-                }
-            }
-            // 检查是否是空菜碟
-            else if (plate.currentState == plateState.unUsed)
-            {
-                // 记录第一个找到的空菜碟
-                if (emptyPlate == null)
-                {
-                    emptyPlate = plate;
-                }
-            }
-        }
-
-        // 优先返回同类型菜肴的菜碟
-        if (mostFilledSameTypePlate != null)
-        {
-            Debug.Log($"找到同类型菜碟：{currentRecipe.dishName}，剩余容量：{mostFilledSameTypeRemainingCapacity}");
-            return mostFilledSameTypePlate;
-        }
-
-        // 如果没有同类型菜肴的菜碟，返回空菜碟
-        if (emptyPlate != null)
-        {
-            Debug.Log($"找到空菜碟：{currentRecipe.dishName}");
-            return emptyPlate;
-        }
-
-        Debug.LogWarning($"没有找到合适的菜碟来装 {currentRecipe.dishName}");
-        return null;
+        Plate plate = RestaurantPanel.instance.FindSuitablePlateForOutgoingRecipe(currentRecipe);
+        if (plate == null)
+            Debug.LogWarning($"没有可装盘位置：{currentRecipe.dishName}（可能所有碟已满且无空碟）");
+        return plate;
     }
 
     // 取消烹饪（如果需要）
     public void CancelCooking()
     {
+        pendingPostCookServings = 0;
+
         if (cookingCoroutine != null)
         {
             StopCoroutine(cookingCoroutine);
             cookingCoroutine = null;
         }
 
-        // 如果锅盖动画正在进行，停止它
         if (lidAnimationCoroutine != null)
         {
             StopCoroutine(lidAnimationCoroutine);
             lidAnimationCoroutine = null;
         }
 
-        // 恢复锅盖状态
         lidState = PotLidState.Open;
         if (lidTransform != null)
-        {
             lidTransform.localEulerAngles = openRotation;
-        }
 
-        // 禁用烹饪效果
-        SetCookingEffects(false);
+        SetCookingEffects(false, false);
+        CookingStateChanged?.Invoke(false);
 
         potState = potState.unUsed;
         currentRecipe = null;
+        assignedCook = null;
         Debug.Log($"取消烹饪，锅 {potType} 已空闲");
+        RestaurantPanel.instance?.NotifyCookingPotFreed();
     }
 
     // 检查是否空闲
@@ -545,9 +548,9 @@ public class Pot : MonoBehaviour
         return 0f;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        // 可以在这里更新烹饪进度显示等
+        if (pendingPostCookServings > 0)
+            TryServeOnePendingPortion();
     }
 }

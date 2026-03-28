@@ -35,6 +35,14 @@ public class MoneyChest : MonoBehaviour
     [SerializeField] private ParticleSystem moneyParticles;
     [SerializeField] private Light moneyLight;
 
+    [Header("入账波动（售卖金币入箱期间）")]
+    [Tooltip("相对原始缩放的波动幅度（例如 0.08 = ±8%）")]
+    [SerializeField] private float depositPulseAmplitude = 0.07f;
+    [Tooltip("完成一次变大→变小 的周期（秒）")]
+    [SerializeField] private float depositPulseCycleSeconds = 0.22f;
+    [Tooltip("每次入账后，波动至少再持续多久；多次入账会顺延结束时间")]
+    [SerializeField] private float depositPulseExtendSeconds = 0.4f;
+
     [Header("发射器引用")]
     [SerializeField] private ProjectileLauncher projectileLauncher;
     [SerializeField] private Transform playerTransform;
@@ -51,6 +59,8 @@ public class MoneyChest : MonoBehaviour
     private Coroutine withdrawCoroutine;
     private bool isBouncing = false;
     private Coroutine bounceCoroutine;
+    private Coroutine depositPulseCoroutine;
+    private float depositPulseActiveUntil;
 
     private int withdrawStartAmount = 0;
     private int alreadyWithdrawn = 0;
@@ -122,6 +132,7 @@ public class MoneyChest : MonoBehaviour
         currentMoney += amount;
         UpdateMoneyText();
         PlayDepositEffects();
+        NotifyDepositPulseExtend();
 
         OnMoneyChanged?.Invoke(currentMoney, amount);
     }
@@ -390,9 +401,47 @@ public class MoneyChest : MonoBehaviour
 
     private void StartBounce()
     {
+        StopDepositPulse();
         if (isBouncing) return;
         if (bounceCoroutine != null) StopCoroutine(bounceCoroutine);
         bounceCoroutine = StartCoroutine(BounceAnimation());
+    }
+
+    private void NotifyDepositPulseExtend()
+    {
+        depositPulseActiveUntil = Mathf.Max(depositPulseActiveUntil, Time.time + Mathf.Max(0.05f, depositPulseExtendSeconds));
+        if (depositPulseCoroutine == null)
+            depositPulseCoroutine = StartCoroutine(DepositPulseRoutine());
+    }
+
+    private void StopDepositPulse()
+    {
+        depositPulseActiveUntil = 0f;
+        if (depositPulseCoroutine != null)
+        {
+            StopCoroutine(depositPulseCoroutine);
+            depositPulseCoroutine = null;
+        }
+        if (!isBouncing)
+            transform.localScale = originalScale;
+    }
+
+    private IEnumerator DepositPulseRoutine()
+    {
+        float cycle = Mathf.Max(0.08f, depositPulseCycleSeconds);
+        float amp = Mathf.Clamp(depositPulseAmplitude, 0.01f, 0.35f);
+
+        while (Time.time < depositPulseActiveUntil)
+        {
+            float t = Time.time * (2f * Mathf.PI / cycle);
+            float mul = 1f + amp * Mathf.Sin(t);
+            transform.localScale = originalScale * mul;
+            yield return null;
+        }
+
+        if (!isBouncing)
+            transform.localScale = originalScale;
+        depositPulseCoroutine = null;
     }
 
     private IEnumerator BounceAnimation()

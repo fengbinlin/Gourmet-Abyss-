@@ -534,8 +534,53 @@ public class InventoryManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 按菜谱从背包扣除所需食材；事前总量不足则整单失败、不改变背包。
+    /// </summary>
+    public bool TryConsumeIngredientsForRecipe(DishRecipe recipe)
+    {
+        if (recipe == null || recipe.ingredients == null) return false;
+
+        foreach (DishIngredient ing in recipe.ingredients)
+        {
+            if (ing.requiredCount <= 0) continue;
+            if (GetItemCount(ing.resourceType) < ing.requiredCount)
+                return false;
+        }
+
+        foreach (DishIngredient ing in recipe.ingredients)
+        {
+            if (ing.requiredCount <= 0) continue;
+
+            int remaining = ing.requiredCount;
+            for (int i = 0; i < slots.Count && remaining > 0; i++)
+            {
+                if (slots[i] == null || slots[i].IsEmpty()) continue;
+                if (slots[i].GetItemType() != ing.resourceType) continue;
+
+                int take = Mathf.Min(remaining, slots[i].GetCurrentCount());
+                if (take <= 0) continue;
+
+                slots[i].RemoveItem(take, out int removed);
+                remaining -= removed;
+            }
+
+            if (remaining != 0)
+            {
+                Debug.LogError("TryConsumeIngredientsForRecipe: 扣除与预判不一致");
+                ReorganizeInventory();
+                UpdateInventoryFullState();
+                return false;
+            }
+        }
+
+        ReorganizeInventory();
+        UpdateInventoryFullState();
+        return true;
+    }
+
+    /// <summary>
     /// 将背包中所有道具按种类和数量加到 GameValManager，然后清空背包。
-    /// 用于从关卡返回地面（Upground）时结算背包。
+    /// （保留供特殊流程手工调用；从关卡回地面不再自动执行。）
     /// </summary>
     public void TransferAllToGameValAndClear()
     {

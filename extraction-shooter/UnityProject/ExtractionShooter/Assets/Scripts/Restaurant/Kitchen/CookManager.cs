@@ -80,6 +80,8 @@ public class CookManager : MonoBehaviour
         modified.ingredients = new List<DishIngredient>(originalRecipe.ingredients);
         modified.acceptablePot = new List<potType>(originalRecipe.acceptablePot);
         modified.category = originalRecipe.category;
+        modified.locked = originalRecipe.locked;
+        modified.sellTime = originalRecipe.sellTime;
 
         // ⭐ Buff 应用
         modified.cookTime = originalRecipe.cookTime * cook.data.timeReductionRate;   // 例如 timeReductionRate = 0.8 表示烹饪时间减少 20%

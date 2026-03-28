@@ -15,6 +15,9 @@ public class CustomerManager : MonoBehaviour
     [Header("餐厅入口队首位置")]
     public Transform queueFrontPoint;
 
+    [Header("餐厅内落点（顾客进入用餐区，不绑定餐碟）")]
+    public Transform restaurantInsidePoint;
+
     [Header("餐厅菜碟列表")]
     public List<Plate> plates;
 
@@ -239,24 +242,13 @@ public class CustomerManager : MonoBehaviour
         npc.ShowCustomBubble(GetCustomerWord(npc, npc.data?.QueueJoinWords, "来排队啦~"));
     }
 
-    // 获取随机可用菜碟
-    private Plate GetRandomAvailablePlate()
+    private Vector3 GetRestaurantAmbiencePosition()
     {
-        List<Plate> availablePlates = new List<Plate>();
-        foreach (var plate in plates)
-        {
-            if (plate != null && plate.currentDish != null && !plate.currentDish.IsEmpty())
-            {
-                availablePlates.Add(plate);
-            }
-        }
-
-        if (availablePlates.Count > 0)
-        {
-            return availablePlates[Random.Range(0, availablePlates.Count)];
-        }
-
-        return null;
+        if (restaurantInsidePoint != null)
+            return restaurantInsidePoint.position;
+        if (queueFrontPoint != null)
+            return queueFrontPoint.position + queueFrontPoint.forward * 2f;
+        return transform != null ? transform.position : Vector3.zero;
     }
 
     // 获取当前队尾位置
@@ -347,20 +339,9 @@ public class CustomerManager : MonoBehaviour
             // 更新队列剩余成员的目标位置
             UpdateQueueMemberPositions();
 
-            // 为队首顾客找菜碟
-            Plate availablePlate = GetRandomAvailablePlate();
-
-            if (availablePlate != null)
-            {
-                firstInQueue.GoToPlate(availablePlate);
-                break; // 一次只进一个人
-            }
-            else
-            {
-                //没有可用餐碟
-
-                firstInQueue.LeaveRestaurantNoPlates();
-            }
+            // 售卖由首碟菜谱倒计时自动完成，顾客进入餐厅仅作氛围/动画
+            firstInQueue.EnterRestaurantAmbience(GetRestaurantAmbiencePosition());
+            break; // 一次只进一个人
         }
     }
 

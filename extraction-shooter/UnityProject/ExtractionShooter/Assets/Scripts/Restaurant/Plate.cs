@@ -51,8 +51,11 @@ public class Plate : MonoBehaviour
 {
     [Header("菜碟配置")]
     public int maxCapacity = 5;             // 最大容量
-    public float consumeTime = 2f;          // 消耗时间（秒）
+    public float consumeTime = 2f;          // 消耗时间（秒）（非首碟或未启用自动售卖时的手动消耗间隔）
     public plateState currentState = plateState.unUsed;
+
+    [Tooltip("自动售出金币飞向钱箱时的表现数量上限")]
+    [SerializeField] private int maxVisualCoins = 12;
 
     [Header("UI组件")]
     public Text dishNameText;               // 菜名显示
@@ -68,30 +71,66 @@ public class Plate : MonoBehaviour
 
     private bool isConsuming = false;
     private Coroutine consumeCoroutine;
+    private Coroutine autoSellCoroutine;
+
+    /// <summary>餐厅 <c>platesList[0]</c>：唯一执行自动售卖的碟子；其余碟子可堆放任意菜品（可多盘同一种菜）。</summary>
+    public bool IsRestaurantPrimarySellPlate()
+    {
+        RestaurantPanel panel = RestaurantPanel.instance;
+        if (panel == null || panel.platesList == null || panel.platesList.Count == 0)
+            return false;
+        return panel.platesList[0] == this;
+    }
+
+    public bool IsPlateEmpty()
+    {
+        return currentState == plateState.unUsed || currentDish == null || currentDish.IsEmpty();
+    }
 
     void Start()
     {
+        UpdateUI();
+        EnsureAutoSellRunning();
+    }
 
+    public void StopConsumeOnly()
+    {
+        if (consumeCoroutine != null)
+        {
+            StopCoroutine(consumeCoroutine);
+            consumeCoroutine = null;
+        }
+        isConsuming = false;
+    }
+
+    /// <summary>仅清空数据字段，不停止自动售卖协程（供首碟补位紧凑使用）。</summary>
+    public void ClearDishDataFieldsOnly()
+    {
+        currentDish = null;
+        currentState = plateState.unUsed;
+        sourcePot = null;
+    }
+
+    public void ApplyContentForRebalance(Dish dish, Pot src)
+    {
+        currentDish = dish;
+        if (dish != null && !dish.IsEmpty())
+            currentState = plateState.isUsed;
+        else
+            currentState = plateState.unUsed;
+        sourcePot = src;
+    }
+
+    public void RefreshDisplay()
+    {
         UpdateUI();
     }
 
     // 尝试添加菜肴到菜碟
     public bool TryAddDish(DishRecipe recipe, Pot pot = null)
     {
-        // 检查菜碟是否可用
-        if (currentState == plateState.isUsed &&
-            (currentDish == null || currentDish.recipe.dishName != recipe.dishName))
-        {
-            //Debug.LogWarning($"菜碟已装有其他菜：{currentDish?.recipe.dishName}");
+        if (!CanAddDish(recipe))
             return false;
-        }
-
-        // 检查容量
-        if (currentDish != null && currentDish.currentAmount >= maxCapacity)
-        {
-            //Debug.LogWarning($"菜碟容量已满：{currentDish.currentAmount}/{maxCapacity}");
-            return false;
-        }
 
         // 添加或更新菜肴
         if (currentDish == null||currentDish.currentAmount==0)
@@ -111,14 +150,98 @@ public class Plate : MonoBehaviour
         }
 
         UpdateUI();
-        //Debug.Log($"成功添加菜肴到菜碟：{recipe.dishName}，当前数量：{currentDish.currentAmount}");
+        EnsureAutoSellRunning();
 
         return true;
+    }
+
+    public void EnsureAutoSellRunning()
+    {
+        if (!IsRestaurantPrimarySellPlate()) return;
+        if (currentDish == null || currentDish.IsEmpty()) return;
+        if (autoSellCoroutine != null) return;
+        autoSellCoroutine = StartCoroutine(AutoSellRoutine());
+    }
+
+    private IEnumerator AutoSellRoutine()
+    {
+        while (currentDish != null && !currentDish.IsEmpty())
+        {
+            float baseSell = currentDish.recipe != null ? currentDish.recipe.sellTime : 2f;
+            float sellTimeMult = 1f;
+            if (WeaponStatsManager.Instance != null)
+                sellTimeMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.sellTimeMultiplier);
+            float waitSeconds = Mathf.Max(0.01f, baseSell / sellTimeMult);
+
+            float elapsed = 0f;
+            while (elapsed < waitSeconds)
+            {
+                if (currentDish == null || currentDish.IsEmpty())
+                    goto EndRoutine;
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            if (currentDish == null || currentDish.IsEmpty())
+                break;
+
+            float unitPrice = currentDish.recipe.baseDishPrice;
+            int consumed = currentDish.Consume(1);
+            int goldAmount = Mathf.RoundToInt(unitPrice * consumed);
+            Transform startTf = transform;
+            Transform moneyBox = CustomerManager.instance != null ? CustomerManager.instance.moneyBoxTransform : null;
+            if (goldAmount > 0 && CustomerManager.instance != null)
+                yield return StartCoroutine(SpawnMoneySmoothlyForSell(goldAmount, startTf, moneyBox));
+
+            if (currentDish != null && currentDish.IsEmpty())
+            {
+                currentDish = null;
+                currentState = plateState.unUsed;
+                sourcePot = null;
+            }
+            UpdateUI();
+
+            if (IsRestaurantPrimarySellPlate() && IsPlateEmpty())
+                RestaurantPanel.instance?.CompactPlatesLeftPreserveOrder();
+        }
+
+    EndRoutine:
+        autoSellCoroutine = null;
+    }
+
+    private IEnumerator SpawnMoneySmoothlyForSell(int totalAmount, Transform start, Transform target)
+    {
+        if (totalAmount <= 0) yield break;
+
+        ProjectileLauncher launcher = CustomerManager.instance != null ? CustomerManager.instance.projectileLauncher : null;
+        if (launcher == null || target == null) yield break;
+
+        int numProjectiles = Mathf.Min(totalAmount, Mathf.Max(1, maxVisualCoins));
+        int baseAmount = totalAmount / numProjectiles;
+        int remainder = totalAmount % numProjectiles;
+        float spawnInterval = 0.05f;
+
+        for (int i = 0; i < numProjectiles; i++)
+        {
+            int amountForThis = baseAmount + (i < remainder ? 1 : 0);
+            int capture = amountForThis;
+            launcher.SpawnProjectile(
+                start,
+                target,
+                ResourceType.Money,
+                capture,
+                () => { MoneyChest.Instance.AddMoney(capture); }
+            );
+            yield return new WaitForSeconds(spawnInterval);
+        }
     }
 
     // 开始消耗菜肴
     public void StartConsume()
     {
+        if (IsRestaurantPrimarySellPlate())
+            return;
+
         if (currentState == plateState.unUsed || currentDish == null || currentDish.IsEmpty())
         {
             //Debug.LogWarning("菜碟为空，无法消耗");
@@ -205,11 +328,20 @@ public class Plate : MonoBehaviour
             consumeCoroutine = null;
         }
 
+        if (autoSellCoroutine != null)
+        {
+            StopCoroutine(autoSellCoroutine);
+            autoSellCoroutine = null;
+        }
+
         isConsuming = false;
 
-
-
         //Debug.Log("取消消耗菜肴");
+    }
+
+    private void OnDestroy()
+    {
+        CancelConsume();
     }
 
     // 更新UI显示
@@ -247,12 +379,14 @@ public class Plate : MonoBehaviour
     // 检查是否可以添加菜肴
     public bool CanAddDish(DishRecipe recipe)
     {
-        if (currentState == plateState.unUsed)
+        if (recipe == null) return false;
+
+        if (currentState == plateState.unUsed || currentDish == null || currentDish.currentAmount == 0)
             return true;
 
         if (currentState == plateState.isUsed &&
             currentDish != null &&
-            currentDish.recipe.dishName == recipe.dishName &&
+            RestaurantPanel.RecipesMatch(currentDish.recipe, recipe) &&
             currentDish.currentAmount < maxCapacity)
             return true;
 

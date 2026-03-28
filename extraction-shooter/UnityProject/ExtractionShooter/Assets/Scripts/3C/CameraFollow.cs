@@ -6,6 +6,7 @@ public class CameraFollow : MonoBehaviour
 {
     private static readonly Dictionary<string, float> orthoSizeRequests = new Dictionary<string, float>();
     private static readonly Dictionary<string, float> xFocusRequests = new Dictionary<string, float>();
+    private static readonly Dictionary<string, float> yFocusRequests = new Dictionary<string, float>();
     private static float originalOrthoSize = -1f;
 
     [Header("目标设置")]
@@ -18,12 +19,14 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private bool autoOffset = true; 
     [Header("正交缩放参数")]
     [SerializeField] private float orthoSizeSmoothTime = 0.18f;
-    [Header("交互横向对焦")]
+    [Header("交互横向 / 纵向对焦")]
     [SerializeField] private float xFocusSmoothTime = 0.08f;
+    [SerializeField] private float yFocusSmoothTime = 0.08f;
 
     private Vector3 velocity = Vector3.zero; 
     private float orthoSizeVelocity = 0f;
     private float xFocusVelocity = 0f;
+    private float yFocusVelocity = 0f;
     private Transform defaultTarget;
     private Transform overrideTarget;
     public event Action OnOverrideClearedByPlayerMove;
@@ -65,12 +68,21 @@ public class CameraFollow : MonoBehaviour
         Vector3 smoothedPosition = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
         if (TryGetFocusedX(out float focusX))
         {
-            // X 轴单独做一次平滑，避免“目标先平滑一次 + 相机再平滑一次”导致明显迟滞
             smoothedPosition.x = Mathf.SmoothDamp(
                 transform.position.x,
                 focusX,
                 ref xFocusVelocity,
                 Mathf.Max(0.01f, xFocusSmoothTime)
+            );
+        }
+
+        if (TryGetFocusedY(out float focusY))
+        {
+            smoothedPosition.y = Mathf.SmoothDamp(
+                transform.position.y,
+                focusY,
+                ref yFocusVelocity,
+                Mathf.Max(0.01f, yFocusSmoothTime)
             );
         }
 
@@ -174,6 +186,18 @@ public class CameraFollow : MonoBehaviour
         xFocusRequests.Remove(requestKey);
     }
 
+    public static void PushYFocusRequest(string requestKey, float worldY)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        yFocusRequests[requestKey] = worldY;
+    }
+
+    public static void PopYFocusRequest(string requestKey)
+    {
+        if (string.IsNullOrEmpty(requestKey)) return;
+        yFocusRequests.Remove(requestKey);
+    }
+
     private void UpdateOrthoSizeSmooth()
     {
         Camera cam = FindActiveMainCamera();
@@ -252,6 +276,24 @@ public class CameraFollow : MonoBehaviour
         if (count <= 0) return false;
 
         focusedX = sum / count;
+        return true;
+    }
+
+    private bool TryGetFocusedY(out float focusedY)
+    {
+        focusedY = 0f;
+        if (yFocusRequests.Count == 0) return false;
+
+        float sum = 0f;
+        int count = 0;
+        foreach (var kv in yFocusRequests)
+        {
+            sum += kv.Value;
+            count++;
+        }
+        if (count <= 0) return false;
+
+        focusedY = sum / count;
         return true;
     }
 }

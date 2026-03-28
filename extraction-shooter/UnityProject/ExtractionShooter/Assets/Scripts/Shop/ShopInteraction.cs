@@ -34,6 +34,14 @@ public class ShopInteraction : MonoBehaviour
     [SerializeField] private AudioClip transferSound;
     [SerializeField] private AudioClip errorSound;
 
+    [Header("打开商店 UI 时相机（对准餐厅第一口锅）")]
+    [SerializeField] private float shopUiOrthoSize = 5.5f;
+
+    [Header("进入餐厅范围：首锅缩放提示")]
+    [SerializeField] private float firstPotEnterPulsePeak = 1.14f;
+    [SerializeField] private float firstPotEnterPulseUp = 0.14f;
+    [SerializeField] private float firstPotEnterPulseDown = 0.22f;
+
     [Header("事件")]
     public UnityEvent OnPlayerEnterRange;
     public UnityEvent OnPlayerExitRange;
@@ -58,6 +66,8 @@ public class ShopInteraction : MonoBehaviour
     private Tween currentUItween;
     public bool isUIShowing = false;
     private Vector3 originalUIScale;
+    private Coroutine _shopCameraUiCoroutine;
+    private const string ShopCameraUiKey = "shop_interaction_ui";
 
     private void Awake()
     {
@@ -129,6 +139,7 @@ public class ShopInteraction : MonoBehaviour
             if (!playerColliderIdsInTrigger.Add(id)) return;
             if (playerColliderIdsInTrigger.Count > 1) return; // 多 Collider：只在第一次进入时触发
             playerInRange = true;
+            TryPlayFirstPotEnterPulse();
             //PlayerEnterRange(other.transform);
             // 进入范围：强制餐厅按钮激活（不管原来是否激活）
             // if (UIFloatingButtonGroup.Instance != null)
@@ -147,6 +158,7 @@ public class ShopInteraction : MonoBehaviour
             if (!playerColliderIdsInTrigger.Remove(id)) return;
             if (playerColliderIdsInTrigger.Count > 0) return; // 仍有 Collider 在触发器内：不算真正离开
             playerInRange=false;
+            TryCancelFirstPotAttentionPulse();
             // PlayerExitRange();
             // // 离开范围：将餐厅按钮设为未激活（仅当当前正选中餐厅时才取消，避免误清除其它按钮选中）
             // if (UIFloatingButtonGroup.Instance != null)
@@ -172,6 +184,8 @@ public class ShopInteraction : MonoBehaviour
         pendingItemCount = 0; // 重置待处理计数
         playerColliderIdsInTrigger.Clear();
 
+        TryCancelFirstPotAttentionPulse();
+
         // 离开范围：无条件隐藏 UI（由按钮/切换其它按钮时也会隐藏）
         HideShopUI();
 
@@ -181,11 +195,37 @@ public class ShopInteraction : MonoBehaviour
         OnPlayerExitRange?.Invoke();
     }
 
+    private void TryPlayFirstPotEnterPulse()
+    {
+        RestaurantPanel panel = RestaurantPanel.instance;
+        if (panel == null || panel.potsList == null || panel.potsList.Count == 0) return;
+        Pot pot = panel.potsList[0];
+        if (pot == null || !pot.isActiveAndEnabled) return;
+        pot.PlayAttentionScalePulse(firstPotEnterPulsePeak, firstPotEnterPulseUp, firstPotEnterPulseDown);
+    }
+
+    private void TryCancelFirstPotAttentionPulse()
+    {
+        RestaurantPanel panel = RestaurantPanel.instance;
+        if (panel == null || panel.potsList == null || panel.potsList.Count == 0) return;
+        Pot pot = panel.potsList[0];
+        if (pot == null) return;
+        pot.CancelAttentionScalePulse();
+    }
+
     public void ShowShopUI()
     {
         if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
         if (isUIShowing) return;
         isUIShowing = true;
+
+        if (_shopCameraUiCoroutine != null)
+        {
+            StopCoroutine(_shopCameraUiCoroutine);
+            _shopCameraUiCoroutine = null;
+        }
+        _shopCameraUiCoroutine = StartCoroutine(CoPushShopCameraUiNextFrame());
+
         shopUICanvas.SetActive(true);
 
         if (currentUItween != null && currentUItween.IsActive())
@@ -209,6 +249,13 @@ public class ShopInteraction : MonoBehaviour
         if (!isUIShowing && !shopUICanvas.activeSelf) return;
         isUIShowing = false;
 
+        if (_shopCameraUiCoroutine != null)
+        {
+            StopCoroutine(_shopCameraUiCoroutine);
+            _shopCameraUiCoroutine = null;
+        }
+        ClearShopCameraUiRequests();
+
         if (currentUItween != null && currentUItween.IsActive())
             currentUItween.Kill();
 
@@ -222,6 +269,32 @@ public class ShopInteraction : MonoBehaviour
         hideSequence.OnComplete(() => { shopUICanvas.SetActive(false); });
         currentUItween = hideSequence;
     }
+
+    private IEnumerator CoPushShopCameraUiNextFrame()
+    {
+        yield return null;
+        PushShopCameraUiFocus();
+        _shopCameraUiCoroutine = null;
+    }
+
+    private void PushShopCameraUiFocus()
+    {
+        RestaurantPanel panel = RestaurantPanel.instance;
+        if (panel == null || panel.potsList == null || panel.potsList.Count == 0 || panel.potsList[0] == null)
+            return;
+        Vector3 w = panel.potsList[0].transform.position;
+        CameraFollow.PushXFocusRequest(ShopCameraUiKey, w.x);
+        CameraFollow.PushYFocusRequest(ShopCameraUiKey, w.y);
+        CameraFollow.PushOrthoSizeRequest(ShopCameraUiKey, Mathf.Max(0.5f, shopUiOrthoSize));
+    }
+
+    private void ClearShopCameraUiRequests()
+    {
+        CameraFollow.PopOrthoSizeRequest(ShopCameraUiKey);
+        CameraFollow.PopXFocusRequest(ShopCameraUiKey);
+        CameraFollow.PopYFocusRequest(ShopCameraUiKey);
+    }
+
     private int pendingItemCount = 0; // 追踪正在飞行中的物品数量
     private void TryTransferItem()
     {
@@ -475,5 +548,8 @@ public class ShopInteraction : MonoBehaviour
             shopManager.OnShopStateChanged.RemoveListener(HandleShopStateChanged);
         if (currentUItween != null && currentUItween.IsActive())
             currentUItween.Kill();
+        if (_shopCameraUiCoroutine != null)
+            StopCoroutine(_shopCameraUiCoroutine);
+        ClearShopCameraUiRequests();
     }
 }
