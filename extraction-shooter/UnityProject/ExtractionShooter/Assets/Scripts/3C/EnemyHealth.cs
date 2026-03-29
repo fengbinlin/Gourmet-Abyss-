@@ -73,6 +73,8 @@ public class EnemyHealth : MonoBehaviour
     
     private List<Renderer> allRenderers = new List<Renderer>();
     private Dictionary<Renderer, MaterialPropertyBlock[]> originalPropertyBlocks = new Dictionary<Renderer, MaterialPropertyBlock[]>();
+    private readonly List<SpriteRenderer> spriteRenderersForFlash = new List<SpriteRenderer>();
+    private readonly Dictionary<SpriteRenderer, Color> originalSpriteColors = new Dictionary<SpriteRenderer, Color>();
     private Vector3 originalScale;
     private CameraFollow cameraFollow;
     private EnemyAI enemyAI;
@@ -275,6 +277,15 @@ public class EnemyHealth : MonoBehaviour
             
             originalPropertyBlocks[renderer] = propertyBlocks;
         }
+        
+        spriteRenderersForFlash.Clear();
+        originalSpriteColors.Clear();
+        foreach (SpriteRenderer sr in GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (sr == null) continue;
+            spriteRenderersForFlash.Add(sr);
+            originalSpriteColors[sr] = sr.color;
+        }
     }
     
     // 主要伤害处理方法
@@ -431,15 +442,22 @@ public class EnemyHealth : MonoBehaviour
             {
                 MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
                 renderer.GetPropertyBlock(propertyBlock, i);
+                bool hadNoOverrides = propertyBlock.isEmpty;
                 propertyBlock.SetColor("_EmissionColor", color);
-                
-                if (propertyBlock.isEmpty)
+                if (hadNoOverrides)
                 {
                     propertyBlock.SetColor("_BaseColor", color);
+                    propertyBlock.SetColor("_Color", color);
                 }
                 
                 renderer.SetPropertyBlock(propertyBlock, i);
             }
+        }
+        
+        for (int s = 0; s < spriteRenderersForFlash.Count; s++)
+        {
+            SpriteRenderer sr = spriteRenderersForFlash[s];
+            if (sr != null) sr.color = color;
         }
     }
     
@@ -449,17 +467,24 @@ public class EnemyHealth : MonoBehaviour
         {
             if (renderer == null) continue;
             
+            int count = renderer.sharedMaterials.Length;
+            for (int i = 0; i < count; i++)
+                renderer.SetPropertyBlock(null, i);
+            
             if (originalPropertyBlocks.TryGetValue(renderer, out MaterialPropertyBlock[] originalBlocks))
             {
-                for (int i = 0; i < originalBlocks.Length; i++)
+                for (int i = 0; i < originalBlocks.Length && i < count; i++)
                 {
-                    renderer.SetPropertyBlock(originalBlocks[i], i);
+                    if (originalBlocks[i] != null && !originalBlocks[i].isEmpty)
+                        renderer.SetPropertyBlock(originalBlocks[i], i);
                 }
             }
-            else
-            {
-                SetEmissionColorForRenderer(renderer, Color.black);
-            }
+        }
+        
+        foreach (var kvp in originalSpriteColors)
+        {
+            if (kvp.Key != null)
+                kvp.Key.color = kvp.Value;
         }
     }
     
@@ -522,6 +547,8 @@ public class EnemyHealth : MonoBehaviour
     
     private void PlayHitAnimation()
     {
+        if (enemyAI != null && enemyAI.IsUsing2DFrameAnimation)
+            return;
         if (animator != null && !string.IsNullOrEmpty(hitAnimationTrigger))
         {
             animator.SetTrigger(hitAnimationTrigger);

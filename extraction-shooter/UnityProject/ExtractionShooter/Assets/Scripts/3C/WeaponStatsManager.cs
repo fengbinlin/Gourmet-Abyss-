@@ -204,7 +204,7 @@ public class WeaponStatsManager : MonoBehaviour
         restaurantDishQueueSlotCount = Mathf.Max(1, restaurantDishQueueSlotCount);
         cookingTimeMultiplier = Mathf.Max(0.01f, cookingTimeMultiplier);
         restaurantSellBonusRate = Mathf.Max(0f, restaurantSellBonusRate);
-        restaurantCustomerPrefabCount = Mathf.Max(1, restaurantCustomerPrefabCount);
+        restaurantCustomerPrefabCount = Mathf.Max(0, restaurantCustomerPrefabCount);
         restaurantMaxCustomersInside = Mathf.Max(1, restaurantMaxCustomersInside);
         restaurantMaxTotalCustomers = Mathf.Max(1, restaurantMaxTotalCustomers);
         customerMoveSpeedMultiplier = Mathf.Max(0.01f, customerMoveSpeedMultiplier);
@@ -342,7 +342,7 @@ public class WeaponStatsManager : MonoBehaviour
 
     public void SetRestaurantCustomerPrefabCount(int count)
     {
-        restaurantCustomerPrefabCount = Mathf.Max(1, count);
+        restaurantCustomerPrefabCount = Mathf.Max(0, count);
         OnCustomerStatsChanged?.Invoke();
     }
 

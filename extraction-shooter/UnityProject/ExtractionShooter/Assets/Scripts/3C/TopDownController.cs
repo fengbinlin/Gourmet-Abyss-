@@ -245,6 +245,14 @@ public class TopDownController : MonoBehaviour
             Die();
         }
     }
+
+    /// <summary>近战敌人命中玩家时扣除氧气（饥饿条）。由 EnemyAI 等调用。</summary>
+    public void ApplyEnemyMeleeHungerDamage(float amount)
+    {
+        if (amount <= 0f || isDead) return;
+        if (BattleValManager.Instance != null)
+            BattleValManager.Instance.DamageOxygen(amount);
+    }
     public void Die()
     {
         if (isDead) return; // 防止重复调用

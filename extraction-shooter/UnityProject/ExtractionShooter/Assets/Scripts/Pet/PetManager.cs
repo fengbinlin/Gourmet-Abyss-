@@ -7,6 +7,7 @@ using UnityEngine;
 /// 2) 进入战斗时读取 WeaponStatsManager 里的宠物状态（enum + bool）
 /// 3) 生成启用的宠物预制体，并把成长数值写入到“宠物系统”组件（IPetSystem）
 /// </summary>
+[DefaultExecutionOrder(90)]
 public class PetManager : MonoBehaviour
 {
     public static PetManager Instance { get; private set; }
@@ -81,6 +82,62 @@ public class PetManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         CaptureFlyingCompanionInitialIfNeeded();
+    }
+
+    /// <summary>
+    /// 初始数值表写入单条（52–65）；不会在内部刷新快照，请最后调用 <see cref="RefreshFlyingCompanionInitialSnapshot"/>。
+    /// </summary>
+    public void ApplyFlyingCompanionTableValue(int statID, float value)
+    {
+        switch (statID)
+        {
+            case 52: FlyingCompanion_attackRange = Mathf.Max(0.01f, value); break;
+            case 53: FlyingCompanion_fireInterval = Mathf.Max(0.01f, value); break;
+            case 54: FlyingCompanion_bulletDamage = Mathf.Max(0f, value); break;
+            case 55: FlyingCompanion_bulletSize = Mathf.Max(0.01f, value); break;
+            case 56: FlyingCompanion_burstBulletCount = Mathf.Max(1, Mathf.RoundToInt(value)); break;
+            case 57: FlyingCompanion_burstFanAngle = value; break;
+            case 58: FlyingCompanion_slowRatioBase = Mathf.Clamp01(value); break;
+            case 59: FlyingCompanion_slowDurationBase = Mathf.Max(0.01f, value); break;
+            case 60: FlyingCompanion_slowRatioMultiplier = Mathf.Max(0.01f, value); break;
+            case 61: FlyingCompanion_slowDurationMultiplier = Mathf.Max(0.01f, value); break;
+            case 62: FlyingCompanion_bulletMoveSpeed = Mathf.Max(0.01f, value); break;
+            case 63: FlyingCompanion_bulletRotateSpeed = Mathf.Max(1f, value); break;
+            case 64: FlyingCompanion_bulletLifeTime = Mathf.Max(0.01f, value); break;
+            case 65: FlyingCompanion_bulletHitDistance = Mathf.Max(0.01f, value); break;
+        }
+    }
+
+    /// <summary>
+    /// 在初始表覆盖完 52–65 后调用，使技能树 buff 的「基准值」与表一致。
+    /// </summary>
+    public void RefreshFlyingCompanionInitialSnapshot()
+    {
+        _fcInitialCaptured = false;
+        CaptureFlyingCompanionInitialIfNeeded();
+    }
+
+    /// <summary>供 SkillTreeInitializer 在缺少 CSV 时回退读取当前飞行跟班数值。</summary>
+    public float GetFlyingCompanionStatValue(int statID)
+    {
+        switch (statID)
+        {
+            case 52: return FlyingCompanion_attackRange;
+            case 53: return FlyingCompanion_fireInterval;
+            case 54: return FlyingCompanion_bulletDamage;
+            case 55: return FlyingCompanion_bulletSize;
+            case 56: return FlyingCompanion_burstBulletCount;
+            case 57: return FlyingCompanion_burstFanAngle;
+            case 58: return FlyingCompanion_slowRatioBase;
+            case 59: return FlyingCompanion_slowDurationBase;
+            case 60: return FlyingCompanion_slowRatioMultiplier;
+            case 61: return FlyingCompanion_slowDurationMultiplier;
+            case 62: return FlyingCompanion_bulletMoveSpeed;
+            case 63: return FlyingCompanion_bulletRotateSpeed;
+            case 64: return FlyingCompanion_bulletLifeTime;
+            case 65: return FlyingCompanion_bulletHitDistance;
+            default: return 0f;
+        }
     }
 
     private void CaptureFlyingCompanionInitialIfNeeded()

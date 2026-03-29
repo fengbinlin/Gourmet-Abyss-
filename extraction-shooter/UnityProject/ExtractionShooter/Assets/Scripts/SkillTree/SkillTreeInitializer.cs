@@ -468,6 +468,13 @@ public class SkillTreeInitializer : MonoBehaviour
     // 获取当前值（用于回退）
     private float GetCurrentStatValue(int statID, WeaponStatsManager wsm)
     {
+        if (statID >= 52 && statID <= 65)
+        {
+            if (PetManager.Instance != null)
+                return PetManager.Instance.GetFlyingCompanionStatValue(statID);
+            return 0f;
+        }
+
         if (wsm == null) return 0f;
 
         switch (statID)
@@ -502,6 +509,9 @@ public class SkillTreeInitializer : MonoBehaviour
             case 27: return wsm.primaryAmmoConsumePerShot;
             case 28: return wsm.secondaryAmmoMax;
             case 29: return wsm.secondaryAmmoConsumePerShot;
+            case 30: return wsm.defaultMapDensityMultiplier;
+            case 31: return wsm.bossDamageToOxygenMultiplier;
+            case 32: return wsm.isSecondaryEnable ? 1f : 0f;
             case 33: return wsm.primaryEnableKillSplit ? 1f : 0f;
             case 34: return wsm.primaryKillSplitCount;
             case 35: return wsm.primaryKillSplitChildDamageRatio;
@@ -518,6 +528,11 @@ public class SkillTreeInitializer : MonoBehaviour
             case 46: return wsm.secondaryMagazineCapacity;
             case 47: return wsm.primaryReloadDuration;
             case 48: return wsm.secondaryReloadDuration;
+            case 66: return wsm.isPrimaryEnable ? 1f : 0f;
+            case 67: return wsm.primaryKillSplitMaxIterations;
+            case 68: return wsm.primaryAOEEdgeMinDamageRatio;
+            case 69: return wsm.restaurantDishQueueSlotCount;
+            case 70: return wsm.restaurantCustomerPrefabCount;
             default: return 0f;
         }
     }

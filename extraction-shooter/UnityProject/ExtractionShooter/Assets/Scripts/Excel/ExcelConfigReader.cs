@@ -33,6 +33,7 @@ public class SkillConfigData
     public string prerequisiteLevels;
 }
 
+[DefaultExecutionOrder(100)]
 public class ExcelConfigReader : MonoBehaviour
 {
     [Header("配置文件路径")]
@@ -197,64 +198,109 @@ public class ExcelConfigReader : MonoBehaviour
     private void ApplyInitialStats()
     {
         var wsm = WeaponStatsManager.Instance;
-        if (wsm == null) return;
-
-        foreach (var stat in initialStats)
+        if (wsm != null)
         {
-            switch (stat.statID)
+            foreach (var stat in initialStats)
+                ApplyOneInitialStat(wsm, stat);
+
+            wsm.RebuildDensityDictionary();
+            if (wsm.levelParamRateItems != null)
             {
-                case 0: wsm.primaryFireRate = stat.initialValue; break;
-                case 1: wsm.primaryPelletCount = (int)stat.initialValue; break;
-                case 2: wsm.primaryPenetrationCount = (int)stat.initialValue; break;
-                case 3: wsm.primaryBulletSpeed = stat.initialValue; break;
-                case 4: wsm.primaryBulletSize = stat.initialValue; break;
-                case 5: wsm.primaryBaseDamage = stat.initialValue; break;
-                case 6: wsm.primaryCriticalChance = stat.initialValue; break;
-                case 7: wsm.primaryCriticalMultiplier = stat.initialValue; break;
-                case 8: wsm.primaryMaxTravelDistance = stat.initialValue; break;
-                case 9: wsm.secondaryDamageValue = stat.initialValue; break;
-                case 10: wsm.secondaryFireRate = stat.initialValue; break;
-                case 11: wsm.secondaryLaserLength = stat.initialValue; break;
-                case 12: wsm.secondaryLaserCount = (int)stat.initialValue; break;
-                case 13: wsm.secondaryLaserWidth = stat.initialValue; break;
-                case 14: wsm.secondaryCritChance = stat.initialValue; break;
-                case 15: wsm.secondaryCritMultiplier = stat.initialValue; break;
-                case 16: wsm.secondaryMaxChainCount = (int)stat.initialValue; break;
-                case 17: wsm.secondaryChainSearchRadius = stat.initialValue; break;
-                case 18: wsm.sellPriceMultiplier = stat.initialValue; break;
-                case 19: wsm.sellTimeMultiplier = stat.initialValue; break;
-                case 20: wsm.shopSlotCount = (int)stat.initialValue; break;
-                case 21: wsm.slotCapacity = (int)stat.initialValue; break;
-                case 22: wsm.inventorySlotCount = (int)stat.initialValue; break;
-                case 23: wsm.inventorySlotCapacity = (int)stat.initialValue; break;
-                case 24: wsm.oxygenMax = stat.initialValue; break;
-                case 25: wsm.oxygenConsumeRate = stat.initialValue; break;
-                case 26: wsm.primaryAmmoMax = (int)stat.initialValue; break;
-                case 27: wsm.primaryAmmoConsumePerShot = (int)stat.initialValue; break;
-                case 28: wsm.secondaryAmmoMax = (int)stat.initialValue; break;
-                case 29: wsm.secondaryAmmoConsumePerShot = (int)stat.initialValue; break;
-                case 30: wsm.defaultMapDensityMultiplier = stat.initialValue; break;
-                case 33: wsm.primaryEnableKillSplit = stat.initialValue != 0f; break;
-                case 34: wsm.primaryKillSplitCount = Mathf.Max(1, (int)stat.initialValue); break;
-                case 35: wsm.primaryKillSplitChildDamageRatio = Mathf.Clamp01(stat.initialValue); break;
-                case 36: wsm.primaryEnableAOE = stat.initialValue != 0f; break;
-                case 37: wsm.primaryAOERadius = Mathf.Max(0f, stat.initialValue); break;
-                case 38: wsm.restaurantPotCount = Mathf.Max(1, (int)stat.initialValue); break;
-                case 39: wsm.restaurantPlateCount = Mathf.Max(1, (int)stat.initialValue); break;
-                case 40: wsm.cookingTimeMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
-                case 41: wsm.restaurantSellBonusRate = Mathf.Max(0f, stat.initialValue); break;
-                case 42: wsm.restaurantMaxTotalCustomers = Mathf.Max(1, (int)stat.initialValue); break;
-                case 43: wsm.restaurantMaxCustomersInside = Mathf.Max(1, (int)stat.initialValue); break;
-                case 44: wsm.customerMoveSpeedMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
-                case 45: wsm.primaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
-                case 46: wsm.secondaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
-                case 47: wsm.primaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
-                case 48: wsm.secondaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
+                for (int i = 0; i < wsm.levelParamRateItems.Count; i++)
+                    wsm.levelParamRateItems[i]?.EnsureLevelBuffBases();
             }
+
             wsm.OnInventoryStatsChangedInvoke();
             wsm.OnShopStatsChangedInvoke();
             wsm.OnBattleStatsChangedInvoke();
-            wsm.RebuildDensityDictionary();
+            wsm.OnRestaurantStatsChangedInvoke();
+            wsm.OnCustomerStatsChangedInvoke();
+            wsm.OnLevelStatsChangedInvoke();
+            wsm.OnWeaponStatsChangedInvoke();
+        }
+
+        ApplyFlyingCompanionInitialFromTable();
+    }
+
+    /// <summary>飞行跟班 statID 52–65，与技能树、PetManager 一致。</summary>
+    private void ApplyFlyingCompanionInitialFromTable()
+    {
+        var pm = PetManager.Instance;
+        if (pm == null) return;
+
+        bool any = false;
+        foreach (var stat in initialStats)
+        {
+            if (stat.statID < 52 || stat.statID > 65) continue;
+            pm.ApplyFlyingCompanionTableValue(stat.statID, stat.initialValue);
+            any = true;
+        }
+
+        if (any)
+            pm.RefreshFlyingCompanionInitialSnapshot();
+    }
+
+    /// <summary>
+    /// 与 SkillTreeInitializer statID 对齐；列表/引用型字段（如 mapDensityBindings）仍只在 Inspector 配置。
+    /// </summary>
+    private static void ApplyOneInitialStat(WeaponStatsManager wsm, InitialStatsData stat)
+    {
+        switch (stat.statID)
+        {
+            case 0: wsm.primaryFireRate = stat.initialValue; break;
+            case 1: wsm.primaryPelletCount = (int)stat.initialValue; break;
+            case 2: wsm.primaryPenetrationCount = (int)stat.initialValue; break;
+            case 3: wsm.primaryBulletSpeed = stat.initialValue; break;
+            case 4: wsm.primaryBulletSize = stat.initialValue; break;
+            case 5: wsm.primaryBaseDamage = stat.initialValue; break;
+            case 6: wsm.primaryCriticalChance = stat.initialValue; break;
+            case 7: wsm.primaryCriticalMultiplier = stat.initialValue; break;
+            case 8: wsm.primaryMaxTravelDistance = stat.initialValue; break;
+            case 9: wsm.secondaryDamageValue = stat.initialValue; break;
+            case 10: wsm.secondaryFireRate = stat.initialValue; break;
+            case 11: wsm.secondaryLaserLength = stat.initialValue; break;
+            case 12: wsm.secondaryLaserCount = (int)stat.initialValue; break;
+            case 13: wsm.secondaryLaserWidth = stat.initialValue; break;
+            case 14: wsm.secondaryCritChance = stat.initialValue; break;
+            case 15: wsm.secondaryCritMultiplier = stat.initialValue; break;
+            case 16: wsm.secondaryMaxChainCount = (int)stat.initialValue; break;
+            case 17: wsm.secondaryChainSearchRadius = stat.initialValue; break;
+            case 18: wsm.sellPriceMultiplier = stat.initialValue; break;
+            case 19: wsm.sellTimeMultiplier = stat.initialValue; break;
+            case 20: wsm.shopSlotCount = (int)stat.initialValue; break;
+            case 21: wsm.slotCapacity = (int)stat.initialValue; break;
+            case 22: wsm.inventorySlotCount = (int)stat.initialValue; break;
+            case 23: wsm.inventorySlotCapacity = (int)stat.initialValue; break;
+            case 24: wsm.oxygenMax = stat.initialValue; break;
+            case 25: wsm.oxygenConsumeRate = stat.initialValue; break;
+            case 26: wsm.primaryAmmoMax = (int)stat.initialValue; break;
+            case 27: wsm.primaryAmmoConsumePerShot = (int)stat.initialValue; break;
+            case 28: wsm.secondaryAmmoMax = (int)stat.initialValue; break;
+            case 29: wsm.secondaryAmmoConsumePerShot = (int)stat.initialValue; break;
+            case 30: wsm.defaultMapDensityMultiplier = stat.initialValue; break;
+            case 31: wsm.bossDamageToOxygenMultiplier = Mathf.Max(0f, stat.initialValue); break;
+            case 32: wsm.isSecondaryEnable = stat.initialValue != 0f; break;
+            case 33: wsm.primaryEnableKillSplit = stat.initialValue != 0f; break;
+            case 34: wsm.primaryKillSplitCount = Mathf.Max(1, (int)stat.initialValue); break;
+            case 35: wsm.primaryKillSplitChildDamageRatio = Mathf.Clamp01(stat.initialValue); break;
+            case 36: wsm.primaryEnableAOE = stat.initialValue != 0f; break;
+            case 37: wsm.primaryAOERadius = Mathf.Max(0f, stat.initialValue); break;
+            case 38: wsm.restaurantPotCount = Mathf.Max(1, (int)stat.initialValue); break;
+            case 39: wsm.restaurantPlateCount = Mathf.Max(1, (int)stat.initialValue); break;
+            case 40: wsm.cookingTimeMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
+            case 41: wsm.restaurantSellBonusRate = Mathf.Max(0f, stat.initialValue); break;
+            case 42: wsm.restaurantMaxTotalCustomers = Mathf.Max(1, (int)stat.initialValue); break;
+            case 43: wsm.restaurantMaxCustomersInside = Mathf.Max(1, (int)stat.initialValue); break;
+            case 44: wsm.customerMoveSpeedMultiplier = Mathf.Max(0.01f, stat.initialValue); break;
+            case 45: wsm.primaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
+            case 46: wsm.secondaryMagazineCapacity = Mathf.Max(1, (int)stat.initialValue); break;
+            case 47: wsm.primaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
+            case 48: wsm.secondaryReloadDuration = Mathf.Max(0.01f, stat.initialValue); break;
+            case 66: wsm.isPrimaryEnable = stat.initialValue != 0f; break;
+            case 67: wsm.primaryKillSplitMaxIterations = Mathf.Max(0, (int)stat.initialValue); break;
+            case 68: wsm.primaryAOEEdgeMinDamageRatio = Mathf.Clamp01(stat.initialValue); break;
+            case 69: wsm.restaurantDishQueueSlotCount = Mathf.Max(1, (int)stat.initialValue); break;
+            case 70: wsm.restaurantCustomerPrefabCount = Mathf.Max(0, (int)stat.initialValue); break;
         }
     }
 

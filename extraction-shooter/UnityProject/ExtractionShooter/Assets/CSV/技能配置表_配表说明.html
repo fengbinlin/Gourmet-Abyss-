@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>技能配置表 · 配表说明（策划版）</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --sidebar-bg: #0f1419;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-soft: #388bfd33;
+      --code-bg: #010409;
+      --ok: #3fb950;
+      --warn: #d29922;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      margin: 0;
+      font-size: 15px;
+    }
+    .layout {
+      display: flex;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: flex-start;
+      width: 280px;
+      max-height: 100vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem 1rem 2.5rem;
+    }
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 1.25rem 0 0.5rem;
+      font-weight: 600;
+    }
+    .sidebar h2:first-child { margin-top: 0; }
+    .sidebar nav a {
+      display: block;
+      padding: 0.35rem 0.5rem;
+      margin: 2px 0;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.88rem;
+      border-radius: 6px;
+      border-left: 2px solid transparent;
+    }
+    .sidebar nav a:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .sidebar nav a.sub {
+      padding-left: 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .sidebar nav a.sub:hover { color: var(--accent); }
+    .sidebar .doc-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      padding: 0 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.5rem;
+      line-height: 1.35;
+    }
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 2rem 2.5rem 4rem;
+      max-width: 920px;
+    }
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.6rem;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 1.35rem;
+      margin-top: 2.5rem;
+      padding-top: 0.5rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    h3 { font-size: 1.08rem; margin-top: 1.5rem; color: #c9d1d9; font-weight: 600; }
+    h4 { font-size: 0.98rem; margin-top: 1.1rem; color: #adbac7; font-weight: 600; }
+    p, li { color: #c9d1d9; }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .note {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 0.85rem 1.1rem;
+      margin: 1rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .note.warn { border-left-color: var(--warn); }
+    code, .mono {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.88em;
+      background: rgba(110,118,129,0.2);
+      padding: 0.12em 0.35em;
+      border-radius: 4px;
+    }
+    pre, .codeblock {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 0.84rem;
+      line-height: 1.55;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--panel); color: var(--accent); font-weight: 600; }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .formula { color: #79c0ff; white-space: nowrap; }
+    .tag {
+      display: inline-block;
+      background: #21262d;
+      color: var(--ok);
+      padding: 0.1em 0.45em;
+      border-radius: 4px;
+      font-size: 0.78em;
+      font-weight: 500;
+    }
+    dl.designer-q {
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      background: var(--panel);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    dl.designer-q dt {
+      color: var(--accent);
+      font-weight: 600;
+      margin-top: 0.75rem;
+    }
+    dl.designer-q dt:first-child { margin-top: 0; }
+    dl.designer-q dd { margin: 0.35rem 0 0 0; color: #c9d1d9; }
+    @media (max-width: 960px) {
+      .layout { flex-direction: column; }
+      .sidebar {
+        position: relative;
+        max-height: none;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="doc-title">技能配置表<br /><span style="font-weight:400;color:var(--muted);font-size:0.85em;">配表说明 · 策划向</span></div>
+    <nav>
+      <h2>入门</h2>
+      <a href="#intro">说明与数据来源</a>
+      <a href="#flow">数据怎么进游戏</a>
+
+      <h2>表格本身</h2>
+      <a href="#rules">配表规则与常见错误</a>
+      <a href="#columns">表头与列结构</a>
+      <a href="#prereq">前置技能列</a>
+      <a href="#cost">等级消耗列</a>
+      <a href="#icon">图标路径</a>
+
+      <h2>buff效果 详解</h2>
+      <a href="#buff-overview">语法总览</a>
+      <a href="#buff-normal">① 普通 (statID, value)</a>
+      <a href="#buff-30" class="sub">② 地图密度 (30)</a>
+      <a href="#buff-31" class="sub">③ 凋落物密度 (31)</a>
+      <a href="#buff-49" class="sub">④ 关卡五元组 (49)</a>
+      <a href="#buff-49-countV" class="sub"> · countV</a>
+      <a href="#buff-49-spawnV" class="sub"> · spawnV</a>
+      <a href="#buff-49-waitV" class="sub"> · waitV</a>
+      <a href="#buff-49-propV" class="sub"> · propV</a>
+      <a href="#buff-combine">多条效果组合</a>
+
+      <h2>速查表</h2>
+      <a href="#buff-table">statID 与公式全表</a>
+      <a href="#resource">资源类型编号</a>
+      <a href="#tips">策划协作提示</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+  <h1 id="intro">技能配置表 · 配表说明（策划版）</h1>
+  <p>本文档面向<strong>策划同学</strong>：说明 <code>Assets/CSV/技能配置表.csv</code> 每一列怎么填、<strong>buff效果</strong>字符串怎么写、各数字在程序里如何生效。不要求会写代码，但需要与程序、关卡配置<strong>对齐 ID 与索引</strong>（例如关卡 <code>statsId</code>、地图绑定列表下标）。</p>
+  <p class="muted"><strong>说明：</strong>玩家场景状态由 <code>PlayerStateManager</code> 管理，与技能数值<strong>无关</strong>。技能数值由 <code>ExcelConfigReader</code> 读表，由 <code>SkillTreeInitializer</code> 解析 buff 并写入 <code>WeaponStatsManager</code> / <code>PetManager</code> 等。</p>
+
+  <h2 id="flow">数据怎么进游戏</h2>
+  <ol>
+    <li>运行时 <code>ExcelConfigReader</code> 读取 CSV，生成技能列表（含 buff 字符串、每级消耗等）。</li>
+    <li>技能树界面用这些数据生成节点、连线、升级消耗；玩家升级时调用 <code>ApplySkillEffects</code>。</li>
+    <li><code>buff效果</code>列被拆成若干段，按类型改武器、商店、地图密度、关卡刷怪/道具参数等。</li>
+    <li>很多属性先读<strong>初始属性表</strong>（工程里另一份 CSV，挂在 <code>ExcelConfigReader.initialStatsCSV</code>）作为基准，再按公式乘上技能等级。调平衡时要<strong>两份表一起看</strong>。</li>
+  </ol>
+
+  <h2 id="rules">配表规则与常见错误</h2>
+  <ul>
+    <li><strong>编码</strong>：文件需为 <strong>UTF-8</strong>，否则中文可能乱码。</li>
+    <li><strong>第一行</strong>：必须是表头；数据从第二行开始；空行会被跳过。</li>
+    <li><strong>列分隔</strong>：英文逗号 <code>,</code>。若某一格内容里必须出现逗号，整格用<strong>英文双引号</strong>包起来（解析器支持引号内逗号）。</li>
+    <li><strong>小数点</strong>：用英文点 <code>.</code>（如 <code>0.05</code>），不要用中文句号。</li>
+    <li><strong>列数</strong>：每一行必须能解析出至少 <strong>10 列</strong>，否则<strong>整行丢弃</strong>。少写了一个逗号就会导致后面列错位或行无效。</li>
+    <li><strong>技能 ID</strong>：唯一；前置里引用的 ID 必须能在表里找到对应行。</li>
+  </ul>
+  <div class="note warn">
+    <strong>常见坑：</strong>在「buff效果」里手写嵌套括号时，括号必须成对；<code>(49,(...))</code> 中间是英文逗号。<strong>等级消耗</strong>里多级用 <code>|</code> 分隔，段数应等于<strong>最大等级</strong>（或按程序约定），否则升级按钮可能对不齐资源消耗。
+  </div>
+
+  <h2 id="columns">表头与列结构（共 10 列）</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>列序</th>
+        <th>表头</th>
+        <th>策划填写说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0</td>
+        <td>技能ID</td>
+        <td>整数，全局唯一。前置、程序引用都用它。</td>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>技能名称</td>
+        <td>界面显示名称。</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>前置技能ID</td>
+        <td>见下文 <a href="#prereq">前置技能列</a>。</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>坐标</td>
+        <td><code class="mono">x,y</code> 两个数，英文逗号分隔。决定技能树节点在 UI 上的位置（乘上网格间距后布局）。</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>最大等级</td>
+        <td>整数。与「等级消耗」条数强相关。</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>是否稀有</td>
+        <td><code>0</code> 普通，<code>1</code> 稀有（具体表现以 UI 为准）。</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>技能描述</td>
+        <td>给玩家看的说明文案；<strong>不参与数值计算</strong>，但应与 buff 实际效果一致，避免投诉。</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>buff效果</td>
+        <td>核心列，见 <a href="#buff-overview">buff效果 详解</a>。</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>等级消耗</td>
+        <td>见 <a href="#cost">等级消耗列</a>。</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>图标路径</td>
+        <td>见 <a href="#icon">图标路径</a>。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="prereq">前置技能列</h3>
+  <ul>
+    <li>格式：<code class="mono">技能ID:需要达到的等级</code>，例：<code>0:1</code> 表示技能 0 至少升到 1 级才解锁本技能。</li>
+    <li>多个前置：用英文分号 <code>;</code> 分隔，例：<code>16:1;18:1</code>。</li>
+    <li>不要写循环依赖；引用的技能 ID 必须在同一张表里有定义。</li>
+  </ul>
+
+  <h3 id="cost">等级消耗列</h3>
+  <p>格式：<code class="mono">资源类型编号:数量</code>，每一<strong>段</strong>对应从 1 级升下一级的一次消耗（具体对应关系以当前程序为准：一般为第 1 段 = 升到 2 级消耗，以此类推）。</p>
+  <ul>
+    <li>多段之间用竖线 <code>|</code> 连接，例：<code>0:5|0:5|0:10</code>。</li>
+    <li>资源类型编号 = 程序里 <code>ResourceType</code> 枚举的整数值（从 0 开始），见文末 <a href="#resource">资源类型编号表</a>。</li>
+  </ul>
+
+  <h3 id="icon">图标路径</h3>
+  <p>填 <code>Resources</code> 文件夹下可加载资源的路径（不含 <code>Resources/</code> 前缀）。可以带或不带 <code>.png</code>，程序会处理。填错会回退到默认图标。</p>
+
+  <h2 id="buff-overview">buff效果 · 语法总览</h2>
+  <p>一整格是一个字符串，可以包含<strong>多条效果</strong>：先用英文分号 <code>;</code> 拆开，再逐条解析。</p>
+  <p>程序对每一条会按顺序尝试匹配下面几类（命中一类后就不再对同一条做其他解析）：</p>
+  <table>
+    <thead>
+      <tr><th>类型</th><th>典型形式</th><th>用途简述</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>关卡五元组</td><td><code>(49,(levelId,…))</code></td><td>按「关卡参数 ID」改刷怪与道具相关倍率</td></tr>
+      <tr><td>地图密度</td><td><code>(30,(索引,系数))</code></td><td>改某张地图植物/怪物密度绑定</td></tr>
+      <tr><td>凋落物密度</td><td><code>(31,(索引,系数))</code></td><td>改某种敌人掉落物权重</td></tr>
+      <tr><td>普通属性</td><td><code>(数字ID,数值)</code></td><td>改武器、商店、饱食度、餐厅、宠物等成百上千条属性</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">若一条字符串同时像多种格式，以程序中的匹配顺序为准：<strong>先 49，再 30、31，最后才是普通二元组</strong>（见 <code>SkillTreeInitializer.ApplySingleEffect</code>）。</p>
+
+  <h3 id="buff-normal">① 普通属性：<code>(statID, value)</code></h3>
+  <p>写法：<code>(整数 statID, 数值 value)</code>。<code>value</code> 可正可负；与<strong>当前技能等级 level</strong>如何组合，<strong>完全由 statID 决定</strong>（乘算、加算、开关等见 <a href="#buff-table">速查表</a>）。</p>
+  <dl class="designer-q">
+    <dt>「每级 +5% 伤害」在表里怎么体现？</dt>
+    <dd>若 statID 对应公式为 <code>初始 × (1 + value × level)</code>，则 value 填 <code>0.05</code> 表示每级多 5% 相对初始的增量（不是把 5% 再乘一次等级两次方，具体以该 ID 公式为准）。</dd>
+    <dt>技能等级 level 指什么？</dt>
+    <dd>指该技能<strong>当前已解锁等级</strong>（升级回调里传入的 level）。多级技能升一级会重新应用效果。</dd>
+  </dl>
+  <p class="muted">示例：<code>(5,0.05)</code> 在 statID 5（主武器基础伤害）下为乘算类，配合等级放大总伤害。</p>
+
+  <h3 id="buff-30">② 地图密度：<code>(30,(levelID, multiplier))</code></h3>
+  <p>用于按技能等级提高<strong>某一张地图配置</strong>的密度倍率。</p>
+  <ul>
+    <li><code>levelID</code>：在程序里是 <code>WeaponStatsManager.mapDensityBindings</code> 列表的<strong>下标</strong>（从 0 起）。不是关卡 statsId 字符串。</li>
+    <li><code>multiplier</code>：系数，配合技能等级：<strong>最终倍率 = 1 × (1 + multiplier × 技能等级)</strong>。</li>
+  </ul>
+  <div class="note">
+    <strong>策划要对齐：</strong>表里第几个绑定对应哪张图、哪类植被/敌人，需要对照 Unity 里 <code>WeaponStatsManager</code> 的 <code>mapDensityBindings</code> 列表顺序。改顺序会导致旧技能配置「指错图」。
+  </div>
+  <p class="muted">配置示例（摘自现网表）：<code>(30,(0,0.1))</code>、<code>(30,(1,0.1))</code> 等多条可写在一个技能的 buff 里，用 <code>;</code> 分隔。</p>
+
+  <h3 id="buff-31">③ 凋落物密度：<code>(31,(resourceIndex, multiplier))</code></h3>
+  <p>用于提高某种<strong>敌人掉落物</strong>在生成逻辑里的密度倍率（绑定在 <code>enemtLootDensityBindings</code> 列表上）。</p>
+  <ul>
+    <li>第一个数字是列表<strong>下标</strong>，且该位置绑定的资源类型不能为 <code>None</code>，否则不生效。</li>
+    <li>公式与 30 类似：<strong>lootDensityMultiplier = 1 × (1 + multiplier × 技能等级)</strong>。</li>
+  </ul>
+  <p class="muted">示例：<code>(31,(20,0.4))</code> 表示第 20 号绑定在技能等级提升时放大掉落相关倍率（具体是哪种掉落需对照编辑器绑定表）。</p>
+
+  <h3 id="buff-49">④ 关卡五元组：<code>(49,(levelId, countV, spawnV, waitV, propV))</code></h3>
+  <p>这是最容易问「每个字母什么意思」的格式，下面按<strong>程序实际用途</strong>说明（与 <code>WeaponStatsManager.LevelParamRateItem</code> 一致）。</p>
+  <p>整体规则：在关卡条目上先打<strong>快照基准</strong>，再按技能等级做乘法：</p>
+  <pre class="codeblock"><code>最终某倍率 = 该条目的快照基准 × (1 + 对应系数 × 技能等级)</code></pre>
+  <p>五个参数依次为：</p>
+  <table>
+    <thead>
+      <tr><th>参数</th><th>程序字段</th><th>策划理解（干什么用的）</th></tr>
+    </thead>
+    <tbody>
+      <tr id="buff-49-countV">
+        <td><strong>countV</strong></td>
+        <td><code>monsterCountRate</code></td>
+        <td>影响<strong>怪物数量上限</strong>相关倍率。消费端：<code>MonsterSpawner</code> 用 <code>GetMonsterCountRate(statsId)</code>，把配置里的 <code>maxCount</code> 乘上该倍率得到有效上限。</td>
+      </tr>
+      <tr id="buff-49-spawnV">
+        <td><strong>spawnV</strong><br /><span class="muted">(spawnIntervalV)</span></td>
+        <td><code>monsterRapidSpawnIntervalRate</code></td>
+        <td>影响<strong>快速刷怪间隔</strong>倍率。消费端：<code>MonsterSpawner</code> 里 <code>config.rapidSpawnInterval × rate</code>。<strong>倍率变大 → 间隔变长 → 刷得变慢</strong>（若希望技能让刷怪更快，需要程序里用倒数逻辑或填负向设计，当前以乘法为准，填表前务必与程序确认期望）。</td>
+      </tr>
+      <tr id="buff-49-waitV">
+        <td><strong>waitV</strong></td>
+        <td><code>monsterWaitTimeRate</code></td>
+        <td>影响<strong>数量减少后的等待时间</strong>（<code>waitTimeAfterDecrease</code>）倍率。同样由 <code>MonsterSpawner</code> 读取：<code>配置值 × rate</code>。</td>
+      </tr>
+      <tr id="buff-49-propV">
+        <td><strong>propV</strong></td>
+        <td><code>propProbabilityRate</code></td>
+        <td>影响<strong>关卡道具生成概率</strong>倍率。消费端：<code>PropSpawnerManager</code> 用 <code>GetPropProbabilityRate(statsId)</code>，与场景里配置的「抽取多少比例 PropSpawner 参与生成」相乘，再 <code>Clamp01</code>。<strong>倍率 &gt; 1 时更容易轮到更多道具生成器工作</strong>（在不超过 100% 的前提下）。简单说：<strong>prop = 场景里可拾取物/道具点相关的概率权重</strong>，不是怪物数量。</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>其中 <code>levelId</code> 是<strong>字符串</strong>，必须与 <code>WeaponStatsManager.levelParamRateItems</code> 里某一项的 <code>id</code> 完全一致（通常与关卡 prefab / <code>MonsterSpawner</code>、<code>PropSpawnerManager</code> 上填的 <code>statsId</code> 对齐）。找不到 id 时程序会打警告且该条 buff 不生效。</p>
+  <p>书写示例：</p>
+  <pre class="codeblock"><code>(49,(forest_01, 0.1, 0, 0, 0.05))</code></pre>
+  <p class="muted">含义示例：对 id 为 <code>forest_01</code> 的关卡参数条目，按技能等级放大怪物数量相关倍率一点，并略提高道具生成概率；其余两个系数为 0 表示不改间隔与等待。</p>
+
+  <h4>为什么要单独讲 propV？</h4>
+  <p>因为名字缩写不明显：<strong>prop ≈ Prop（关卡里随机生成的道具/拾取物）</strong>，不是「属性点」也不是「怪物 prop」。和刷怪三条（数量、间隔、等待）并列，专门走 <code>PropSpawnerManager</code> 那条线。</p>
+
+  <h3 id="buff-combine">多条效果组合</h3>
+  <p>用分号连接即可，例如同时加背包格与商店格：</p>
+  <pre class="codeblock"><code>(21,2);(23,2)</code></pre>
+
+  <h2 id="buff-table">statID 与公式全表</h2>
+  <p>下列公式中：<code>initial</code> 为初始属性表中的基准（能读到则用表）；<code>level</code> 为本技能当前等级。若表里写「+=」，表示在<strong>每次应用</strong>时按代码逻辑叠加（多级技能若叠加异常需提程序单确认）。</p>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>含义</th>
+        <th>公式 / 说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>主武器开火速率</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>1</td><td>主武器弹丸数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>2</td><td>主武器穿透数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>3</td><td>主武器子弹速度</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>4</td><td>主武器子弹大小</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>5</td><td>主武器基础伤害</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>6</td><td>主武器暴击率</td><td class="formula">initial + value × level</td></tr>
+      <tr><td>7</td><td>主武器暴击倍率</td><td class="formula">initial + value × level</td></tr>
+      <tr><td>8</td><td>主武器最大射程</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>9</td><td>副武器伤害</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>10</td><td>副武器开火速率</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>11</td><td>副武器激光长度</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>12</td><td>副武器激光条数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>13</td><td>副武器激光宽度</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>14</td><td>副武器暴击率</td><td class="formula">initial + value × level</td></tr>
+      <tr><td>15</td><td>副武器暴击倍率</td><td class="formula">initial + value × level</td></tr>
+      <tr><td>16</td><td>副武器最大连锁数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>17</td><td>连锁搜索半径</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>18</td><td>商店售价倍率</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>19</td><td>商店出售时间倍率</td><td class="formula">initial ÷ (1 + value × level)</td></tr>
+      <tr><td>20</td><td>商店栏位数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>21</td><td>商店单格容量</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>22</td><td>背包栏位数</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>23</td><td>背包单格容量</td><td class="formula">+= (int)value</td></tr>
+      <tr><td>24</td><td>饱食度/氧气上限（代码字段为 oxygenMax）</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>25</td><td>氧气消耗速率</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>26</td><td>主武器弹药上限</td><td class="formula">max(1, round(initial × (1 + value × level)))</td></tr>
+      <tr><td>27</td><td>主武器每发弹药消耗</td><td class="formula">max(1, round(initial × (1 + value × level)))</td></tr>
+      <tr><td>28</td><td>副武器弹药上限</td><td class="formula">max(1, round(initial × (1 + value × level)))</td></tr>
+      <tr><td>29</td><td>副武器每发弹药消耗</td><td class="formula">max(1, round(initial × (1 + value × level)))</td></tr>
+      <tr><td>30</td><td>地图密度（特殊）</td><td>非二元组，见 <a href="#buff-30">§②</a></td></tr>
+      <tr><td>31</td><td>凋落物密度（特殊）</td><td>非二元组，见 <a href="#buff-31">§③</a></td></tr>
+      <tr><td>32</td><td>启用副武器</td><td><code>value ≠ 0</code> 时开启，并调用 <code>BattleValManager.enbaleSecondWeapon()</code></td></tr>
+      <tr><td>33</td><td>主武器击杀分裂开关</td><td><code>value ≠ 0</code> 为开</td></tr>
+      <tr><td>34</td><td>主武器分裂数量</td><td>在现有值上 <code>+ (int)value</code>，至少为 1</td></tr>
+      <tr><td>35</td><td>子弹伤害比例（分裂子弹）</td><td class="formula">Clamp01(initial × (1 + value × level))</td></tr>
+      <tr><td>36</td><td>主武器 AOE 开关</td><td><code>value ≠ 0</code> 为开</td></tr>
+      <tr><td>37</td><td>AOE 半径</td><td class="formula">max(0, initial × (1 + value × level))</td></tr>
+      <tr><td>38</td><td>餐厅锅数量</td><td>在现有值上 <code>+ (int)value</code></td></tr>
+      <tr><td>39</td><td>餐盘数量</td><td>在现有值上 <code>+ (int)value</code></td></tr>
+      <tr><td>40</td><td>烹饪时间倍率（正值 = 烹饪更快）</td><td class="formula">initial ÷ (1 + value × level)</td></tr>
+      <tr><td>41</td><td>餐厅售卖加成率</td><td class="formula">max(0, initial + value × level)</td></tr>
+      <tr><td>42</td><td>顾客总数上限</td><td>在现有值上 <code>+ (int)value</code></td></tr>
+      <tr><td>43</td><td>店内同时顾客上限</td><td>在现有值上 <code>+ (int)value</code></td></tr>
+      <tr><td>44</td><td>顾客移速倍率</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>45</td><td>主武器弹夹容量</td><td class="formula">max(1, RoundToInt(initial × (1 + value × level)))</td></tr>
+      <tr><td>46</td><td>副武器弹夹容量</td><td class="formula">max(1, RoundToInt(initial × (1 + value × level)))</td></tr>
+      <tr><td>47</td><td>主武器换弹时间</td><td class="formula">initial ÷ (1 + value × level)</td></tr>
+      <tr><td>48</td><td>副武器换弹时间</td><td class="formula">initial ÷ (1 + value × level)</td></tr>
+      <tr><td>49</td><td>关卡五元组（特殊）</td><td>见 <a href="#buff-49">§④</a></td></tr>
+      <tr><td>52</td><td>飞行跟班：攻击距离</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>53</td><td>飞行跟班：开火间隔</td><td class="formula">max(0.01, initial × (1 + value × level))</td>（数值变大=间隔变长，射速变慢）</td></tr>
+      <tr><td>54</td><td>飞行跟班：子弹伤害</td><td class="formula">max(0, initial × (1 + value × level))</td></tr>
+      <tr><td>55</td><td>飞行跟班：子弹大小</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>56</td><td>飞行跟班：连发数量</td><td class="formula">max(1, 当前值 + (int)value)</td></tr>
+      <tr><td>57</td><td>飞行跟班：连发扇角</td><td class="formula">initial × (1 + value × level)</td></tr>
+      <tr><td>58</td><td>飞行跟班：减速比例基础</td><td class="formula">Clamp01(initial × (1 + value × level))</td></tr>
+      <tr><td>59</td><td>飞行跟班：减速时长基础</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>60</td><td>飞行跟班：减速比例乘子</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>61</td><td>飞行跟班：减速时长乘子</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>62</td><td>飞行跟班：子弹移动速度</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>63</td><td>飞行跟班：子弹旋转速度</td><td class="formula">max(1, initial × (1 + value × level))</td></tr>
+      <tr><td>64</td><td>飞行跟班：子弹存活时间</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+      <tr><td>65</td><td>飞行跟班：子弹命中距离</td><td class="formula">max(0.01, initial × (1 + value × level))</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <strong>与文案一致：</strong>技能描述里若写「饱食度」，程序字段名可能是 <code>oxygenMax</code>，以线上逻辑为准；对外文案建议与程序、本地化统一叫法。
+  </div>
+
+  <h2 id="resource">资源类型编号（等级消耗用）</h2>
+  <p>即 <code>ResourceType</code> 枚举顺序，从 <strong>0</strong> 开始。策划填的是<strong>整数编号</strong>，不是英文名。</p>
+  <table>
+    <thead>
+      <tr><th>编号</th><th>枚举名</th><th>备注（便于沟通）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>Money</td><td>金币</td></tr>
+      <tr><td>1–4</td><td>果汁 / 蘑菇等</td><td>饮品与基础资源</td></tr>
+      <tr><td>5–20</td><td>Loot 系列</td><td>各类战利品；<strong>20 = LootPumkin（南瓜）</strong>等与关卡掉落对应</td></tr>
+      <tr><td>21</td><td>None</td><td>一般不作为消耗类型</td></tr>
+      <tr><td>22–23</td><td>家具等</td><td>按项目扩展</td></tr>
+    </tbody>
+  </table>
+  <pre class="codeblock"><code>0 Money · 1 watermelonJ · 2 orangeJ · 3 tomatoJ · 4 mushroom
+5 LootMushroom · 6 LootChickenLeg · 7 LootEggSmall · 8 LootEggBig · 9 LootTomato
+10 LootFish · 11 LootCrabStick · 12 LootChicken · 13 LootSnailMeat · 14 LootOnion
+15 LootPear · 16 LootPineapple · 17 LootRadish · 18 LootSweetPepper · 19 LootWatermelon
+20 LootPumkin · 21 None · 22 Furniture_Clock · 23 Furniture_Chair</code></pre>
+  <p class="muted">例：<code>0:20</code> = 20 金币；<code>20:250</code> = 250 个南瓜（类型编号 20）。多级：<code>0:5|0:5|0:5</code> = 连续三级各 5 金币。</p>
+
+  <h2 id="tips">策划协作提示</h2>
+  <ul>
+    <li>改<strong>地图绑定顺序、关卡 statsId 列表</strong>前，先全局搜技能表里用到的 <code>(30,</code> <code>(31,</code> <code>(49,(</code>，避免旧数据失效。</li>
+    <li>新技能上线前：在表里核对 <strong>buff 与描述、消耗与稀有度</strong>是否一致。</li>
+    <li>对 <strong>(49,...)</strong> 中与「快慢」相关的系数（尤其 spawnV），建议拉程序一起看一次<strong>期望方向</strong>（当前实现是乘在配置间隔上）。</li>
+  </ul>
+
+  <p class="muted" style="margin-top:2.5rem;">文档依据：<code>ExcelConfigReader</code>、<code>SkillTreeInitializer</code>、<code>WeaponStatsManager.LevelParamRateItem</code>、<code>MonsterSpawner</code>、<code>PropSpawnerManager</code>、<code>PetManager</code>。</p>
+
+  </main>
+</div>
+
+</body>
+</html>
