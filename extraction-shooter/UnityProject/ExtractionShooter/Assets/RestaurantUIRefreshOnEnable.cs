@@ -1,28 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>用于在启用 UI 时刷新餐厅界面。具体刷新逻辑由 RestaurantPanel 统一处理（含去重/默认选中/滚动归位）。</summary>
 public class RestaurantUIRefreshOnEnable : MonoBehaviour
 {
-    public RestaurantPanel restaurantPanel;
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] private RestaurantPanel restaurantPanel;
+
+    private void OnEnable()
     {
-
-    }
-    void OnEnable()
-    {
-        if (restaurantPanel)
-        {
-            restaurantPanel.GenerateFoodItems();
-            restaurantPanel.GenerateDishList();
-        }
-
-
-    }
-    // Update is called once per frame
-    void Update()
-    {
-
+        if (restaurantPanel != null)
+            restaurantPanel.RefreshOnOpen();
     }
 }

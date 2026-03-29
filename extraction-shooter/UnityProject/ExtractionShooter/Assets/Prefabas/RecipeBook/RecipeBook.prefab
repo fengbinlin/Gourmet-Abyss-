@@ -5049,7 +5049,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2482228455364487791}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.034464985, y: 0.92009264, z: -0.38121367, w: 0.08317408}
+  m_LocalRotation: {x: 0.37518182, y: -0.18303175, z: 0.07583851, w: 0.9055311}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2.4235692, y: 2.4235687, z: 2.4235692}
   m_ConstrainProportionsScale: 0
@@ -10088,7 +10088,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f072d669f01f5394692b64bf39ed8732, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dishID: 0
+  dishID: 3
   sourceData: {fileID: 11400000, guid: 16fbcc1a208269240aa7cbd7f4f535d6, type: 2}
   playerTag: Player
   destroyOnPickup: 1
@@ -10173,7 +10173,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u86CB\u7092\u996D\u98DF\u8C31"
+  m_Text: "\u8611\u83C7\u6C64\u5410\u53F8"
 --- !u!114 &8018183925755063930
 MonoBehaviour:
   m_ObjectHideFlags: 0

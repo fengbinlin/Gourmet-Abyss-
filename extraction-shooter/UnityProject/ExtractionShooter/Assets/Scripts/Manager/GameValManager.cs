@@ -30,7 +30,9 @@ public enum ResourceType
     LootPumkin,
     None,
     Furniture_Clock,
-    Furniture_Chair
+    Furniture_Chair,
+    Loot_RatMeat,
+    Loot_Paste
 }
 public enum ResourceKind
 {

@@ -146,13 +146,48 @@ public class RestaurantPanel : MonoBehaviour
         // 无论菜单UI能否立即生成，都先确保锅/盘数量同步（隐藏多余对象）
         StartCoroutine(WaitAndSyncRestaurantUnits());
 
-        if (GameValManager.Instance == null || foodItemParent == null) return;
-        GenerateFoodItems();
-        GenerateDishList();
+        RefreshOnOpen();
 
         // 每次打开面板时，同步一次进度条状态（大多数情况下此时没有在烹饪/售卖）
         SetCookingProgress(0f);
         SetPlateSellProgress(0f);
+    }
+
+    /// <summary>
+    /// UI 打开/启用时刷新入口（可由外部脚本调用）。同一帧内会自动去重，避免重复生成导致滚动/选中被冲掉。
+    /// </summary>
+    public void RefreshOnOpen()
+    {
+        if (!isActiveAndEnabled) return;
+        if (_lastRefreshOnOpenFrame == Time.frameCount) return;
+        _lastRefreshOnOpenFrame = Time.frameCount;
+
+        if (GameValManager.Instance == null || foodItemParent == null) return;
+        GenerateFoodItems();
+        GenerateDishList();
+        StartForceDishScrollToLeftOnOpen();
+        StartCoroutine(CoEnsureDefaultDishSelectedHard());
+    }
+
+    private IEnumerator CoEnsureDefaultDishSelected()
+    {
+        // 等一帧：让 Instantiate/Layout/动画初始化结束，避免选中效果被后续刷新覆盖
+        yield return null;
+        if (!isActiveAndEnabled) yield break;
+        if (_dishItemWidgets == null || _dishItemWidgets.Count == 0) yield break;
+        if (_selectedDishIndex >= 0 && _selectedDishIndex < _dishItemWidgets.Count) yield break;
+        SelectDishItemByIndex(0, false);
+    }
+
+    private IEnumerator CoEnsureDefaultDishSelectedHard()
+    {
+        // 连续两帧兜底（父物体动画/布局重算可能在下一帧发生）
+        yield return null;
+        yield return null;
+
+        if (!isActiveAndEnabled) yield break;
+        if (_dishItemWidgets == null || _dishItemWidgets.Count == 0) yield break;
+        SelectDishItemByIndex(0, false);
     }
 
     private void OnDisable()
@@ -510,6 +545,8 @@ public class RestaurantPanel : MonoBehaviour
     }
 
     private int _dispatchFrameCounter;
+    private Coroutine _forceScrollResetCoroutine;
+    private int _lastRefreshOnOpenFrame = -1;
 
     private void Update()
     {
@@ -531,7 +568,7 @@ public class RestaurantPanel : MonoBehaviour
     }
 
     /// <summary>点击菜谱行或滚轮选中时调用。</summary>
-    public void SelectDishItemByIndex(int index)
+    public void SelectDishItemByIndex(int index, bool autoScrollToSelection = true)
     {
         if (_dishItemWidgets == null || _dishItemWidgets.Count == 0) return;
         index = Mathf.Clamp(index, 0, _dishItemWidgets.Count - 1);
@@ -543,7 +580,8 @@ public class RestaurantPanel : MonoBehaviour
             bool canCook = RecipeCanBeCookable(w.recipeData);
             w.ApplyVisual(i == _selectedDishIndex, canCook);
         }
-        ScrollDishListToSelected();
+        if (autoScrollToSelection)
+            ScrollDishListToSelected();
         RefreshIngredientSideIndicators();
     }
 
@@ -625,15 +663,62 @@ public class RestaurantPanel : MonoBehaviour
     {
         if (dishMenuScrollRect == null || dishParent == null) return;
         if (_selectedDishIndex < 0 || _selectedDishIndex >= dishParent.childCount) return;
+
+        RectTransform content = dishMenuScrollRect.content;
+        RectTransform viewport = dishMenuScrollRect.viewport;
+        if (content == null || viewport == null) return;
+
+        RectTransform item = dishParent.GetChild(_selectedDishIndex) as RectTransform;
+        if (item == null) return;
+
         Canvas.ForceUpdateCanvases();
-        int n = _dishItemWidgets.Count;
-        if (n <= 1)
+        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+
+        Vector3 itemCenterWorld = item.TransformPoint(item.rect.center);
+        Vector3 itemLocalInContent = content.InverseTransformPoint(itemCenterWorld);
+
+        if (dishMenuScrollRect.vertical)
         {
-            dishMenuScrollRect.verticalNormalizedPosition = 1f;
-            return;
+            float contentBottom = content.rect.yMin;
+            float contentTop = content.rect.yMax;
+            float viewportHeight = viewport.rect.height;
+            float scrollRangeY = (contentTop - contentBottom) - viewportHeight;
+
+            // 内容不足以滚动：保持在中间（例如只有一条菜单）
+            if (scrollRangeY <= 1f)
+            {
+                dishMenuScrollRect.verticalNormalizedPosition = 0.5f;
+            }
+            else
+            {
+                // verticalNormalizedPosition：0=底端，1=顶端；使选中项中心对齐视口中心
+                float itemCenterY = itemLocalInContent.y;
+                float lowY = contentBottom + viewportHeight * 0.5f;
+                float nY = (itemCenterY - lowY) / scrollRangeY;
+                dishMenuScrollRect.verticalNormalizedPosition = Mathf.Clamp01(nY);
+            }
         }
-        float t = 1f - (float)_selectedDishIndex / (n - 1);
-        dishMenuScrollRect.verticalNormalizedPosition = Mathf.Clamp01(t);
+
+        if (dishMenuScrollRect.horizontal)
+        {
+            float contentLeft = content.rect.xMin;
+            float contentRight = content.rect.xMax;
+            float viewportWidth = viewport.rect.width;
+            float scrollRangeX = (contentRight - contentLeft) - viewportWidth;
+
+            if (scrollRangeX <= 1f)
+            {
+                dishMenuScrollRect.horizontalNormalizedPosition = 0.5f;
+            }
+            else
+            {
+                // horizontalNormalizedPosition：0=左端，1=右端；使选中项中心对齐视口中心
+                float itemCenterX = itemLocalInContent.x;
+                float lowX = contentLeft + viewportWidth * 0.5f;
+                float nX = (itemCenterX - lowX) / scrollRangeX;
+                dishMenuScrollRect.horizontalNormalizedPosition = Mathf.Clamp01(nX);
+            }
+        }
     }
 
     private bool HasAcceptablePot(DishRecipe recipe)
@@ -653,6 +738,7 @@ public class RestaurantPanel : MonoBehaviour
     private bool RecipeCanBeCookable(DishRecipe recipe)
     {
         if (recipe == null) return false;
+        if (recipe.locked) return false;
         return CheckIngredientsAvailableForRecipe(recipe) && HasAcceptablePot(recipe);
     }
 
@@ -662,12 +748,13 @@ public class RestaurantPanel : MonoBehaviour
         for (int i = 0; i < dishRecipes.Count; i++)
         {
             DishRecipe r = dishRecipes[i];
-            if (r == null || r.locked) continue;
+            if (r == null) continue;
             list.Add(r);
         }
 
         list.Sort((a, b) =>
         {
+            if (a.locked != b.locked) return a.locked ? 1 : -1;
             bool ca = RecipeCanBeCookable(a);
             bool cb = RecipeCanBeCookable(b);
             if (ca != cb) return ca ? -1 : 1;
@@ -886,7 +973,43 @@ public class RestaurantPanel : MonoBehaviour
         }
 
         if (_dishItemWidgets.Count > 0)
-            SelectDishItemByIndex(0);
+        {
+            // 首次生成：选中第一个，但不触发“滚动到选中项”，避免首帧被自动推到另一侧
+            SelectDishItemByIndex(0, false);
+            // 再显式设定初始停靠边（按当前项目UI方向校正）
+            ResetDishMenuScrollToStart();
+            StartForceDishScrollToLeftOnOpen();
+        }
+    }
+
+    private void ResetDishMenuScrollToStart()
+    {
+        if (dishMenuScrollRect == null) return;
+        Canvas.ForceUpdateCanvases();
+        // Unity ScrollRect：horizontal 0=左、1=右；vertical 0=下、1=上
+        if (dishMenuScrollRect.horizontal)
+            dishMenuScrollRect.horizontalNormalizedPosition = 0f;
+        if (dishMenuScrollRect.vertical)
+            dishMenuScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    /// <summary>打开 UI 后多帧强制将菜单归位到最左（纵向则最上）。</summary>
+    public void StartForceDishScrollToLeftOnOpen()
+    {
+        if (!isActiveAndEnabled || dishMenuScrollRect == null) return;
+        if (_forceScrollResetCoroutine != null)
+            StopCoroutine(_forceScrollResetCoroutine);
+        _forceScrollResetCoroutine = StartCoroutine(CoForceDishScrollToLeftOnOpen());
+    }
+
+    private IEnumerator CoForceDishScrollToLeftOnOpen()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            yield return null;
+            ResetDishMenuScrollToStart();
+        }
+        _forceScrollResetCoroutine = null;
     }
     /// <summary>
     /// 清空菜肴UI列表

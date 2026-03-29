@@ -5049,7 +5049,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2482228455364487791}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.3681458, y: -0.25291687, z: 0.104793146, w: 0.88854945}
+  m_LocalRotation: {x: 0.03570467, y: 0.91981506, z: -0.38110495, w: 0.08616497}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2.4235692, y: 2.4235687, z: 2.4235692}
   m_ConstrainProportionsScale: 0
@@ -5084,7 +5084,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 4f4eed828b432f846a49e395b6ff2751, type: 2}
+  - {fileID: 2100000, guid: bcfe0e5e892f38d43b7f1af86ecded8f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -10088,7 +10088,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f072d669f01f5394692b64bf39ed8732, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dishID: 1
+  dishID: 4
   sourceData: {fileID: 11400000, guid: 3478026f6817ac646bd5d3c2e6ad415e, type: 2}
   playerTag: Player
   destroyOnPickup: 1
@@ -10173,7 +10173,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u7AE0\u9C7C\u5C0F\u4E38\u5B50"
+  m_Text: "\u5154\u8089\u70ED\u72D7\u80A0"
 --- !u!114 &8018183925755063930
 MonoBehaviour:
   m_ObjectHideFlags: 0

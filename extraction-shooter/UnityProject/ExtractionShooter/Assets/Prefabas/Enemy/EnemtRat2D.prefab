@@ -44416,13 +44416,13 @@ MonoBehaviour:
   animator: {fileID: 4513065175397402948}
   hitAnimationTrigger: Take Damage
   lootItems:
-  - itemPrefab: {fileID: 7140819961387382385, guid: 7acb90b544ed0ca40920ba4c5c1e8ef8,
+  - itemPrefab: {fileID: 6231676224557841060, guid: f84a68dade742d646a339a6e88d3de0b,
       type: 3}
     dropChance: 1
     minAmount: 1
     maxAmount: 1
     scatterForce: 4
-    resourceType: 5
+    resourceType: 24
     resourceMinAmount: 1
     resourceMaxAmount: 1
 --- !u!114 &632669296158162573

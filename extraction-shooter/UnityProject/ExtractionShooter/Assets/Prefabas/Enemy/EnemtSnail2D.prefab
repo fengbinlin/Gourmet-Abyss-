@@ -44417,13 +44417,13 @@ MonoBehaviour:
   animator: {fileID: 4797241004584677367}
   hitAnimationTrigger: Take Damage
   lootItems:
-  - itemPrefab: {fileID: 7140819961387382385, guid: 7acb90b544ed0ca40920ba4c5c1e8ef8,
+  - itemPrefab: {fileID: 7140819961387382385, guid: 95a2ddf729c7db149816d48e39a8bb72,
       type: 3}
     dropChance: 1
     minAmount: 1
     maxAmount: 1
     scatterForce: 4
-    resourceType: 5
+    resourceType: 25
     resourceMinAmount: 1
     resourceMaxAmount: 1
 --- !u!114 &632669296158162573
@@ -44464,6 +44464,7 @@ MonoBehaviour:
   spriteFlipLocalAxis: {x: 0, y: 1, z: 0}
   aggressive2D: 0
   alertRange: 8
+  chaseAggroExitRange: 0
   attackRange: 1.35
   attackRangeExtraMargin: 0.35
   attackCooldown: 1.1
@@ -44480,6 +44481,8 @@ MonoBehaviour:
   maxIdleTime: 1.5
   hitRecoveryTime: 0.2
   showDebugInfo: 1
+  debugLogPlayerAggro: 0
+  debugPlayerAggroLogInterval: 0.25
   patrolPointColor: {r: 0, g: 0, b: 1, a: 1}
   raycastColor: {r: 0, g: 1, b: 0, a: 1}
   blockedRayColor: {r: 1, g: 0, b: 0, a: 1}

@@ -68,6 +68,16 @@ public class ShopInteraction : MonoBehaviour
     private Vector3 originalUIScale;
     private Coroutine _shopCameraUiCoroutine;
     private const string ShopCameraUiKey = "shop_interaction_ui";
+    /// <summary>父级 RectTransform 不要用 scale=0：子 ScrollRect 在 0→非0 后 normalizedPosition 会错乱。用极小非零代替。</summary>
+    private const float MinShopUiScaleFactor = 0.001f;
+
+    private Vector3 GetMinShopUiScale()
+    {
+        return new Vector3(
+            Mathf.Max(originalUIScale.x * MinShopUiScaleFactor, 1e-6f),
+            Mathf.Max(originalUIScale.y * MinShopUiScaleFactor, 1e-6f),
+            Mathf.Max(originalUIScale.z * MinShopUiScaleFactor, 1e-6f));
+    }
 
     private void Awake()
     {
@@ -88,7 +98,7 @@ public class ShopInteraction : MonoBehaviour
                 shopCanvasGroup = shopUICanvas.AddComponent<CanvasGroup>();
 
             originalUIScale = shopUIRectTransform.localScale;
-            shopUIRectTransform.localScale = Vector3.zero;
+            shopUIRectTransform.localScale = GetMinShopUiScale();
             shopCanvasGroup.alpha = 0f;
             shopUICanvas.SetActive(false);
         }
@@ -231,7 +241,7 @@ public class ShopInteraction : MonoBehaviour
         if (currentUItween != null && currentUItween.IsActive())
             currentUItween.Kill();
 
-        shopUIRectTransform.localScale = Vector3.zero;
+        shopUIRectTransform.localScale = GetMinShopUiScale();
         shopCanvasGroup.alpha = 0f;
         Vector3 targetScale = originalUIScale;
         Vector3 overshootScale = originalUIScale * showScaleMultiplier;
@@ -264,7 +274,7 @@ public class ShopInteraction : MonoBehaviour
         Sequence hideSequence = DOTween.Sequence();
         hideSequence.Append(shopUIRectTransform.DOScale(initialHideScale, hideAnimationDuration * 0.2f).From(currentScale).SetEase(Ease.InBack));
         hideSequence.Join(shopCanvasGroup.DOFade(0.8f, hideAnimationDuration * 0.2f));
-        hideSequence.Append(shopUIRectTransform.DOScale(Vector3.zero, hideAnimationDuration * 0.8f).SetEase(Ease.InBack));
+        hideSequence.Append(shopUIRectTransform.DOScale(GetMinShopUiScale(), hideAnimationDuration * 0.8f).SetEase(Ease.InBack));
         hideSequence.Join(shopCanvasGroup.DOFade(0f, hideAnimationDuration * 0.6f));
         hideSequence.OnComplete(() => { shopUICanvas.SetActive(false); });
         currentUItween = hideSequence;

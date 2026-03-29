@@ -60,7 +60,7 @@ public class dishItemPrefabs : MonoBehaviour
     public Sprite dishSelectedBG;
     [Tooltip("未选中时的背景；为空则用进入场景时 DishBG 的 sprite")]
     public Sprite dishNormalBGSprite;
-
+    public GameObject LockImage;
     public DishRecipe recipeData;
 
     private RestaurantPanel _owner;
@@ -160,6 +160,11 @@ public class dishItemPrefabs : MonoBehaviour
             Debug.LogWarning("菜谱数据为空！");
             return;
         }
+        if (recipeData.locked)
+        {
+            Debug.Log("该菜品尚未解锁，无法烹饪。");
+            return;
+        }
 
         if (RestaurantPanel.instance == null)
         {
@@ -186,6 +191,7 @@ public class dishItemPrefabs : MonoBehaviour
     public void ApplyVisual(bool selected, bool canCook)
     {
         CaptureInitialGraphicColorsIfNeeded();
+        bool isLocked = recipeData != null && recipeData.locked;
 
         _scaleTween?.Kill();
         _scaleSequence?.Kill();
@@ -216,7 +222,7 @@ public class dishItemPrefabs : MonoBehaviour
                 DishBG.sprite = _cachedNormalBgSprite;
         }
 
-        float mul = GetColorMultiplier(selected, canCook);
+        float mul = isLocked ? 0.62f : GetColorMultiplier(selected, canCook);
         for (int i = 0; i < _graphicsForTint.Count; i++)
         {
             Graphic g = _graphicsForTint[i];
@@ -231,11 +237,18 @@ public class dishItemPrefabs : MonoBehaviour
 
         if (cookDishButton != null)
         {
-            bool showCook = selected && canCook;
+            bool showCook = !isLocked && selected && canCook;
             cookDishButton.SetActive(showCook);
             if (cookDishButton != null)
                 cookDishButton.GetComponent<Button>().interactable = showCook;
         }
+
+        if (LockImage != null)
+            LockImage.SetActive(isLocked);
+        if (disName != null)
+            disName.gameObject.SetActive(!isLocked);
+        if (dishPrice != null)
+            dishPrice.gameObject.SetActive(!isLocked);
     }
 
     private static float GetColorMultiplier(bool selected, bool canCook)

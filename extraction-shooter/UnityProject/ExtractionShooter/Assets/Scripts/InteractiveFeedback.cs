@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class InteractiveFeedback : MonoBehaviour
 {
@@ -6,6 +7,10 @@ public class InteractiveFeedback : MonoBehaviour
     [SerializeField] private float scaleMultiplier = 1.2f;  // 缩放倍数
     [SerializeField] private float animationDuration = 0.2f;  // 动画总时长
     [SerializeField] private AnimationCurve animationCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);  // 动画曲线
+    [Tooltip("为空则使用当前物体。建议不要直接缩放带 ScrollRect/布局组件 的节点。")]
+    [SerializeField] private Transform feedbackTarget;
+    [Tooltip("检测到 ScrollRect/布局组件时，自动跳过缩放反馈，避免列表滚动位置被扰动。")]
+    [SerializeField] private bool protectScrollAndLayoutNodes = true;
 
     [Header("自动设置")]
     [SerializeField] private Vector3 originalScale;  // 原始大小
@@ -20,10 +25,12 @@ public class InteractiveFeedback : MonoBehaviour
         Shrinking    // 缩小中
     }
 
-    private void Start()
+    private void Awake()
     {
+        if (feedbackTarget == null)
+            feedbackTarget = transform;
         // 记录原始大小
-        originalScale = transform.localScale;
+        originalScale = feedbackTarget.localScale;
     }
 
     private void Update()
@@ -41,7 +48,7 @@ public class InteractiveFeedback : MonoBehaviour
             float progress = Mathf.Clamp01(animationTimer / halfDuration);
             float curveValue = animationCurve.Evaluate(progress);
             float currentScale = Mathf.Lerp(1f, scaleMultiplier, curveValue);
-            transform.localScale = originalScale * currentScale;
+            feedbackTarget.localScale = originalScale * currentScale;
             
             // 检查是否需要切换到缩小阶段
             if (progress >= 1f)
@@ -56,13 +63,13 @@ public class InteractiveFeedback : MonoBehaviour
             float progress = Mathf.Clamp01(animationTimer / halfDuration);
             float curveValue = animationCurve.Evaluate(progress);
             float currentScale = Mathf.Lerp(scaleMultiplier, 1f, curveValue);
-            transform.localScale = originalScale * currentScale;
+            feedbackTarget.localScale = originalScale * currentScale;
             
             // 检查动画是否完成
             if (progress >= 1f)
             {
                 currentState = FeedbackState.Idle;
-                transform.localScale = originalScale;  // 确保精确回到原始大小
+                feedbackTarget.localScale = originalScale;  // 确保精确回到原始大小
             }
         }
     }
@@ -72,6 +79,15 @@ public class InteractiveFeedback : MonoBehaviour
     /// </summary>
     public void PlayFeedback()
     {
+        if (feedbackTarget == null)
+            feedbackTarget = transform;
+
+        if (protectScrollAndLayoutNodes && IsSensitiveUiNode(feedbackTarget))
+        {
+            // 对 ScrollView/布局节点禁用缩放反馈，避免打开 UI 后滚动条跳转。
+            return;
+        }
+
         // 重置动画状态
         currentState = FeedbackState.Expanding;
         animationTimer = 0f;
@@ -108,7 +124,8 @@ public class InteractiveFeedback : MonoBehaviour
     public void StopFeedback()
     {
         currentState = FeedbackState.Idle;
-        transform.localScale = originalScale;
+        if (feedbackTarget != null)
+            feedbackTarget.localScale = originalScale;
     }
 
     /// <summary>
@@ -152,6 +169,17 @@ public class InteractiveFeedback : MonoBehaviour
     [ContextMenu("Reset to Original Scale")]
     public void ResetToOriginalScale()
     {
-        originalScale = transform.localScale;
+        if (feedbackTarget == null)
+            feedbackTarget = transform;
+        originalScale = feedbackTarget.localScale;
+    }
+
+    private static bool IsSensitiveUiNode(Transform t)
+    {
+        if (t == null) return false;
+        if (t.GetComponent<ScrollRect>() != null) return true;
+        if (t.GetComponent<LayoutGroup>() != null) return true;
+        if (t.GetComponent<ContentSizeFitter>() != null) return true;
+        return false;
     }
 }
