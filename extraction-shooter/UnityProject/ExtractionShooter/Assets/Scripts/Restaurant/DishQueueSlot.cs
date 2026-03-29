@@ -10,6 +10,7 @@ public class DishQueueSlot : MonoBehaviour
     [Header("槽位 UI")]
     [SerializeField] private Image slotBackground;
     [SerializeField] private Image dishIcon;
+    [SerializeField] private Sprite lookIcon;
     [SerializeField] private Text itemCountText;
 
     public void SetVisual(DishRecipe recipe, int count)
@@ -27,11 +28,38 @@ public class DishQueueSlot : MonoBehaviour
         }
 
         if (itemCountText != null)
+        {
+            itemCountText.enabled = true; // 正常槽位显示数量
             itemCountText.text = has ? count.ToString() : string.Empty;
+        }
     }
 
     public void SetEmpty()
     {
         SetVisual(null, 0);
+    }
+
+    /// <summary>
+    /// 仅用于“多出来的一个空槽”：显示 LookIcon，但隐藏 itemCountText。
+    /// </summary>
+    public void SetLookEmpty()
+    {
+        // 背景显示 LookIcon
+        if (slotBackground != null)
+        {
+            slotBackground.enabled = true;
+            if (lookIcon != null)
+                slotBackground.sprite = lookIcon;
+        }
+
+        // 多出来的槽不再使用菜肴图标
+        if (dishIcon != null)
+            dishIcon.enabled = false;
+
+        if (itemCountText != null)
+        {
+            itemCountText.enabled = false;
+            itemCountText.text = string.Empty;
+        }
     }
 }

@@ -181,11 +181,9 @@ public class PlayerInteractionController : MonoBehaviour
         {
             activeBuildingColliders.Remove(other);
 
-            // 如果离开了所有建筑，隐藏Canvas
-            if (activeBuildingColliders.Count == 0 && isCanvasActive)
-            {
+            // 如果离开了所有建筑，强制隐藏Canvas（无论是否被E切换过）
+            if (activeBuildingColliders.Count == 0)
                 HideInteractionCanvas();
-            }
         }
         // 离开宝箱逻辑（普通宝箱）
         if (other.gameObject.GetComponent<Treasure>())
@@ -201,10 +199,8 @@ public class PlayerInteractionController : MonoBehaviour
 
             currentTreasure = null;
 
-            if (isCanvasActive)
-            {
-                HideInteractionCanvas();
-            }
+            // 离开该宝箱区域：强制隐藏Canvas，并清理长按状态
+            HideInteractionCanvas();
         }
 
         // 离开食谱宝箱逻辑（CookBookTreasure）
@@ -221,10 +217,8 @@ public class PlayerInteractionController : MonoBehaviour
 
             currentCookBookTreasure = null;
 
-            if (isCanvasActive)
-            {
-                HideInteractionCanvas();
-            }
+            // 离开该宝箱区域：强制隐藏Canvas，并清理长按状态
+            HideInteractionCanvas();
         }
     }
 
@@ -270,6 +264,28 @@ public class PlayerInteractionController : MonoBehaviour
 
         // 开始回弹动画
         popupCoroutine = StartCoroutine(PopupAnimation(false));
+    }
+
+    /// <summary>
+    /// E 只用于“可交互建筑提示 Canvas”的显示/隐藏切换。
+    /// 宝箱长按开箱仍保留原逻辑（因为宝箱也需要用 E 进行长按）。
+    /// </summary>
+    private bool CanToggleCanvasWithE()
+    {
+        // 仅当在可交互建筑区域内时才允许切换
+        if (activeBuildingColliders.Count <= 0) return false;
+
+        // 当前在宝箱长按交互时，不用 E 去切换 Canvas（避免冲突）
+        if (currentTreasure != null) return false;
+        if (currentCookBookTreasure != null) return false;
+
+        return interactionCanvas != null;
+    }
+
+    private void ToggleInteractionCanvasWithE()
+    {
+        if (isCanvasActive) HideInteractionCanvas();
+        else ShowInteractionCanvas();
     }
 
     private IEnumerator PopupAnimation(bool isPopup)
@@ -368,11 +384,17 @@ public class PlayerInteractionController : MonoBehaviour
             }
         }
         
-        //通用的按下E的交互
-        if (Input.GetKeyDown(KeyCode.E))
+        // 可交互建筑提示：E 进行 Canvas 显示/隐藏切换（宝箱长按场景不切）
+        bool didToggleCanvasByE = false;
+        if (Input.GetKeyDown(KeyCode.E) && CanToggleCanvasWithE())
         {
-            OnInteractionPressed?.Invoke();
+            ToggleInteractionCanvasWithE();
+            didToggleCanvasByE = true;
         }
+
+        // 通用交互事件：仅当没有作为“切换Canvas提示”时才触发
+        if (!didToggleCanvasByE && Input.GetKeyDown(KeyCode.E))
+            OnInteractionPressed?.Invoke();
 
         // 处理宝箱长按交互（普通宝箱）
         if (currentTreasure != null && holdProgress != null)

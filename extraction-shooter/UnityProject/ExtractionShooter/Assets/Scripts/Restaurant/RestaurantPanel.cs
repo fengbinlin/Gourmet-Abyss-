@@ -16,12 +16,36 @@ public class RestaurantPanel : MonoBehaviour
     public GameObject dishItemPrefabs;       // 菜的预制体
     public GameObject dishFoodItemPrefabs;   // 菜里显示食材的预制体
     public Transform dishParent;             // 菜列表的父物体
+    [Tooltip("菜肴列表 ScrollRect（可选）；用于滚轮选中后自动滚到可见区域")]
+    public ScrollRect dishMenuScrollRect;
+
+    [Header("进度条UI")]
+    [Tooltip("烹饪进度条的根物体（整体容器），用于显示/隐藏整块UI")]
+    public GameObject cookingProgressRoot;
+    [Tooltip("显示当前锅的烹饪进度（Filled Image，Fill Amount 0-1）")]
+    public Image cookingProgressImage;
+    [Tooltip("售卖进度条的根物体（整体容器），用于显示/隐藏整块UI")]
+    public GameObject plateSellProgressRoot;
+    [Tooltip("显示餐厅自动售卖（首碟）的进度（Filled Image，Fill Amount 0-1）")]
+    public Image plateSellProgressImage;
+
+    [Header("选中菜单食材指示")]
+    [Tooltip("左侧食材指示根物体；1 种食材时仅显示左侧，右侧整侧隐藏")]
+    public GameObject leftIngredientIndicatorRoot;
+    public Image leftIngredientIcon;
+    public Text leftIngredientCountText;
+    [Tooltip("右侧食材指示根物体；2 种食材时左右各一种")]
+    public GameObject rightIngredientIndicatorRoot;
+    public Image rightIngredientIcon;
+    public Text rightIngredientCountText;
 
     [Header("菜单数据")]
     public List<DishRecipe> dishRecipes = new List<DishRecipe>();
 
     private List<GameObject> currentFoodItems = new List<GameObject>();
     private List<GameObject> currentDishes = new List<GameObject>();
+    private readonly List<dishItemPrefabs> _dishItemWidgets = new List<dishItemPrefabs>();
+    private int _selectedDishIndex = -1;
     [Header("锅数据")]
     public List<Pot> potsList = new List<Pot>(); //餐厅有的锅
     [Header("锅数据（全部候选）")]
@@ -58,6 +82,30 @@ public class RestaurantPanel : MonoBehaviour
         return a.dishName == b.dishName && Mathf.Approximately(a.baseDishPrice, b.baseDishPrice);
     }
 
+    /// <summary>锅烹饪进度：0-1；由 Pot 在 CookingProcess 中调用。</summary>
+    public void SetCookingProgress(float t)
+    {
+        if (cookingProgressImage == null) return;
+        float v = Mathf.Clamp01(t);
+        cookingProgressImage.fillAmount = v;
+        if (cookingProgressRoot != null)
+            cookingProgressRoot.SetActive(v > 0f);
+        else
+            cookingProgressImage.gameObject.SetActive(v > 0f);
+    }
+
+    /// <summary>首碟自动售卖进度：0-1；由 Plate.AutoSellRoutine 调用。</summary>
+    public void SetPlateSellProgress(float t)
+    {
+        if (plateSellProgressImage == null) return;
+        float v = Mathf.Clamp01(t);
+        plateSellProgressImage.fillAmount = v;
+        if (plateSellProgressRoot != null)
+            plateSellProgressRoot.SetActive(v > 0f);
+        else
+            plateSellProgressImage.gameObject.SetActive(v > 0f);
+    }
+
     void Awake()
     {
         instance = this;
@@ -74,6 +122,11 @@ public class RestaurantPanel : MonoBehaviour
 
         // 不在这里强制同步：避免 WeaponStatsManager 加载顺序导致 Instance 为空
         EnsureCookQueueDataSize();
+
+        // 初始进度状态：无烹饪 / 无售卖 → 进度条隐藏
+        SetCookingProgress(0f);
+        SetPlateSellProgress(0f);
+        HideIngredientSideIndicators();
     }
 
     private void OnEnable()
@@ -96,6 +149,10 @@ public class RestaurantPanel : MonoBehaviour
         if (GameValManager.Instance == null || foodItemParent == null) return;
         GenerateFoodItems();
         GenerateDishList();
+
+        // 每次打开面板时，同步一次进度条状态（大多数情况下此时没有在烹饪/售卖）
+        SetCookingProgress(0f);
+        SetPlateSellProgress(0f);
     }
 
     private void OnDisable()
@@ -200,11 +257,16 @@ public class RestaurantPanel : MonoBehaviour
 
         _lastCookQueueActiveCount = newActive;
 
+        // active 区域照常点亮；如果 UI 列表比 active 多显示一个，
+        // 则额外保留 i == newActive 的那个 slot 可见（由 RefreshCookQueueUI 决定显示 LookIcon 或空）。
         for (int i = 0; i < allDishQueueSlots.Count; i++)
         {
             DishQueueSlot slot = allDishQueueSlots[i];
             if (slot == null) continue;
-            bool on = i < newActive;
+
+            bool showExtraLookEmpty = (i == newActive) && allDishQueueSlots.Count > newActive;
+            bool on = (i < newActive) || showExtraLookEmpty;
+
             if (slot.gameObject.activeSelf != on)
                 slot.gameObject.SetActive(on);
         }
@@ -243,11 +305,23 @@ public class RestaurantPanel : MonoBehaviour
         {
             DishQueueSlot ui = allDishQueueSlots[i];
             if (ui == null) continue;
-            if (i >= active || i >= _cookQueueData.Count)
+            // active 后面多出来的“第一个槽”（通常是多显示 +1 的那个）
+            // 按策划需求显示 LookIcon，并隐藏数量文本。
+            if (i >= active)
+            {
+                if (i == active)
+                    ui.SetLookEmpty();
+                else
+                    ui.SetEmpty();
+                continue;
+            }
+
+            if (i >= _cookQueueData.Count)
             {
                 ui.SetEmpty();
                 continue;
             }
+
             CookQueueStackEntry e = _cookQueueData[i];
             ui.SetVisual(e.recipe, e.count);
         }
@@ -439,8 +513,170 @@ public class RestaurantPanel : MonoBehaviour
 
     private void Update()
     {
+        HandleDishMenuScrollWheel();
+
         if ((_dispatchFrameCounter++ % 12) != 0) return;
         TryDispatchQueueToPots();
+    }
+
+    private void HandleDishMenuScrollWheel()
+    {
+        if (!isActiveAndEnabled || _dishItemWidgets == null || _dishItemWidgets.Count == 0) return;
+        float w = Input.GetAxis("Mouse ScrollWheel");
+        if (Mathf.Abs(w) < 0.01f) return;
+        if (w > 0f)
+            SelectDishItemByIndex(_selectedDishIndex - 1);
+        else
+            SelectDishItemByIndex(_selectedDishIndex + 1);
+    }
+
+    /// <summary>点击菜谱行或滚轮选中时调用。</summary>
+    public void SelectDishItemByIndex(int index)
+    {
+        if (_dishItemWidgets == null || _dishItemWidgets.Count == 0) return;
+        index = Mathf.Clamp(index, 0, _dishItemWidgets.Count - 1);
+        _selectedDishIndex = index;
+        for (int i = 0; i < _dishItemWidgets.Count; i++)
+        {
+            dishItemPrefabs w = _dishItemWidgets[i];
+            if (w == null || w.recipeData == null) continue;
+            bool canCook = RecipeCanBeCookable(w.recipeData);
+            w.ApplyVisual(i == _selectedDishIndex, canCook);
+        }
+        ScrollDishListToSelected();
+        RefreshIngredientSideIndicators();
+    }
+
+    private void HideIngredientSideIndicators()
+    {
+        if (leftIngredientIndicatorRoot != null)
+            leftIngredientIndicatorRoot.SetActive(false);
+        if (rightIngredientIndicatorRoot != null)
+            rightIngredientIndicatorRoot.SetActive(false);
+    }
+
+    /// <summary>根据当前选中的菜单项刷新左右食材指示（1 种仅左，2 种左右各一）。</summary>
+    private void RefreshIngredientSideIndicators()
+    {
+        if (leftIngredientIndicatorRoot == null && rightIngredientIndicatorRoot == null)
+            return;
+
+        if (_dishItemWidgets == null || _dishItemWidgets.Count == 0
+            || _selectedDishIndex < 0 || _selectedDishIndex >= _dishItemWidgets.Count)
+        {
+            HideIngredientSideIndicators();
+            return;
+        }
+
+        dishItemPrefabs sel = _dishItemWidgets[_selectedDishIndex];
+        if (sel == null || sel.recipeData == null || sel.recipeData.ingredients == null
+            || sel.recipeData.ingredients.Count == 0)
+        {
+            HideIngredientSideIndicators();
+            return;
+        }
+
+        List<DishIngredient> ings = sel.recipeData.ingredients;
+        if (ings.Count == 1)
+        {
+            if (leftIngredientIndicatorRoot != null)
+                leftIngredientIndicatorRoot.SetActive(true);
+            ApplyIngredientSideIndicator(ings[0], leftIngredientIcon, leftIngredientCountText);
+            if (rightIngredientIndicatorRoot != null)
+                rightIngredientIndicatorRoot.SetActive(false);
+        }
+        else
+        {
+            if (leftIngredientIndicatorRoot != null)
+                leftIngredientIndicatorRoot.SetActive(true);
+            ApplyIngredientSideIndicator(ings[0], leftIngredientIcon, leftIngredientCountText);
+            if (rightIngredientIndicatorRoot != null)
+                rightIngredientIndicatorRoot.SetActive(true);
+            ApplyIngredientSideIndicator(ings[1], rightIngredientIcon, rightIngredientCountText);
+        }
+    }
+
+    private static void ApplyIngredientSideIndicator(DishIngredient ing, Image icon, Text countText)
+    {
+        if (ing == null) return;
+        int owned = InventoryManager.instance != null
+            ? InventoryManager.instance.GetItemCount(ing.resourceType)
+            : 0;
+        ResourceItem res = GameValManager.Instance != null
+            ? GameValManager.Instance.GetResourceInfo(ing.resourceType)
+            : null;
+        if (icon != null)
+        {
+            if (res != null && res.Icon != null)
+            {
+                icon.sprite = res.Icon;
+                icon.enabled = true;
+            }
+            else
+            {
+                icon.enabled = false;
+            }
+        }
+        if (countText != null)
+            countText.text = $"{owned}/{ing.requiredCount}";
+    }
+
+    private void ScrollDishListToSelected()
+    {
+        if (dishMenuScrollRect == null || dishParent == null) return;
+        if (_selectedDishIndex < 0 || _selectedDishIndex >= dishParent.childCount) return;
+        Canvas.ForceUpdateCanvases();
+        int n = _dishItemWidgets.Count;
+        if (n <= 1)
+        {
+            dishMenuScrollRect.verticalNormalizedPosition = 1f;
+            return;
+        }
+        float t = 1f - (float)_selectedDishIndex / (n - 1);
+        dishMenuScrollRect.verticalNormalizedPosition = Mathf.Clamp01(t);
+    }
+
+    private bool HasAcceptablePot(DishRecipe recipe)
+    {
+        if (recipe == null || recipe.acceptablePot == null || recipe.acceptablePot.Count == 0) return false;
+        if (potsList == null) return false;
+        if (potsList.Count == 0) return false;
+        foreach (Pot pot in potsList)
+        {
+            if (pot != null && recipe.acceptablePot.Contains(pot.potType))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>当前背包食材足够且存在可用锅类型。</summary>
+    private bool RecipeCanBeCookable(DishRecipe recipe)
+    {
+        if (recipe == null) return false;
+        return CheckIngredientsAvailableForRecipe(recipe) && HasAcceptablePot(recipe);
+    }
+
+    private List<DishRecipe> GetSortedUnlockedRecipes()
+    {
+        List<DishRecipe> list = new List<DishRecipe>();
+        for (int i = 0; i < dishRecipes.Count; i++)
+        {
+            DishRecipe r = dishRecipes[i];
+            if (r == null || r.locked) continue;
+            list.Add(r);
+        }
+
+        list.Sort((a, b) =>
+        {
+            bool ca = RecipeCanBeCookable(a);
+            bool cb = RecipeCanBeCookable(b);
+            if (ca != cb) return ca ? -1 : 1;
+            int priceCmp = a.baseDishPrice.CompareTo(b.baseDishPrice);
+            if (priceCmp != 0) return priceCmp;
+            return a.dishID.CompareTo(b.dishID);
+        });
+
+        return list;
     }
 
     private void EnsureAllUnitsPopulated()
@@ -588,14 +824,10 @@ public class RestaurantPanel : MonoBehaviour
     {
         ClearDishList();
 
-        for (int i = 0; i < dishRecipes.Count; i++)
+        List<DishRecipe> sorted = GetSortedUnlockedRecipes();
+        for (int i = 0; i < sorted.Count; i++)
         {
-            DishRecipe recipe = dishRecipes[i];
-            // 只显示已经解锁的菜谱
-            if (recipe.locked)
-            {
-                continue;
-            }
+            DishRecipe recipe = sorted[i];
             GameObject dishGO = Instantiate(dishItemPrefabs, dishParent);
             dishItemPrefabs script = dishGO.GetComponent<dishItemPrefabs>();
             if (script == null)
@@ -604,32 +836,19 @@ public class RestaurantPanel : MonoBehaviour
                 continue;
             }
 
-            // 设置菜名和图标
             script.disName.text = recipe.dishName;
             script.dishItem.sprite = recipe.dishIcon;
+            if (script.dishPrice != null)
+                script.dishPrice.text = recipe.baseDishPrice.ToString("F0");
 
-            // 设置菜谱数据
             script.SetRecipeData(recipe);
-            // 打印食材信息
-            Debug.Log($"  - 所需食材数量: {script.recipeData.ingredients.Count}");
-            for (int j = 0; j < script.recipeData.ingredients.Count; j++)
-            {
-                DishIngredient ingredient = script.recipeData.ingredients[j];
-                Debug.Log($"    - 食材 {j}: 类型={ingredient.resourceType}, 需要数量={ingredient.requiredCount}");
+            script.SetOwner(this, i);
 
-                // 检查GameValManager中是否有对应的资源
-                int invAmt = InventoryManager.instance != null
-                    ? InventoryManager.instance.GetItemCount(ingredient.resourceType)
-                    : 0;
-                Debug.Log($"      当前背包数量: {invAmt}");
-            }
-            // 清空旧的食材UI（如果有）
             for (int j = script.dishFoodParent.childCount - 1; j >= 0; j--)
             {
                 Destroy(script.dishFoodParent.GetChild(j).gameObject);
             }
 
-            // 生成所需食材列表
             foreach (DishIngredient ing in recipe.ingredients)
             {
                 GameObject foodGO = Instantiate(dishFoodItemPrefabs, script.dishFoodParent);
@@ -659,8 +878,15 @@ public class RestaurantPanel : MonoBehaviour
                 }
             }
 
+            bool canCook = RecipeCanBeCookable(recipe);
+            script.ApplyVisual(false, canCook);
+
             currentDishes.Add(dishGO);
+            _dishItemWidgets.Add(script);
         }
+
+        if (_dishItemWidgets.Count > 0)
+            SelectDishItemByIndex(0);
     }
     /// <summary>
     /// 清空菜肴UI列表
@@ -672,6 +898,9 @@ public class RestaurantPanel : MonoBehaviour
             if (go != null) Destroy(go);
         }
         currentDishes.Clear();
+        _dishItemWidgets.Clear();
+        _selectedDishIndex = -1;
+        HideIngredientSideIndicators();
 
         for (int i = dishParent.childCount - 1; i >= 0; i--)
         {

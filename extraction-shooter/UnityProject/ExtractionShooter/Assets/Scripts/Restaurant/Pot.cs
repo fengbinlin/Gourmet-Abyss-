@@ -262,7 +262,18 @@ public class Pot : MonoBehaviour
         yield return lidAnimationCoroutine;
 
         // 4. 开始计时烹饪
-        yield return new WaitForSeconds(recipe.cookTime);
+        float cookDuration = Mathf.Max(0.01f, recipe.cookTime);
+        float elapsed = 0f;
+        while (elapsed < cookDuration)
+        {
+            elapsed += Time.deltaTime;
+            if (RestaurantPanel.instance != null)
+                RestaurantPanel.instance.SetCookingProgress(elapsed / cookDuration);
+            yield return null;
+        }
+        // 烹饪结束后立即清零并隐藏进度条
+        if (RestaurantPanel.instance != null)
+            RestaurantPanel.instance.SetCookingProgress(0f);
 
         // 5. 烹饪完成
         OnCookingComplete();

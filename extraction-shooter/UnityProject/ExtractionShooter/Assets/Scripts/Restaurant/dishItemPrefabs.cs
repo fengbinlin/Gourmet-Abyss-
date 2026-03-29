@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
+
 [System.Serializable]
 public enum potState
 {
@@ -51,23 +53,107 @@ public class dishItemPrefabs : MonoBehaviour
     public Text disName;
     public Image dishItem;
     public Transform dishFoodParent;
+    public Text dishPrice;
+    public Image DishBG;
+    public GameObject cookDishButton;
+    [Tooltip("选中时 DishBG 使用的 Sprite；未选中时用 dishNormalBGSprite 或首次缓存的图")]
+    public Sprite dishSelectedBG;
+    [Tooltip("未选中时的背景；为空则用进入场景时 DishBG 的 sprite")]
+    public Sprite dishNormalBGSprite;
 
-    // 添加字段来存储菜谱数据
     public DishRecipe recipeData;
 
-    // Start is called before the first frame update
-    void Start()
-    {
+    private RestaurantPanel _owner;
+    private int _itemIndex;
+    private Sprite _cachedNormalBgSprite;
+    private Tweener _scaleTween;
+    private Sequence _scaleSequence;
+    private Vector3 _baseLocalScale;
+    private bool _cachedSprites;
+    // 由策划在 Inspector 手动绑定按钮回调；代码不再自动注册监听，避免重复触发
 
+    /// <summary>首次布局完成后缓存的 Graphic 与预制体上的初始颜色（选中时原样恢复，不强行改色）。</summary>
+    private bool _capturedInitialColors;
+    private readonly List<Graphic> _graphicsForTint = new List<Graphic>();
+    private readonly List<Color> _initialGraphicColors = new List<Color>();
+
+    private void Awake()
+    {
+        _baseLocalScale = transform.localScale;
+        CacheDefaultSprites();
+        if (cookDishButton != null)
+        {
+            cookDishButton.SetActive(false);
+        }
     }
 
-    // 设置菜谱数据
+    private void OnDestroy()
+    {
+        _scaleTween?.Kill();
+        _scaleSequence?.Kill();
+    }
+
+    private void CacheDefaultSprites()
+    {
+        if (_cachedSprites) return;
+        if (dishNormalBGSprite != null)
+            _cachedNormalBgSprite = dishNormalBGSprite;
+        else if (DishBG != null)
+            _cachedNormalBgSprite = DishBG.sprite;
+        _cachedSprites = true;
+    }
+
+    /// <summary>在列表生成并填好文案/食材子物体后调用一次，记录 Inspector 里配置的原始颜色。</summary>
+    private void CaptureInitialGraphicColorsIfNeeded()
+    {
+        if (_capturedInitialColors) return;
+        CacheDefaultSprites();
+        _graphicsForTint.Clear();
+        _initialGraphicColors.Clear();
+
+        if (DishBG != null) AddGraphicSnapshot(DishBG);
+        if (dishItem != null) AddGraphicSnapshot(dishItem);
+        if (disName != null) AddGraphicSnapshot(disName);
+        if (dishPrice != null) AddGraphicSnapshot(dishPrice);
+
+        if (dishFoodParent != null)
+        {
+            for (int i = 0; i < dishFoodParent.childCount; i++)
+            {
+                foreach (Graphic g in dishFoodParent.GetChild(i).GetComponentsInChildren<Graphic>(true))
+                    AddGraphicSnapshot(g);
+            }
+        }
+
+        _capturedInitialColors = true;
+    }
+
+    private void AddGraphicSnapshot(Graphic g)
+    {
+        if (g == null) return;
+        _graphicsForTint.Add(g);
+        _initialGraphicColors.Add(g.color);
+    }
+
+    public void SetOwner(RestaurantPanel owner, int index)
+    {
+        _owner = owner;
+        _itemIndex = index;
+    }
+
     public void SetRecipeData(DishRecipe recipe)
     {
         recipeData = recipe;
     }
 
-    public void OnDishItemClicked()
+    /// <summary>点击整行选中（由 Inspector 手动绑定任意可点击按钮）。</summary>
+    public void OnDishRowClicked()
+    {
+        if (_owner != null)
+            _owner.SelectDishItemByIndex(_itemIndex);
+    }
+
+    public void OnCookButtonClicked()
     {
         if (recipeData == null)
         {
@@ -87,21 +173,78 @@ public class dishItemPrefabs : MonoBehaviour
             RefreshUI();
     }
 
-    // 刷新UI
     private void RefreshUI()
     {
         if (RestaurantPanel.instance != null)
         {
             RestaurantPanel.instance.GenerateFoodItems();
-
-            // 如果还需要刷新菜谱列表中的食材显示
             RestaurantPanel.instance.GenerateDishList();
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    /// <summary>选中且可做：恢复初始色；选中但不可做：仍变暗；未选中：按可做/不可做变暗。烹饪按钮仅选中且可做时显示。</summary>
+    public void ApplyVisual(bool selected, bool canCook)
     {
-        // 可以在这里添加更新逻辑，如显示烹饪进度等
+        CaptureInitialGraphicColorsIfNeeded();
+
+        _scaleTween?.Kill();
+        _scaleSequence?.Kill();
+
+        if (selected)
+        {
+            transform.localScale = _baseLocalScale;
+            const float peak = 1.11f;
+            const float dip = 1.05f;
+            const float settle = 1.08f;
+            _scaleSequence = DOTween.Sequence();
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * peak, 0.07f).SetEase(Ease.OutQuad));
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * dip, 0.06f).SetEase(Ease.InOutSine));
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * settle, 0.1f).SetEase(Ease.OutBack, 1.35f));
+        }
+        else
+        {
+            _scaleTween = transform
+                .DOScale(_baseLocalScale, 0.1f)
+                .SetEase(Ease.InBack);
+        }
+
+        if (DishBG != null)
+        {
+            if (selected && dishSelectedBG != null)
+                DishBG.sprite = dishSelectedBG;
+            else if (_cachedNormalBgSprite != null)
+                DishBG.sprite = _cachedNormalBgSprite;
+        }
+
+        float mul = GetColorMultiplier(selected, canCook);
+        for (int i = 0; i < _graphicsForTint.Count; i++)
+        {
+            Graphic g = _graphicsForTint[i];
+            if (g == null) continue;
+            Color baseC = _initialGraphicColors[i];
+            g.color = new Color(
+                baseC.r * mul,
+                baseC.g * mul,
+                baseC.b * mul,
+                baseC.a);
+        }
+
+        if (cookDishButton != null)
+        {
+            bool showCook = selected && canCook;
+            cookDishButton.SetActive(showCook);
+            if (cookDishButton != null)
+                cookDishButton.GetComponent<Button>().interactable = showCook;
+        }
+    }
+
+    private static float GetColorMultiplier(bool selected, bool canCook)
+    {
+        if (selected)
+        {
+            if (canCook) return 1f;
+            return 0.42f;
+        }
+        return canCook ? 0.62f : 0.42f;
     }
 }

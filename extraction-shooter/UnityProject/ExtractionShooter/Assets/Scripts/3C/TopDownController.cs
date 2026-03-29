@@ -228,13 +228,29 @@ public class TopDownController : MonoBehaviour
     void Start()
     {
         if (mainCamera == null) mainCamera = Camera.main;
-        if (WeaponStatsManager.Instance.isSecondaryEnable)
+        UpdateWeaponVisibility();
+    }
+
+    /// <summary>非 <see cref="PlayerState.Battle"/> 或本地非战斗姿态时不显示武器；无 PlayerStateManager 时仅按 isInCombat。</summary>
+    private bool ShouldShowWeaponVisuals()
+    {
+        if (PlayerStateManager.instance != null)
         {
-            secondaryWeapon.gameObject.SetActive(true);
+            if (PlayerStateManager.instance.currentState != PlayerState.Battle)
+                return false;
         }
-        else
+        return isInCombat;
+    }
+
+    private void UpdateWeaponVisibility()
+    {
+        bool show = ShouldShowWeaponVisuals();
+        if (primaryWeapon != null)
+            primaryWeapon.gameObject.SetActive(show);
+        if (secondaryWeapon != null)
         {
-            secondaryWeapon.gameObject.SetActive(false);
+            bool showSec = show && WeaponStatsManager.Instance != null && WeaponStatsManager.Instance.isSecondaryEnable;
+            secondaryWeapon.gameObject.SetActive(showSec);
         }
     }
     private void HandleOxygenDepleted()
@@ -405,27 +421,23 @@ public class TopDownController : MonoBehaviour
         // 1. 输入处理
         HandleMovementInput();
 
-        // 只有在战斗状态下才处理射击输入
-        if (isInCombat)
+        // 仅在「大地图战斗 + 本地战斗姿态」下处理射击（与武器显隐一致）
+        if (ShouldShowWeaponVisuals())
         {
-            // 发送开火命令给对应的武器
             HandleWeaponInput();
         }
         else
         {
-            // 非战斗状态，确保射击动画停止
             if (animator != null)
             {
                 if (primaryWeapon != null)
                     animator.SetBool(primaryWeapon.shootBoolName, false);
-                //if (secondaryWeapon != null)
-                // animator.SetBool(secondaryWeapon.shootBoolName, false);
             }
-
-            // 通知武器停止射击
             if (primaryWeapon != null) primaryWeapon.SetShooting(false);
             if (secondaryWeapon != null) secondaryWeapon.SetShooting(false);
         }
+
+        UpdateWeaponVisibility();
 
         // 2. 检测鼠标活动状态
         CheckMouseActivity();
@@ -709,6 +721,7 @@ public class TopDownController : MonoBehaviour
             animator.SetBool(combatParamName, isInCombat);
         }
 
+        UpdateWeaponVisibility();
         Debug.Log("战斗状态: " + (isInCombat ? "开启" : "关闭"));
     }
 
@@ -722,6 +735,8 @@ public class TopDownController : MonoBehaviour
         {
             animator.SetBool(combatParamName, isInCombat);
         }
+
+        UpdateWeaponVisibility();
     }
 
     // --- 鼠标活动检测 ---

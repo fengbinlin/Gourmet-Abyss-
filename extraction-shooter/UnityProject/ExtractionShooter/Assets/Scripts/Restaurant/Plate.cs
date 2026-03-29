@@ -179,8 +179,13 @@ public class Plate : MonoBehaviour
                 if (currentDish == null || currentDish.IsEmpty())
                     goto EndRoutine;
                 elapsed += Time.deltaTime;
+                if (IsRestaurantPrimarySellPlate() && RestaurantPanel.instance != null)
+                    RestaurantPanel.instance.SetPlateSellProgress(elapsed / waitSeconds);
                 yield return null;
             }
+
+            if (IsRestaurantPrimarySellPlate() && RestaurantPanel.instance != null)
+                RestaurantPanel.instance.SetPlateSellProgress(1f);
 
             if (currentDish == null || currentDish.IsEmpty())
                 break;
@@ -206,6 +211,8 @@ public class Plate : MonoBehaviour
         }
 
     EndRoutine:
+        if (IsRestaurantPrimarySellPlate() && RestaurantPanel.instance != null)
+            RestaurantPanel.instance.SetPlateSellProgress(0f);
         autoSellCoroutine = null;
     }
 
