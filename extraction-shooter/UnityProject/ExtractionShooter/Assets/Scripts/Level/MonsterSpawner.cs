@@ -87,6 +87,9 @@ public class MonsterSpawner : MonoBehaviour
     [Tooltip("是否显示调试信息")]
     public bool showDebug = true;
 
+    [Tooltip("Scene 视图 Gizmo / 文字的主题色（启用刷怪点时）；禁用时为灰色")]
+    public Color debugThemeColor = new Color(0f, 1f, 0f, 1f);
+
     [Tooltip("刷怪点是否启用")]
     public bool isActive = true;
     
@@ -646,11 +649,21 @@ public class MonsterSpawner : MonoBehaviour
         return status;
     }
 
+    /// <summary>编辑器 Scene 视图：根据启用状态与调试主题色取色。</summary>
+    private Color GetEditorDebugColor(float alphaMultiplier = 1f)
+    {
+        if (!isActive)
+            return new Color(0.5f, 0.5f, 0.5f, 0.5f * Mathf.Clamp01(alphaMultiplier));
+        Color c = debugThemeColor;
+        c.a *= Mathf.Clamp01(alphaMultiplier);
+        return c;
+    }
+
     void OnDrawGizmos()
     {
         if (showDebug)
         {
-            Gizmos.color = isActive ? Color.green : Color.gray;
+            Gizmos.color = GetEditorDebugColor(1f);
             Gizmos.DrawWireSphere(transform.position, 1f);
             Gizmos.DrawIcon(transform.position + Vector3.up * 2, "SpawnPoint.png", true);
 
@@ -667,7 +680,7 @@ public class MonsterSpawner : MonoBehaviour
         if (spawnRadius <= 0) return;
 
         // 设置Gizmos颜色
-        Gizmos.color = isActive ? new Color(0, 1, 0, 0.3f) : new Color(0.5f, 0.5f, 0.5f, 0.3f);
+        Gizmos.color = GetEditorDebugColor(0.3f);
 
         // 绘制圆形的边缘
         int segments = 36;
@@ -697,7 +710,7 @@ public class MonsterSpawner : MonoBehaviour
         Gizmos.DrawLine(previousPoint, firstPoint);
 
         // 绘制中心点到边缘的参考线
-        Gizmos.color = isActive ? new Color(0, 1, 0, 0.5f) : new Color(0.5f, 0.5f, 0.5f, 0.5f);
+        Gizmos.color = GetEditorDebugColor(0.5f);
         for (int i = 0; i < 4; i++)
         {
             float angle = (float)i / 4 * Mathf.PI * 2f;
@@ -727,7 +740,7 @@ public class MonsterSpawner : MonoBehaviour
         Vector3 center = transform.position;
 
         // 绘制填充的三角形扇
-        UnityEditor.Handles.color = isActive ? new Color(0, 1, 0, 0.1f) : new Color(0.5f, 0.5f, 0.5f, 0.1f);
+        UnityEditor.Handles.color = GetEditorDebugColor(0.1f);
 
         Vector3[] vertices = new Vector3[fillSegments + 2];
         vertices[0] = center;
@@ -765,12 +778,26 @@ public class MonsterSpawner : MonoBehaviour
     {
 #if UNITY_EDITOR
         GUIStyle style = new GUIStyle();
-        style.normal.textColor = isActive ? Color.green : Color.gray;
+        style.normal.textColor = GetEditorDebugColor(1f);
         style.alignment = TextAnchor.MiddleCenter;
-        style.fontSize = 12;
+        style.fontSize = 11;
 
-        Vector3 textPosition = transform.position + Vector3.up * 0.5f;
-        UnityEditor.Handles.Label(textPosition, $"半径: {spawnRadius:F1}", style);
+        string firstPrefabName = "(无)";
+        int maxCountVal = 0;
+        if (spawnConfigs != null && spawnConfigs.Count > 0 && spawnConfigs[0] != null)
+        {
+            maxCountVal = spawnConfigs[0].maxCount;
+            if (spawnConfigs[0].monsterPrefab != null)
+                firstPrefabName = spawnConfigs[0].monsterPrefab.name;
+        }
+
+        string label = $"{firstPrefabName}\nmaxCount: {maxCountVal}";
+
+        Vector3 textPosition = transform.position + Vector3.up * 0.6f;
+        UnityEditor.Handles.Label(textPosition, label, style);
+
+        GUIStyle dirStyle = new GUIStyle(style);
+        dirStyle.fontSize = 10;
 
         // 在四个方向显示距离标记
         for (int i = 0; i < 4; i++)
@@ -781,7 +808,7 @@ public class MonsterSpawner : MonoBehaviour
             Vector3 point = transform.position + new Vector3(x, 0f, z);
 
             string direction = i == 0 ? "X+" : i == 1 ? "Z+" : i == 2 ? "X-" : "Z-";
-            UnityEditor.Handles.Label(point + Vector3.up * 0.5f, direction, style);
+            UnityEditor.Handles.Label(point + Vector3.up * 0.5f, direction, dirStyle);
         }
 #endif
     }

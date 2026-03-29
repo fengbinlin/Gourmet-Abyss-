@@ -349,54 +349,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 2682513}
   m_PrefabAsset: {fileID: 0}
---- !u!28 &5922373
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 2
-  m_Width: 256
-  m_Height: 1
-  m_CompleteImageSize: 2044
-  m_MipsStripped: 0
-  m_TextureFormat: 4
-  m_MipCount: 9
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 0
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 1
-    m_WrapV: 1
-    m_WrapW: 1
-  m_LightmapFormat: 0
-  m_ColorSpace: 1
-  m_PlatformBlob: 
-  image data: 2044
-  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &9307145
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4466,6 +4418,54 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 117687145}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &123116291
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 2
+  m_Width: 256
+  m_Height: 1
+  m_CompleteImageSize: 2044
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 9
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 0
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 1
+    m_WrapV: 1
+    m_WrapW: 1
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 2044
+  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1001 &124033729
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7654,7 +7654,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -7667,13 +7667,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &202044946
@@ -15619,6 +15620,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 383408186}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &384717155
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 384717157}
+  - component: {fileID: 384717156}
+  m_Layer: 0
+  m_Name: MonsterSpawner (10)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &384717156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384717155}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 3
+  spawnConfigs:
+  - monsterPrefab: {fileID: 4645857536683069197, guid: ef4118b9e9f145348acdb1ef0dd37123,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 1
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &384717157
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384717155}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 33.24, y: 1.17, z: -27.55}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &385576164
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21027,6 +21097,7 @@ MonoBehaviour:
   autoOffset: 1
   orthoSizeSmoothTime: 0.18
   xFocusSmoothTime: 0.08
+  yFocusSmoothTime: 0.08
 --- !u!114 &537737506
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31720,7 +31791,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -31733,13 +31804,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &830106601
@@ -33050,7 +33122,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _GradientTex:
-        m_Texture: {fileID: 5922373}
+        m_Texture: {fileID: 123116291}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -34692,7 +34764,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -34705,13 +34777,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &919159533
@@ -42278,6 +42351,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1078140804}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1079551234
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1079551236}
+  - component: {fileID: 1079551235}
+  m_Layer: 0
+  m_Name: MonsterSpawner (8)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1079551235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1079551234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 2
+  spawnConfigs:
+  - monsterPrefab: {fileID: 8759403367147227741, guid: d3b4f7013c0276c42aa053a099096142,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 0
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &1079551236
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1079551234}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 58.31, y: 1.17, z: -14.63}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1079552282
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -53984,7 +54126,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -53997,13 +54139,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &1368384975
@@ -63697,7 +63840,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -63710,13 +63853,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &1612771088
@@ -66386,7 +66530,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statsId: 2
   spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: a8f4bf214692c794b8c53872e8721340,
+  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
     maxCount: 4
@@ -66399,13 +66543,14 @@ MonoBehaviour:
     randomSize: 0
     minSizeScale: 0
     maxSizeScale: 0
-    randomRotation: 1
+    randomRotation: 0
     timeSinceLastDecrease: 0
     isInRapidSpawnMode: 0
     lastRecordedCount: 0
   globalWarmUp: 1
   warmUpInterval: 0.1
   showDebug: 1
+  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
   spawnRadius: 4.7
 --- !u!4 &1686809907
@@ -69895,6 +70040,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1789635420}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1792430034
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1792430036}
+  - component: {fileID: 1792430035}
+  m_Layer: 0
+  m_Name: MonsterSpawner (6)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1792430035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1792430034}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 2
+  spawnConfigs:
+  - monsterPrefab: {fileID: 8759403367147227741, guid: d3b4f7013c0276c42aa053a099096142,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 0
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &1792430036
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1792430034}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 52.26, y: 1.17, z: -24.24}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1794544153
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -73053,6 +73267,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1873907936}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1875540310
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1875540312}
+  - component: {fileID: 1875540311}
+  m_Layer: 0
+  m_Name: MonsterSpawner (7)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1875540311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1875540310}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 2
+  spawnConfigs:
+  - monsterPrefab: {fileID: 8759403367147227741, guid: d3b4f7013c0276c42aa053a099096142,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 0
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &1875540312
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1875540310}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 12.66, y: 1.17, z: -6.43}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1875610482
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -77884,6 +78167,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1972263664}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1973058841
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1973058843}
+  - component: {fileID: 1973058842}
+  m_Layer: 0
+  m_Name: MonsterSpawner (9)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1973058842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1973058841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 3
+  spawnConfigs:
+  - monsterPrefab: {fileID: 4645857536683069197, guid: ef4118b9e9f145348acdb1ef0dd37123,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 1
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &1973058843
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1973058841}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 7.73, y: 1.17, z: -15.31}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1975648877
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -79114,6 +79466,75 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 2003647661}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2004731068
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2004731070}
+  - component: {fileID: 2004731069}
+  m_Layer: 0
+  m_Name: MonsterSpawner (11)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2004731069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2004731068}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statsId: 3
+  spawnConfigs:
+  - monsterPrefab: {fileID: 4645857536683069197, guid: ef4118b9e9f145348acdb1ef0dd37123,
+      type: 3}
+    spawnProbability: 0.636
+    maxCount: 4
+    currentCount: 0
+    waitTimeAfterDecrease: 2
+    rapidSpawnInterval: 1
+    warmUpCount: 9
+    warmUpCountRate: 1
+    enableWarmUp: 1
+    randomSize: 0
+    minSizeScale: 0
+    maxSizeScale: 0
+    randomRotation: 1
+    timeSinceLastDecrease: 0
+    isInRapidSpawnMode: 0
+    lastRecordedCount: 0
+  globalWarmUp: 1
+  warmUpInterval: 0.1
+  showDebug: 1
+  debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
+  isActive: 1
+  spawnRadius: 4.7
+--- !u!4 &2004731070
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2004731068}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 48.4, y: 1.17, z: -10.8}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2006101285
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -85454,6 +85875,9 @@ SceneRoots:
   - {fileID: 830106601}
   - {fileID: 202044946}
   - {fileID: 1612771088}
+  - {fileID: 1792430036}
+  - {fileID: 1875540312}
+  - {fileID: 1079551236}
   - {fileID: 919159533}
   - {fileID: 1368384975}
   - {fileID: 529863392}
@@ -85466,3 +85890,6 @@ SceneRoots:
   - {fileID: 1624703903}
   - {fileID: 9307145}
   - {fileID: 1916732890}
+  - {fileID: 1973058843}
+  - {fileID: 384717157}
+  - {fileID: 2004731070}
