@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 
 public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
@@ -9,6 +10,13 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     [Header("UI Components")]
     [SerializeField] private Image itemIcon;      // 物品图标
     [SerializeField] private Text countText;  // 物品数量
+
+    [Header("背景（多出的预览格）")]
+    [SerializeField] private Image BG;
+    [Tooltip("多出来的那一格：背景用此图")]
+    [SerializeField] private Sprite LockSprite;
+    [Tooltip("正常格子的背景；强烈建议指定。若预制体默认 BG 已是 Lock 图，不填则解锁后可能无法恢复普通底图。")]
+    [SerializeField] private Sprite normalBGSprite;
 
     [Header("图标设置")]
     [SerializeField] private List<ResourceIcon> resourceIcons = new List<ResourceIcon>();
@@ -33,13 +41,69 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     // 当前格子的数据
     private SlotData slotData = new SlotData();
 
+    /// <summary>多出来的那一格：仅展示 Lock 背景，不参与存物。</summary>
+    private bool _isLockedPreviewSlot;
+    private Sprite _cachedNormalBgSprite;
+
     // 事件
     public System.Action<int> OnSlotClicked; // 参数：格子索引
 
+    private Vector3 _pulseBaseLocalScale;
+    private Coroutine _pulseCoroutine;
+
     private void Awake()
     {
+        _pulseBaseLocalScale = transform.localScale;
+        RebuildNormalBackgroundCache();
         // 确保UI正确显示
         UpdateUI();
+    }
+
+    /// <summary>普通格背景缓存；避免把 Lock 图误当作「解锁后应恢复的图」。</summary>
+    private void RebuildNormalBackgroundCache()
+    {
+        _cachedNormalBgSprite = null;
+        if (normalBGSprite != null)
+            _cachedNormalBgSprite = normalBGSprite;
+        else if (BG != null && BG.sprite != null && (LockSprite == null || BG.sprite != LockSprite))
+            _cachedNormalBgSprite = BG.sprite;
+    }
+
+    private void RestoreNormalBackgroundSprite()
+    {
+        if (BG == null) return;
+        Sprite s = normalBGSprite != null ? normalBGSprite : _cachedNormalBgSprite;
+        if (s != null)
+            BG.sprite = s;
+    }
+
+    public bool IsLockedPreviewSlot() => _isLockedPreviewSlot;
+
+    /// <summary>与烹饪队列「多一格」一致：Lock 背景，隐藏图标与数量。</summary>
+    public void SetLockedPreviewSlot(bool locked)
+    {
+        _isLockedPreviewSlot = locked;
+        if (locked)
+        {
+            slotData.isEmpty = true;
+            slotData.currentCount = 0;
+        }
+        UpdateUI();
+    }
+
+    /// <summary>扣除食材等时机：格子缩放反馈。</summary>
+    public void PlaySlotFeedbackPulse()
+    {
+        if (!isActiveAndEnabled || _isLockedPreviewSlot) return;
+        if (_pulseCoroutine != null)
+            StopCoroutine(_pulseCoroutine);
+        _pulseCoroutine = StartCoroutine(CoSlotPulse());
+    }
+
+    private IEnumerator CoSlotPulse()
+    {
+        yield return UIFeedbackPulse.CoScalePulse(transform, _pulseBaseLocalScale, 1.26f, 0.32f);
+        _pulseCoroutine = null;
     }
 
     // 初始化格子
@@ -61,6 +125,7 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     public bool AddItem(ResourceType itemType, int amount, out int addedAmount)
     {
         addedAmount = 0;
+        if (_isLockedPreviewSlot) return false;
 
         // 如果格子为空，设置物品类型
         if (slotData.isEmpty)
@@ -104,6 +169,7 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     public bool RemoveItem(int amount, out int actualRemoved)
     {
         actualRemoved = 0;
+        if (_isLockedPreviewSlot) return false;
 
         if (slotData.isEmpty || slotData.currentCount <= 0)
             return false;
@@ -135,6 +201,23 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     // 更新UI显示
     private void UpdateUI()
     {
+        if (_isLockedPreviewSlot)
+        {
+            if (BG != null)
+            {
+                BG.enabled = true;
+                if (LockSprite != null)
+                    BG.sprite = LockSprite;
+            }
+            if (itemIcon != null)
+                itemIcon.gameObject.SetActive(false);
+            if (countText != null)
+                countText.gameObject.SetActive(false);
+            return;
+        }
+
+        RestoreNormalBackgroundSprite();
+
         if (slotData.isEmpty)
         {
             // 清空时隐藏图标和文本
@@ -259,6 +342,7 @@ public class InventoryItemUI : MonoBehaviour, IPointerClickHandler
     // 点击事件处理
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (_isLockedPreviewSlot) return;
         if (eventData.button == PointerEventData.InputButton.Left)
         {
             OnSlotClicked?.Invoke(slotData.slotIndex);

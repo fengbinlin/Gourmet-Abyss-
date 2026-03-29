@@ -504,8 +504,14 @@ public class EnemyAI : MonoBehaviour
         if (td == null) td = pl.GetComponentInParent<TopDownController>();
         if (td != null)
             td.ApplyEnemyMeleeHungerDamage(hungerDamageOnMeleeHit);
-        else if (BattleValManager.Instance != null)
-            BattleValManager.Instance.DamageOxygen(hungerDamageOnMeleeHit);
+        else
+        {
+            var tdFallback = FindObjectOfType<TopDownController>();
+            if (tdFallback != null)
+                tdFallback.ApplyEnemyMeleeHungerDamage(hungerDamageOnMeleeHit);
+            else if (BattleValManager.Instance != null)
+                BattleValManager.Instance.DamageOxygen(hungerDamageOnMeleeHit);
+        }
     }
     
     #endregion

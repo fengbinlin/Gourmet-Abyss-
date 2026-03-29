@@ -336,18 +336,27 @@ public class RestaurantPanel : MonoBehaviour
         if (allDishQueueSlots == null) return;
         EnsureCookQueueDataSize();
         int active = GetActiveCookQueueSlotCount();
-        for (int i = 0; i < allDishQueueSlots.Count; i++)
+        int slotListCount = allDishQueueSlots.Count;
+
+        for (int i = 0; i < slotListCount; i++)
         {
             DishQueueSlot ui = allDishQueueSlots[i];
             if (ui == null) continue;
-            // active 后面多出来的“第一个槽”（通常是多显示 +1 的那个）
-            // 按策划需求显示 LookIcon，并隐藏数量文本。
-            if (i >= active)
+
+            // 与背包一致：多出的最后一格为锁定/预览；active 增加后先解锁旧格，再把锁移到新的「第 active 个」下标
+            bool isLockPreview = active < slotListCount && i == active;
+
+            if (isLockPreview)
             {
-                if (i == active)
-                    ui.SetLookEmpty();
-                else
-                    ui.SetEmpty();
+                ui.SetLockedPreviewSlot(true);
+                continue;
+            }
+
+            ui.SetLockedPreviewSlot(false);
+
+            if (i > active)
+            {
+                ui.SetEmpty();
                 continue;
             }
 
@@ -393,11 +402,20 @@ public class RestaurantPanel : MonoBehaviour
             e.count++;
 
         RefreshCookQueueUI();
+        PulseCookQueueSlotIfValid(idx);
         TryDispatchQueueToPots();
 
         StartCoroutine(CoRefreshMenuUiDeferred());
 
         return true;
+    }
+
+    private void PulseCookQueueSlotIfValid(int index)
+    {
+        if (allDishQueueSlots == null || index < 0 || index >= allDishQueueSlots.Count) return;
+        DishQueueSlot slot = allDishQueueSlots[index];
+        if (slot != null)
+            slot.PlayQueueSlotPulse();
     }
 
     private IEnumerator CoRefreshMenuUiDeferred()
@@ -498,6 +516,8 @@ public class RestaurantPanel : MonoBehaviour
         Pot pot = FindAvailablePotForRecipe(r.acceptablePot);
         if (pot == null)
             return false;
+
+        PulseCookQueueSlotIfValid(0);
 
         // 食材实例仅在 Pot.CookingProcess 内生成一次（勿在此处再 StartCoroutine，否则会与锅内协程重复实例化）
         if (!pot.StartCooking(r))
@@ -1097,6 +1117,7 @@ public class RestaurantPanel : MonoBehaviour
 
     /// <summary>
     /// 出锅装盘：优先填满已装着同菜的碟子（剩余容量最少的最优先；并列时取更靠前的碟子），否则取最靠前的空碟（可在多盘上堆同一种菜）。
+    /// 仅用于「当前碟子数据」下的选址；真正加菜在飞行落点之后由 <see cref="Pot"/> 调用 <see cref="Plate.TryAddDish"/>。
     /// </summary>
     public Plate FindSuitablePlateForOutgoingRecipe(DishRecipe recipe)
     {

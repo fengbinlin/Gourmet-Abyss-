@@ -15,4 +15,4 @@ MonoBehaviour:
   entries:
   - storyId: CarrotCubBossSister
     sceneName: UpGround
-    cleared: 1
+    cleared: 0

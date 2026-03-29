@@ -24,8 +24,10 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private float transferFlyArcHeight = 45f;
     [SerializeField] private float transferSpawnInterval = 0.04f;
 
-    // 格子列表
+    // 格子列表（含多出的 1 格锁定预览；真正可用数见 usableSlotCount）
     private List<InventoryItemUI> slots = new List<InventoryItemUI>();
+    /// <summary>与 WeaponStatsManager.inventorySlotCount 一致，不含多出来的预览格。</summary>
+    private int usableSlotCount;
 
     private struct TransferFlyRequest
     {
@@ -57,17 +59,21 @@ public class InventoryManager : MonoBehaviour
         }
 
         fixedSlotCount = WeaponStatsManager.Instance.inventorySlotCount;
+        usableSlotCount = fixedSlotCount;
         slotCapacity = WeaponStatsManager.Instance.inventorySlotCapacity;
 
         // 清除现有格子
         ClearExistingSlots();
 
-        // 生成固定数量的格子
-        for (int i = 0; i < fixedSlotCount; i++)
+        // 可用格 + 多 1 格锁定预览（与烹饪队列一致）
+        int totalUiSlots = Mathf.Max(1, usableSlotCount + 1);
+        for (int i = 0; i < totalUiSlots; i++)
         {
             CreateNewSlot(i);
         }
-        
+        SyncAllSlotIndices();
+        RefreshAllSlotLockStates();
+
         // 初始化背包满物体状态
         UpdateInventoryFullState();
     }
@@ -103,42 +109,46 @@ public class InventoryManager : MonoBehaviour
         int newSlotCount = WeaponStatsManager.Instance.inventorySlotCount;
         int newSlotCapacity = WeaponStatsManager.Instance.inventorySlotCapacity;
 
-        Debug.Log($"背包数值更新: 新格子数={newSlotCount}, 新容量={newSlotCapacity}, 当前格子数={slots.Count}, 当前容量={slotCapacity}");
+        Debug.Log($"背包数值更新: 可用格={newSlotCount}, 新容量={newSlotCapacity}, 当前UI格数={slots.Count}, 当前容量={slotCapacity}");
 
         // 先保存新值
         fixedSlotCount = newSlotCount;
+        usableSlotCount = newSlotCount;
         slotCapacity = newSlotCapacity;
 
-        // 更新所有格子的容量（包括已存在的格子）
-        UpdateSlotCapacities(newSlotCapacity);
-
-        // 如果格子数量变化，调整格子数量
-        if (newSlotCount != slots.Count)
+        // 如果格子数量变化，调整格子数量（可用 + 1 预览）
+        int targetTotalUi = Mathf.Max(1, newSlotCount + 1);
+        if (targetTotalUi != slots.Count)
         {
             AdjustSlotCount(newSlotCount, newSlotCapacity);
         }
 
+        // 必须先刷新锁定格，再 UpdateSlotCapacities；否则仍带锁标记的格子会先 UpdateUI，锁图可能无法被正确换回普通底图
+        RefreshAllSlotLockStates();
+        UpdateSlotCapacities(newSlotCapacity);
+
         // 更新背包满状态
         UpdateInventoryFullState();
     }
-    // 调整格子数量
-    private void AdjustSlotCount(int targetCount, int newCapacity)
+    /// <param name="targetUsableCount">可用格数量（不含多出来的锁定预览格）。</param>
+    private void AdjustSlotCount(int targetUsableCount, int newCapacity)
     {
-        if (targetCount > slots.Count)
+        usableSlotCount = targetUsableCount;
+        int targetTotalUi = Mathf.Max(1, targetUsableCount + 1);
+
+        if (targetTotalUi > slots.Count)
         {
-            // 增加格子
-            int slotsToAdd = targetCount - slots.Count;
+            int slotsToAdd = targetTotalUi - slots.Count;
             for (int i = 0; i < slotsToAdd; i++)
             {
                 int slotIndex = slots.Count;
                 CreateNewSlot(slotIndex, newCapacity);
             }
-            Debug.Log($"增加了 {slotsToAdd} 个新格子，容量={newCapacity}");
+            Debug.Log($"增加了 {slotsToAdd} 个背包UI格，可用={targetUsableCount}，容量={newCapacity}");
         }
-        else if (targetCount < slots.Count)
+        else if (targetTotalUi < slots.Count)
         {
-            // 减少格子（移除多余的格子）
-            int slotsToRemove = slots.Count - targetCount;
+            int slotsToRemove = slots.Count - targetTotalUi;
             for (int i = 0; i < slotsToRemove; i++)
             {
                 int lastIndex = slots.Count - 1;
@@ -148,7 +158,40 @@ public class InventoryManager : MonoBehaviour
                 }
                 slots.RemoveAt(lastIndex);
             }
-            Debug.Log($"移除了 {slotsToRemove} 个格子");
+            Debug.Log($"移除了 {slotsToRemove} 个背包UI格");
+        }
+
+        SyncAllSlotIndices();
+        RefreshAllSlotLockStates();
+    }
+
+    /// <summary>与列表顺序对齐格子下标（扩容/删格后保证 OnSlotClicked 等索引正确）。</summary>
+    private void SyncAllSlotIndices()
+    {
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] == null) continue;
+            slots[i].Initialize(i, slotCapacity);
+        }
+    }
+
+    /// <summary>仅最后一格为「锁定预览」：可用格数变化时先清掉旧锁，再在列表末尾重新上锁。</summary>
+    private void RefreshAllSlotLockStates()
+    {
+        int expectedTotal = Mathf.Max(1, usableSlotCount + 1);
+        if (slots.Count != expectedTotal)
+        {
+            Debug.LogWarning(
+                $"InventoryManager: UI 槽数 {slots.Count} 与预期 usable+1={expectedTotal} 不一致，锁定格可能异常。请检查 AdjustSlotCount / 初始化流程。",
+                this);
+        }
+
+        int lastIndex = slots.Count - 1;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] == null) continue;
+            bool locked = slots.Count == usableSlotCount + 1 && i == lastIndex;
+            slots[i].SetLockedPreviewSlot(locked);
         }
     }
 
@@ -170,15 +213,14 @@ public class InventoryManager : MonoBehaviour
     {
         if (slots.Count == 0) return false;
         
-        // 检查所有格子是否都满了
-        foreach (var slot in slots)
+        // 检查所有可用格子是否都满了（不含锁定预览格）
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
+            InventoryItemUI slot = slots[i];
             if (slot == null) continue;
-            
+
             if (slot.IsEmpty() || !slot.IsFull())
-            {
-                return false; // 如果找到空格子或未满的格子，背包未满
-            }
+                return false;
         }
         
         return true; // 所有格子都满了
@@ -187,12 +229,10 @@ public class InventoryManager : MonoBehaviour
     // 更新所有现有格子的容量
     private void UpdateSlotCapacities(int newCapacity)
     {
-        foreach (var slot in slots)
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
-            if (slot != null)
-            {
-                slot.UpdateSlotCapacity(newCapacity);
-            }
+            if (slots[i] != null)
+                slots[i].UpdateSlotCapacity(newCapacity);
         }
         
         // 容量变化可能影响背包满状态
@@ -226,10 +266,10 @@ public class InventoryManager : MonoBehaviour
         slots.Clear();
     }
 
-    // 获取背包槽位数量
+    /// <summary>可用槽位数（不含多出来的锁定预览格）。</summary>
     public int GetSlotCount()
     {
-        return slots.Count;
+        return usableSlotCount;
     }
 
     // 重新整理背包（将物品向前移动填补空位）
@@ -237,8 +277,8 @@ public class InventoryManager : MonoBehaviour
     {
         List<(ResourceType itemType, int itemCount)> items = new List<(ResourceType, int)>();
 
-        // 首先收集所有非空槽位的物品信息
-        for (int i = 0; i < slots.Count; i++)
+        // 首先收集所有非空可用槽位的物品信息
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
             if (slots[i] == null) continue;
 
@@ -250,17 +290,15 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
-        // 清空所有槽位
-        for (int i = 0; i < slots.Count; i++)
+        // 清空所有可用槽位
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
             if (slots[i] != null)
-            {
                 slots[i].ClearSlot();
-            }
         }
 
         // 重新填充物品（保持原有顺序）
-        for (int i = 0; i < items.Count && i < slots.Count; i++)
+        for (int i = 0; i < items.Count && i < usableSlotCount; i++)
         {
             slots[i].AddItem(items[i].itemType, items[i].itemCount, out int added);
         }
@@ -329,12 +367,15 @@ public class InventoryManager : MonoBehaviour
     {
         int remaining = amount;
 
-        // 找到所有同类型且未满的格子
-        var matchingSlots = slots.Where(slot =>
-            !slot.IsEmpty() &&
-            slot.GetItemType() == itemType &&
-            !slot.IsFull()
-        ).ToList();
+        // 找到所有同类型且未满的可用格子
+        var matchingSlots = slots
+            .Select((slot, idx) => (slot, idx))
+            .Where(t => t.idx < usableSlotCount && t.slot != null &&
+                        !t.slot.IsEmpty() &&
+                        t.slot.GetItemType() == itemType &&
+                        !t.slot.IsFull())
+            .Select(t => t.slot)
+            .ToList();
 
         // 按照当前数量从大到小排序，优先填满数量多的格子
         matchingSlots = matchingSlots.OrderByDescending(slot => slot.GetCurrentCount()).ToList();
@@ -351,6 +392,8 @@ public class InventoryManager : MonoBehaviour
                 int addAmount = Mathf.Min(remaining, canAdd);
                 slot.AddItem(itemType, addAmount, out int added);
                 remaining -= added;
+                if (added > 0)
+                    slot.PlaySlotFeedbackPulse();
             }
         }
 
@@ -362,8 +405,12 @@ public class InventoryManager : MonoBehaviour
     {
         int remaining = amount;
 
-        // 找到所有空格子
-        var emptySlots = slots.Where(slot => slot.IsEmpty()).ToList();
+        // 找到所有空可用格子
+        var emptySlots = slots
+            .Select((slot, idx) => (slot, idx))
+            .Where(t => t.idx < usableSlotCount && t.slot != null && t.slot.IsEmpty())
+            .Select(t => t.slot)
+            .ToList();
 
         // 添加到空格子
         foreach (var slot in emptySlots)
@@ -372,6 +419,8 @@ public class InventoryManager : MonoBehaviour
 
             slot.AddItem(itemType, remaining, out int added);
             remaining -= added;
+            if (added > 0)
+                slot.PlaySlotFeedbackPulse();
         }
 
         return remaining;
@@ -384,11 +433,14 @@ public class InventoryManager : MonoBehaviour
 
         int remainingCapacity = 0;
 
-        // 计算同类型格子的剩余容量
-        var matchingSlots = slots.Where(slot =>
-            !slot.IsEmpty() &&
-            slot.GetItemType() == itemType
-        ).ToList();
+        // 计算同类型可用格子的剩余容量
+        var matchingSlots = slots
+            .Select((slot, idx) => (slot, idx))
+            .Where(t => t.idx < usableSlotCount && t.slot != null &&
+                        !t.slot.IsEmpty() &&
+                        t.slot.GetItemType() == itemType)
+            .Select(t => t.slot)
+            .ToList();
 
         foreach (var slot in matchingSlots)
         {
@@ -398,9 +450,11 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
-        // 计算空格子的总容量
-        var emptySlots = slots.Where(slot => slot.IsEmpty()).ToList();
-        remainingCapacity += emptySlots.Count * slotCapacity;
+        // 计算空可用格子的总容量
+        int emptyUsableCount = slots
+            .Select((slot, idx) => (slot, idx))
+            .Count(t => t.idx < usableSlotCount && t.slot != null && t.slot.IsEmpty());
+        remainingCapacity += emptyUsableCount * slotCapacity;
 
         return remainingCapacity >= amount;
     }
@@ -408,17 +462,17 @@ public class InventoryManager : MonoBehaviour
     // 获取指定类型物品的总数量
     public int GetItemCount(ResourceType itemType)
     {
-        return slots.Where(slot => !slot.IsEmpty() && slot.GetItemType() == itemType)
-                   .Sum(slot => slot.GetCurrentCount());
+        return slots
+            .Select((slot, idx) => (slot, idx))
+            .Where(t => t.idx < usableSlotCount && t.slot != null && !t.slot.IsEmpty() && t.slot.GetItemType() == itemType)
+            .Sum(t => t.slot.GetCurrentCount());
     }
 
     // 获取指定索引的格子
     public InventoryItemUI GetSlot(int index)
     {
-        if (index >= 0 && index < slots.Count)
-        {
+        if (index >= 0 && index < usableSlotCount && index < slots.Count)
             return slots[index];
-        }
         return null;
     }
 
@@ -440,12 +494,12 @@ public class InventoryManager : MonoBehaviour
             return;
         }
 
-        // 计算需要清空的后百分之多少格子
-        int slotsToClear = Mathf.CeilToInt(slots.Count * percentage);
+        // 计算需要清空的后百分之多少可用格子
+        int slotsToClear = Mathf.CeilToInt(usableSlotCount * percentage);
 
-        // 从后往前清空指定数量的格子
+        // 从后往前清空指定数量的可用格子（跳过锁定预览格）
         int clearedSlots = 0;
-        for (int i = slots.Count - 1; i >= 0 && clearedSlots < slotsToClear; i--)
+        for (int i = usableSlotCount - 1; i >= 0 && clearedSlots < slotsToClear; i--)
         {
             if (slots[i] != null && !slots[i].IsEmpty())
             {
@@ -481,12 +535,12 @@ public class InventoryManager : MonoBehaviour
             return;
         }
 
-        // 确保不超过背包格子总数
-        slotCount = Mathf.Min(slotCount, slots.Count);
+        // 确保不超过可用格子数
+        slotCount = Mathf.Min(slotCount, usableSlotCount);
 
-        // 从后往前清空指定数量的格子
+        // 从后往前清空指定数量的可用格子
         int clearedSlots = 0;
-        for (int i = slots.Count - 1; i >= 0 && clearedSlots < slotCount; i--)
+        for (int i = usableSlotCount - 1; i >= 0 && clearedSlots < slotCount; i--)
         {
             if (slots[i] != null && !slots[i].IsEmpty())
             {
@@ -512,7 +566,7 @@ public class InventoryManager : MonoBehaviour
     {
         int clearedSlots = 0;
 
-        for (int i = 0; i < slots.Count; i++)
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
             if (slots[i] != null && !slots[i].IsEmpty())
             {
@@ -552,7 +606,7 @@ public class InventoryManager : MonoBehaviour
             if (ing.requiredCount <= 0) continue;
 
             int remaining = ing.requiredCount;
-            for (int i = 0; i < slots.Count && remaining > 0; i++)
+            for (int i = 0; i < slots.Count && i < usableSlotCount && remaining > 0; i++)
             {
                 if (slots[i] == null || slots[i].IsEmpty()) continue;
                 if (slots[i].GetItemType() != ing.resourceType) continue;
@@ -562,6 +616,8 @@ public class InventoryManager : MonoBehaviour
 
                 slots[i].RemoveItem(take, out int removed);
                 remaining -= removed;
+                if (removed > 0)
+                    slots[i].PlaySlotFeedbackPulse();
             }
 
             if (remaining != 0)
@@ -590,7 +646,7 @@ public class InventoryManager : MonoBehaviour
         Dictionary<ResourceType, int> typeToCount = new Dictionary<ResourceType, int>();
         List<TransferFlyRequest> flyRequests = new List<TransferFlyRequest>();
 
-        for (int i = 0; i < slots.Count; i++)
+        for (int i = 0; i < slots.Count && i < usableSlotCount; i++)
         {
             if (slots[i] == null || slots[i].IsEmpty()) continue;
 

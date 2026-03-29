@@ -43,6 +43,13 @@ public class BossAI : MonoBehaviour
     [SerializeField] private Transform meleeOrigin;
     [SerializeField] private float meleeAnimationDuration = 0.6f;
 
+    [Header("打击特效（近战伤害帧 / 冲撞结束）")]
+    [SerializeField] private GameObject meleeStrikeVfxPrefab;
+    [Tooltip("冲撞招式结束时生成；为空则用近战特效预制体")]
+    [SerializeField] private GameObject chargeEndStrikeVfxPrefab;
+    [Tooltip("近战与冲撞结束打击特效共用挂点；空则用 meleeOrigin")]
+    [SerializeField] private Transform meleeStrikeVfxAnchor;
+
     [Header("抛射")]
     [SerializeField] private GameObject bossProjectilePrefab;
     [SerializeField] private Transform projectileSpawn;
@@ -304,6 +311,7 @@ public class BossAI : MonoBehaviour
             animator.SetTrigger(hashMelee);
 
         yield return new WaitForSeconds(Mathf.Max(0.05f, meleeAnimationDuration * 0.45f));
+        SpawnMeleeStrikeVfx();
         AnimNotify_MeleeDealDamage();
         yield return new WaitForSeconds(Mathf.Max(0.05f, meleeAnimationDuration * 0.55f));
 
@@ -343,7 +351,7 @@ public class BossAI : MonoBehaviour
                 var w = Instantiate(warningZonePrefab, onGround, rot);
                 var bz = w.GetComponent<BossWarningZone>();
                 if (bz != null)
-                    bz.Configure(warningShowDuration, 0.15f, 1f);
+                    bz.Configure(warningShowDuration);
             }
         }
 
@@ -422,6 +430,7 @@ public class BossAI : MonoBehaviour
 
         yield return new WaitUntil(() => Time.time >= chargeEndTime || state != BossState.ChargeAttack || !isBusy);
 
+        SpawnChargeEndStrikeVfx();
         EndAttackCommon();
     }
 
@@ -441,15 +450,7 @@ public class BossAI : MonoBehaviour
             GameObject root = c.transform.root.gameObject;
             if (!chargeDamaged.Add(root)) continue;
 
-            foreach (var mb in c.GetComponentsInParent<MonoBehaviour>())
-            {
-                if (mb is IBossAttackTarget t)
-                {
-                    Vector3 hp = c.ClosestPoint(transform.position);
-                    t.TakeBossDamage(chargeDamage, hp, chargeDirection);
-                    break;
-                }
-            }
+            TryDamageFromBossHit(c, chargeDamage, transform.position + Vector3.up * 0.8f);
         }
     }
 
@@ -701,8 +702,53 @@ public class BossAI : MonoBehaviour
     /// <summary>动画事件：近战伤害帧</summary>
     public void AnimNotify_MeleeDealDamage()
     {
-        if (MeleeOverlapDamage())
-            return;
+        MeleeOverlapDamage();
+    }
+
+    private void SpawnMeleeStrikeVfx()
+    {
+        if (meleeStrikeVfxPrefab == null) return;
+        Transform anchor = meleeStrikeVfxAnchor != null ? meleeStrikeVfxAnchor : meleeOrigin;
+        if (anchor == null) anchor = transform;
+        Vector3 pos = anchor.position + anchor.forward * (meleeSphereRadius * 0.5f);
+        Quaternion rot = Quaternion.LookRotation(anchor.forward, Vector3.up);
+        Instantiate(meleeStrikeVfxPrefab, pos, rot);
+    }
+
+    private void SpawnChargeEndStrikeVfx()
+    {
+        GameObject prefab = chargeEndStrikeVfxPrefab != null ? chargeEndStrikeVfxPrefab : meleeStrikeVfxPrefab;
+        if (prefab == null) return;
+        Transform anchor = meleeStrikeVfxAnchor != null ? meleeStrikeVfxAnchor : meleeOrigin;
+        if (anchor == null) anchor = transform;
+        Vector3 pos = anchor.position + anchor.forward * (meleeSphereRadius * 0.5f);
+        Quaternion rot = Quaternion.LookRotation(anchor.forward, Vector3.up);
+        Instantiate(prefab, pos, rot);
+    }
+
+    /// <summary>优先 BossAttackReceiver，否则 TopDownController（扣饥饿/氧气 + 受击动画）。</summary>
+    private bool TryDamageFromBossHit(Collider col, float damage, Vector3 damageFromPosition)
+    {
+        if (col == null || col.GetComponentInParent<BossAI>() != null) return false;
+
+        var recv = col.GetComponentInParent<BossAttackReceiver>();
+        if (recv != null)
+        {
+            Vector3 hp = col.ClosestPoint(damageFromPosition);
+            Vector3 dir = (hp - damageFromPosition).normalized;
+            if (dir.sqrMagnitude < 1e-6f) dir = transform.forward;
+            recv.TakeBossDamage(damage, hp, dir);
+            return true;
+        }
+
+        var td = col.GetComponentInParent<TopDownController>();
+        if (td != null)
+        {
+            td.ApplyBossOxygenDamage(damage);
+            return true;
+        }
+
+        return false;
     }
 
     private bool MeleeOverlapDamage()
@@ -713,19 +759,9 @@ public class BossAI : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             var col = meleeHits[i];
-            if (col.GetComponentInParent<BossAI>() != null) continue;
-
-            foreach (var mb in col.GetComponentsInParent<MonoBehaviour>())
-            {
-                if (mb is IBossAttackTarget t)
-                {
-                    Vector3 hp = col.ClosestPoint(c);
-                    Vector3 dir = (hp - transform.position).normalized;
-                    t.TakeBossDamage(meleeDamage, hp, dir);
-                    any = true;
-                    break;
-                }
-            }
+            if (col == null) continue;
+            if (TryDamageFromBossHit(col, meleeDamage, c))
+                any = true;
         }
         return any;
     }

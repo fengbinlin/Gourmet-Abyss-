@@ -173,9 +173,26 @@ public class dishItemPrefabs : MonoBehaviour
         }
 
         if (RestaurantPanel.instance.TryEnqueueDishForCooking(recipeData))
+        {
+            PlayCookButtonRowPulse();
             Debug.Log($"已加入烹饪队列：{recipeData.dishName}");
+        }
         else
             RefreshUI();
+    }
+
+    /// <summary>点击烹饪成功：整行菜单项缩放反馈。</summary>
+    public void PlayCookButtonRowPulse()
+    {
+        _scaleTween?.Kill();
+        _scaleSequence?.Kill();
+        transform.localScale = _baseLocalScale;
+        const float peak = 1.24f;
+        const float mid = 1.08f;
+        _scaleSequence = DOTween.Sequence();
+        _scaleSequence.Append(transform.DOScale(_baseLocalScale * peak, 0.1f).SetEase(Ease.OutQuad));
+        _scaleSequence.Append(transform.DOScale(_baseLocalScale * mid, 0.09f).SetEase(Ease.InOutSine));
+        _scaleSequence.Append(transform.DOScale(_baseLocalScale, 0.16f).SetEase(Ease.OutBack, 1.45f));
     }
 
     private void RefreshUI()
@@ -199,13 +216,13 @@ public class dishItemPrefabs : MonoBehaviour
         if (selected)
         {
             transform.localScale = _baseLocalScale;
-            const float peak = 1.11f;
-            const float dip = 1.05f;
-            const float settle = 1.08f;
+            const float peak = 1.22f;
+            const float dip = 1.08f;
+            const float settle = 1.12f;
             _scaleSequence = DOTween.Sequence();
-            _scaleSequence.Append(transform.DOScale(_baseLocalScale * peak, 0.07f).SetEase(Ease.OutQuad));
-            _scaleSequence.Append(transform.DOScale(_baseLocalScale * dip, 0.06f).SetEase(Ease.InOutSine));
-            _scaleSequence.Append(transform.DOScale(_baseLocalScale * settle, 0.1f).SetEase(Ease.OutBack, 1.35f));
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * peak, 0.08f).SetEase(Ease.OutQuad));
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * dip, 0.07f).SetEase(Ease.InOutSine));
+            _scaleSequence.Append(transform.DOScale(_baseLocalScale * settle, 0.12f).SetEase(Ease.OutBack, 1.45f));
         }
         else
         {

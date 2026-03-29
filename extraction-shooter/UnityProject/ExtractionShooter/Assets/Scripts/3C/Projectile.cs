@@ -33,6 +33,12 @@ public class Projectile : MonoBehaviour
     [Header("暴击效果")]
     [SerializeField] private GameObject criticalHitEffext;
 
+    [Header("命中玩家（饥饿/氧气，敌弹等）")]
+    [Tooltip("勾选后：命中带 TopDownController 的目标时扣饥饿并走玩家受击/震屏（与 EnemyAI/BOSS 一致）；普通玩家武器弹请勿勾选。")]
+    [SerializeField] private bool dealHungerDamageToPlayer;
+    [Tooltip("<=0 时使用本次子弹最终伤害 finalDamage")]
+    [SerializeField] private float playerHungerDamageOverride;
+
     [Header("调试设置")]
     [SerializeField] private bool debugMode = false;
 
@@ -360,6 +366,16 @@ public class Projectile : MonoBehaviour
                 }
             }
         }
+        else if (dealHungerDamageToPlayer)
+        {
+            TopDownController player = hitObject.GetComponentInParent<TopDownController>();
+            if (player != null)
+            {
+                float hunger = playerHungerDamageOverride > 0f ? playerHungerDamageOverride : finalDamage;
+                player.ApplyEnemyMeleeHungerDamage(hunger);
+            }
+        }
+
         if (isCritical)
         {
              // 播放特效

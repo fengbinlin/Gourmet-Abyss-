@@ -34469,7 +34469,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5023574626006650852}
   - component: {fileID: 8542606342750181779}
-  m_Layer: 8
+  m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44464,7 +44464,7 @@ MonoBehaviour:
   aggressive2D: 1
   alertRange: 12
   chaseAggroExitRange: 0
-  attackRange: 1.35
+  attackRange: 3
   attackRangeExtraMargin: 0.35
   attackCooldown: 1.1
   attackAnimDuration: 0.45

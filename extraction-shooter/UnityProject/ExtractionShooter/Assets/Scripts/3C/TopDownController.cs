@@ -78,10 +78,17 @@ public class TopDownController : MonoBehaviour
     [Header("动画参数")]
     [SerializeField] private string speedParamName = "Speed";
     [SerializeField] private string combatParamName = "IsInCombat";
+    [SerializeField] private string hitTriggerName = "Hit";
 
     [Header("组件引用")]
     [SerializeField] private Camera mainCamera;
     [SerializeField] private Animator animator;
+
+    [Header("饥饿/氧气受伤害反馈")]
+    [Tooltip("为空则从 mainCamera 上取 CameraFollow")]
+    [SerializeField] private CameraFollow hungerDamageCameraFollow;
+    [SerializeField] private float hungerDamageShakeDuration = 0.12f;
+    [SerializeField] private float hungerDamageShakeMagnitude = 0.06f;
     #endregion
 
     #region --- 6. 足迹粒子效果 ---
@@ -262,12 +269,69 @@ public class TopDownController : MonoBehaviour
         }
     }
 
-    /// <summary>近战敌人命中玩家时扣除氧气（饥饿条）。由 EnemyAI 等调用。</summary>
+    /// <summary>近战敌人命中玩家时扣除氧气（饥饿条）。由 EnemyAI 等调用；与 BOSS 受击一致，会套用护甲减伤 currentDamageReducePct。</summary>
     public void ApplyEnemyMeleeHungerDamage(float amount)
     {
         if (amount <= 0f || isDead) return;
-        if (BattleValManager.Instance != null)
-            BattleValManager.Instance.DamageOxygen(amount);
+        var bvm = BattleValManager.Instance;
+        if (bvm == null || bvm.OxygenCurrent <= 0f) return;
+
+        float d = amount;
+        if (currentDamageReducePct > 0f)
+            d *= 1f - Mathf.Clamp01(currentDamageReducePct);
+        if (d <= 0f) return;
+
+        bvm.DamageOxygen(d);
+        PlayHungerDamageFeedback();
+    }
+
+    /// <summary>受击反馈：触发 Animator 上的 Hit Trigger（死亡时不播放）。</summary>
+    public void PlayHitAnimation()
+    {
+        if (isDead || animator == null || string.IsNullOrEmpty(hitTriggerName)) return;
+        animator.SetTrigger(hitTriggerName);
+    }
+
+    /// <summary>怪物/BOSS 造成饥饿（氧气）伤害时的统一反馈：受击动画 + 轻微震屏。</summary>
+    public void PlayHungerDamageFeedback()
+    {
+        PlayHitAnimation();
+        TryPlayHungerDamageCameraShake();
+    }
+
+    private void TryPlayHungerDamageCameraShake()
+    {
+        if (isDead) return;
+        if (hungerDamageShakeDuration <= 0f || hungerDamageShakeMagnitude <= 0f) return;
+
+        CameraFollow cf = hungerDamageCameraFollow;
+        if (cf == null && mainCamera != null)
+            cf = mainCamera.GetComponent<CameraFollow>();
+        if (cf == null && mainCamera != null)
+            cf = mainCamera.GetComponentInParent<CameraFollow>();
+
+        cf?.Shake(hungerDamageShakeDuration, hungerDamageShakeMagnitude);
+    }
+
+    /// <summary>
+    /// 无 <see cref="BossAttackReceiver"/> 时由 BossAI 等直接调用：按 BOSS 伤害规则扣氧气（饥饿）并播受击，与 BossAttackReceiver.TakeBossDamage 折算一致。
+    /// </summary>
+    public void ApplyBossOxygenDamage(float rawDamage)
+    {
+        if (rawDamage <= 0f || isDead) return;
+
+        var bvm = BattleValManager.Instance;
+        if (bvm == null || bvm.OxygenCurrent <= 0f) return;
+
+        float d = rawDamage;
+        if (currentDamageReducePct > 0f)
+            d *= 1f - Mathf.Clamp01(currentDamageReducePct);
+        if (WeaponStatsManager.Instance != null)
+            d *= Mathf.Max(0f, WeaponStatsManager.Instance.bossDamageToOxygenMultiplier);
+        if (d <= 0f) return;
+
+        bvm.DamageOxygen(d);
+        PlayHungerDamageFeedback();
     }
     public void Die()
     {

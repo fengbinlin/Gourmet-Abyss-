@@ -21,6 +21,8 @@ public class BossProjectile : MonoBehaviour
     [Header("伤害")]
     [SerializeField] private float damage = 25f;
     [SerializeField] private LayerMask hitLayers = ~0;
+    [Tooltip("碰到该层（如地面 WalkableFloor）时仅销毁投射物，不造成伤害；掩码为空则在 Awake 中尝试 Layer \"WalkableFloor\"")]
+    [SerializeField] private LayerMask walkableFloorLayers;
     [SerializeField] private float lifeTime = 8f;
     [Tooltip("生成后短时间内不结算，避免与 BOSS 碰撞体重叠")]
     [SerializeField] private float spawnInvulnTime = 0.12f;
@@ -38,6 +40,12 @@ public class BossProjectile : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         EnsureTriggersOnly();
+        if (walkableFloorLayers.value == 0)
+        {
+            int lf = LayerMask.NameToLayer("WalkableFloor");
+            if (lf >= 0)
+                walkableFloorLayers = 1 << lf;
+        }
     }
 
     /// <summary>
@@ -86,6 +94,7 @@ public class BossProjectile : MonoBehaviour
         {
             rb.useGravity = useGravityArc;
             rb.velocity = Vector3.down * 2f;
+            transform.rotation = Quaternion.LookRotation(Vector3.down);
             return;
         }
 
@@ -129,6 +138,9 @@ public class BossProjectile : MonoBehaviour
 
     private void FixedUpdate()
     {
+        Vector3 vel = rb.velocity;
+        if (vel.sqrMagnitude > 1e-4f)
+            transform.rotation = Quaternion.LookRotation(vel.normalized);
         previousPos = transform.position;
     }
 
@@ -144,6 +156,20 @@ public class BossProjectile : MonoBehaviour
 
         if (other.GetComponentInParent<BossProjectile>() != null)
             return;
+
+        if (walkableFloorLayers.value != 0 &&
+            ((1 << other.gameObject.layer) & walkableFloorLayers) != 0)
+        {
+            Vector3 floorHit = other.ClosestPoint(transform.position);
+            Vector3 floorImpactDir = (transform.position - previousPos).normalized;
+            if (floorImpactDir.sqrMagnitude < 1e-6f)
+                floorImpactDir = transform.forward;
+            if (hitVfxPrefab != null)
+                Instantiate(hitVfxPrefab, floorHit, Quaternion.LookRotation(-floorImpactDir));
+            if (destroyOnHit)
+                Destroy(gameObject);
+            return;
+        }
 
         if (((1 << other.gameObject.layer) & hitLayers) == 0)
         {
@@ -182,8 +208,20 @@ public class BossProjectile : MonoBehaviour
                     break;
                 }
             }
+            if (!found)
+            {
+                var td = other.GetComponentInParent<TopDownController>();
+                if (td != null)
+                {
+                    if (debugHitLog)
+                        Debug.Log($"[BossProjectile] 命中 TopDownController: {td.gameObject.name}", this);
+                    td.ApplyBossOxygenDamage(damage);
+                    found = true;
+                }
+            }
+
             if (!found && debugHitLog)
-                Debug.LogWarning($"[BossProjectile] 碰到 {other.gameObject.name} 但未找到 BossAttackReceiver / IBossAttackTarget，无法扣氧。", this);
+                Debug.LogWarning($"[BossProjectile] 碰到 {other.gameObject.name} 但未找到 BossAttackReceiver / IBossAttackTarget / TopDownController，无法扣氧。", this);
         }
 
         if (hitVfxPrefab != null)

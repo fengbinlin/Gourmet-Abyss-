@@ -62,6 +62,8 @@ public class BossAttackReceiver : MonoBehaviour, IBossAttackTarget
 
         float before = bvm.OxygenCurrent;
         bvm.DamageOxygen(d);
+        if (d > 0f && topDown != null)
+            topDown.PlayHungerDamageFeedback();
 
         OnDamaged?.Invoke(d);
         OnHealthChanged?.Invoke(bvm.OxygenCurrent, bvm.OxygenMax);

@@ -52,6 +52,9 @@ public class Pot : MonoBehaviour
     /// <summary>煮完但尚未全部装碟的份数；&gt;0 时锅仍为占用，且不给食材发「烹饪结束」事件。</summary>
     private int pendingPostCookServings;
 
+    private Coroutine _serveCookCoroutine;
+    private Coroutine _pendingServeCoroutine;
+
     [Header("装盘配置")]
     public bool autoTransferToPlate = true;    // 是否自动装盘
     public Plate targetPlate;                  // 目标菜碟（可手动指定）
@@ -67,6 +70,7 @@ public class Pot : MonoBehaviour
 
     private Vector3 _defaultLocalScaleForAttentionPulse;
     private Sequence _attentionPulseSequence;
+    private Sequence _cookDonePulseSequence;
 
     void Start()
     {
@@ -111,12 +115,24 @@ public class Pot : MonoBehaviour
         transform.localScale = _defaultLocalScaleForAttentionPulse;
     }
 
+    /// <summary>烹饪结束时的锅体缩放反馈。</summary>
+    public void PlayCookFinishedPulse()
+    {
+        _cookDonePulseSequence?.Kill();
+        transform.localScale = _defaultLocalScaleForAttentionPulse;
+        float peak = 1.2f;
+        _cookDonePulseSequence = DOTween.Sequence()
+            .Append(transform.DOScale(_defaultLocalScaleForAttentionPulse * peak, 0.15f).SetEase(Ease.OutQuad))
+            .Append(transform.DOScale(_defaultLocalScaleForAttentionPulse, 0.22f).SetEase(Ease.OutBack, 1.45f));
+    }
+
     private void OnDestroy()
     {
         _attentionPulseSequence?.Kill();
+        _cookDonePulseSequence?.Kill();
     }
 
-    /// <param name="notifySubscribers">为 false 时不触发 <see cref="CookingStateChanged"/>（锅内食材实例不会销毁）。</param>
+    /// <param name="notifySubscribers">为 false 时不触发 <see cref="CookingStateChanged"/>（如 <see cref="CancelCooking"/> 会再单独 Invoke）。</param>
     private void SetCookingEffects(bool isActive, bool notifySubscribers = true)
     {
         bool stateChanged = isCooking != isActive;
@@ -295,8 +311,10 @@ public class Pot : MonoBehaviour
             StopCoroutine(lidAnimationCoroutine);
         lidAnimationCoroutine = StartCoroutine(PlayLidAnimation(false));
 
-        // 关火/烟与烹饪动画，但不通知锅内食材销毁（无碟时食材需留在锅里）
-        SetCookingEffects(false, false);
+        // 关火/烟；并触发 CookingStateChanged(false)，锅内食材实例会销毁并停止翻炒
+        SetCookingEffects(false, true);
+
+        PlayCookFinishedPulse();
 
         cookingCoroutine = null;
         assignedCook = null;
@@ -311,25 +329,7 @@ public class Pot : MonoBehaviour
             return;
         }
 
-        int served = 0;
-        for (int i = 0; i < portions; i++)
-        {
-            if (!TransferToPlate(out Plate usedPlate))
-                break;
-            PlayDishFlyEffect(currentRecipe, usedPlate);
-            served++;
-        }
-
-        pendingPostCookServings = portions - served;
-
-        if (pendingPostCookServings > 0)
-        {
-            Debug.LogWarning($"无可用餐碟，{currentRecipe.dishName} 仍有 {pendingPostCookServings} 份留在锅内，待有碟子后自动装盘。");
-            potState = potState.Used;
-            return;
-        }
-
-        FinishPotAndNotifyIngredientsReleased();
+        _serveCookCoroutine = StartCoroutine(ServeCookingCompleteCoroutine(portions));
     }
 
     /// <summary>全部装碟完毕或取消烹饪：销毁锅内食材实例并释放锅（通知烹饪队列）。</summary>
@@ -342,17 +342,74 @@ public class Pot : MonoBehaviour
         RestaurantPanel.instance?.NotifyCookingPotFreed();
     }
 
-    /// <summary>尝试消耗一份待装盘；成功则飞出特效。</summary>
-    private void TryServeOnePendingPortion()
+    /// <summary>烹饪完成后：按份数依次飞行 → 落地后再 <see cref="Plate.TryAddDish"/>。</summary>
+    private IEnumerator ServeCookingCompleteCoroutine(int portions)
     {
-        if (pendingPostCookServings <= 0 || currentRecipe == null) return;
-        if (!TransferToPlate(out Plate usedPlate))
-            return;
+        try
+        {
+            int served = 0;
+            for (int i = 0; i < portions; i++)
+            {
+                if (!ResolveTargetPlate(out Plate plate))
+                    break;
 
-        PlayDishFlyEffect(currentRecipe, usedPlate);
-        pendingPostCookServings--;
-        if (pendingPostCookServings <= 0)
+                if (cookedDishFlyPrefab != null && currentRecipe.dishIcon != null)
+                {
+                    Vector3 startWorldPos = GetVisualCenterWorldPosition(transform);
+                    Vector3 endWorldPos = plate.GetDishFlyTargetWorldPosition();
+                    yield return StartCoroutine(PlayDishFlyEffectCoroutine(currentRecipe.dishIcon, startWorldPos, endWorldPos));
+                }
+
+                if (!plate.TryAddDish(currentRecipe, this))
+                    break;
+                served++;
+            }
+
+            pendingPostCookServings = portions - served;
+
+            if (pendingPostCookServings > 0)
+            {
+                Debug.LogWarning($"无可用餐碟，{currentRecipe.dishName} 仍有 {pendingPostCookServings} 份留在锅内，待有碟子后自动装盘。");
+                potState = potState.Used;
+                yield break;
+            }
+
             FinishPotAndNotifyIngredientsReleased();
+        }
+        finally
+        {
+            _serveCookCoroutine = null;
+        }
+    }
+
+    /// <summary>待装盘队列：有碟子时飞入后再加菜。</summary>
+    private IEnumerator ServeOnePendingCoroutine()
+    {
+        try
+        {
+            if (pendingPostCookServings <= 0 || currentRecipe == null)
+                yield break;
+            if (!ResolveTargetPlate(out Plate plate))
+                yield break;
+
+            if (cookedDishFlyPrefab != null && currentRecipe.dishIcon != null)
+            {
+                Vector3 startWorldPos = GetVisualCenterWorldPosition(transform);
+                Vector3 endWorldPos = plate.GetDishFlyTargetWorldPosition();
+                yield return StartCoroutine(PlayDishFlyEffectCoroutine(currentRecipe.dishIcon, startWorldPos, endWorldPos));
+            }
+
+            if (!plate.TryAddDish(currentRecipe, this))
+                yield break;
+
+            pendingPostCookServings--;
+            if (pendingPostCookServings <= 0)
+                FinishPotAndNotifyIngredientsReleased();
+        }
+        finally
+        {
+            _pendingServeCoroutine = null;
+        }
     }
 
     // 转移到菜碟
@@ -361,8 +418,8 @@ public class Pot : MonoBehaviour
         return TransferToPlate(out _);
     }
 
-    // 转移到菜碟，并返回本次使用的目标碟子
-    public bool TransferToPlate(out Plate usedPlate)
+    /// <summary>仅解析可装当前菜的碟子，不修改碟子数据（飞入落地后再 <see cref="Plate.TryAddDish"/>）。</summary>
+    public bool ResolveTargetPlate(out Plate usedPlate)
     {
         usedPlate = null;
 
@@ -375,34 +432,27 @@ public class Pot : MonoBehaviour
         Plate resolvedTarget = targetPlate;
         if (resolvedTarget != null && resolvedTarget.CanAddDish(currentRecipe))
         {
-            bool success = resolvedTarget.TryAddDish(currentRecipe, this);
-            if (success) usedPlate = resolvedTarget;
-            return success;
+            usedPlate = resolvedTarget;
+            return true;
         }
 
-        // 否则在餐厅中寻找合适的菜碟
         Plate suitablePlate = FindSuitablePlate();
         if (suitablePlate != null)
         {
-            bool success = suitablePlate.TryAddDish(currentRecipe, this);
-            if (success) usedPlate = suitablePlate;
-            return success;
+            usedPlate = suitablePlate;
+            return true;
         }
 
         Debug.LogWarning($"没有找到合适的菜碟来装 {currentRecipe.dishName}");
         return false;
     }
 
-    private void PlayDishFlyEffect(DishRecipe recipe, Plate plate)
+    // 转移到菜碟，并返回本次使用的目标碟子
+    public bool TransferToPlate(out Plate usedPlate)
     {
-        if (recipe == null || recipe.dishIcon == null || plate == null || cookedDishFlyPrefab == null)
-        {
-            return;
-        }
-
-        Vector3 startWorldPos = GetVisualCenterWorldPosition(transform);
-        Vector3 endWorldPos = GetVisualCenterWorldPosition(plate.transform);
-        StartCoroutine(PlayDishFlyEffectCoroutine(recipe.dishIcon, startWorldPos, endWorldPos));
+        if (!ResolveTargetPlate(out usedPlate))
+            return false;
+        return usedPlate.TryAddDish(currentRecipe, this);
     }
 
     private IEnumerator PlayDishFlyEffectCoroutine(Sprite dishIcon, Vector3 startWorldPos, Vector3 targetPosition)
@@ -519,6 +569,17 @@ public class Pot : MonoBehaviour
     {
         pendingPostCookServings = 0;
 
+        if (_serveCookCoroutine != null)
+        {
+            StopCoroutine(_serveCookCoroutine);
+            _serveCookCoroutine = null;
+        }
+        if (_pendingServeCoroutine != null)
+        {
+            StopCoroutine(_pendingServeCoroutine);
+            _pendingServeCoroutine = null;
+        }
+
         if (cookingCoroutine != null)
         {
             StopCoroutine(cookingCoroutine);
@@ -537,6 +598,9 @@ public class Pot : MonoBehaviour
 
         SetCookingEffects(false, false);
         CookingStateChanged?.Invoke(false);
+
+        _cookDonePulseSequence?.Kill();
+        _cookDonePulseSequence = null;
 
         potState = potState.unUsed;
         currentRecipe = null;
@@ -561,7 +625,10 @@ public class Pot : MonoBehaviour
 
     void Update()
     {
-        if (pendingPostCookServings > 0)
-            TryServeOnePendingPortion();
+        if (pendingPostCookServings <= 0 || currentRecipe == null)
+            return;
+        if (_pendingServeCoroutine != null || _serveCookCoroutine != null)
+            return;
+        _pendingServeCoroutine = StartCoroutine(ServeOnePendingCoroutine());
     }
 }

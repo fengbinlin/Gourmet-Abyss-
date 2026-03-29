@@ -73,6 +73,9 @@ public class Plate : MonoBehaviour
     private Coroutine consumeCoroutine;
     private Coroutine autoSellCoroutine;
 
+    private Vector3 _dishIconPulseBaseLocalScale;
+    private Coroutine _sellPulseCoroutine;
+
     /// <summary>餐厅 <c>platesList[0]</c>：唯一执行自动售卖的碟子；其余碟子可堆放任意菜品（可多盘同一种菜）。</summary>
     public bool IsRestaurantPrimarySellPlate()
     {
@@ -85,6 +88,45 @@ public class Plate : MonoBehaviour
     public bool IsPlateEmpty()
     {
         return currentState == plateState.unUsed || currentDish == null || currentDish.IsEmpty();
+    }
+
+    /// <summary>出菜飞行落点世界坐标：优先 <see cref="dishIcon"/> 的位置（与菜图对齐）。</summary>
+    public Vector3 GetDishFlyTargetWorldPosition()
+    {
+        if (dishIcon != null)
+        {
+            // 空碟时图标常 SetActive(false)，bounds 不可靠，用 transform 更稳
+            if (dishIcon.gameObject.activeInHierarchy && dishIcon.sprite != null)
+                return dishIcon.bounds.center;
+            return dishIcon.transform.position;
+        }
+
+        SpriteRenderer sr = GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null)
+            return sr.bounds.center;
+        return transform.position;
+    }
+
+    private void Awake()
+    {
+        _dishIconPulseBaseLocalScale = dishIcon != null ? dishIcon.transform.localScale : Vector3.one;
+    }
+
+    /// <summary>首碟倒计时结束并卖出一份后，仅 dishIcon 缩放反馈。</summary>
+    public void PlaySellFeedbackPulse()
+    {
+        if (!isActiveAndEnabled || dishIcon == null) return;
+        if (_sellPulseCoroutine != null)
+            StopCoroutine(_sellPulseCoroutine);
+        _sellPulseCoroutine = StartCoroutine(CoSellPulse());
+    }
+
+    private IEnumerator CoSellPulse()
+    {
+        Transform pulseTf = dishIcon != null ? dishIcon.transform : null;
+        if (pulseTf != null)
+            yield return UIFeedbackPulse.CoScalePulse(pulseTf, _dishIconPulseBaseLocalScale, 1.26f, 0.32f);
+        _sellPulseCoroutine = null;
     }
 
     void Start()
@@ -126,7 +168,7 @@ public class Plate : MonoBehaviour
         UpdateUI();
     }
 
-    // 尝试添加菜肴到菜碟
+    /// <summary>写入碟子数据与 UI；出锅流程中应在飞行预制体落点后再调用（见 <see cref="Pot"/>）。</summary>
     public bool TryAddDish(DishRecipe recipe, Pot pot = null)
     {
         if (!CanAddDish(recipe))
@@ -193,6 +235,10 @@ public class Plate : MonoBehaviour
             float unitPrice = currentDish.recipe.baseDishPrice;
             int consumed = currentDish.Consume(1);
             int goldAmount = Mathf.RoundToInt(unitPrice * consumed);
+
+            // 先给 dishIcon 反馈，再生成金币投射器
+            PlaySellFeedbackPulse();
+
             Transform startTf = transform;
             Transform moneyBox = CustomerManager.instance != null ? CustomerManager.instance.moneyBoxTransform : null;
             if (goldAmount > 0 && CustomerManager.instance != null)

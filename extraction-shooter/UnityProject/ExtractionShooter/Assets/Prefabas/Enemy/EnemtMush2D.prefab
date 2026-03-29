@@ -24652,7 +24652,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1540449390964717628}
   - component: {fileID: 8995379913784150267}
-  m_Layer: 8
+  m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44463,6 +44463,7 @@ MonoBehaviour:
   spriteFlipLocalAxis: {x: 0, y: 1, z: 0}
   aggressive2D: 0
   alertRange: 8
+  chaseAggroExitRange: 0
   attackRange: 1.35
   attackRangeExtraMargin: 0.35
   attackCooldown: 1.1
@@ -44479,6 +44480,8 @@ MonoBehaviour:
   maxIdleTime: 1.5
   hitRecoveryTime: 0.2
   showDebugInfo: 1
+  debugLogPlayerAggro: 0
+  debugPlayerAggroLogInterval: 0.25
   patrolPointColor: {r: 0, g: 0, b: 1, a: 1}
   raycastColor: {r: 0, g: 1, b: 0, a: 1}
   blockedRayColor: {r: 1, g: 0, b: 0, a: 1}
