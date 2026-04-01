@@ -139,9 +139,11 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public GameObject learnableStateVfx;
     public GameObject learnedStateVfx;
 
-    [Header("状态切换粒子特效（一次性）")]
-    public ParticleSystem unlockTransitionVfx;
-    public ParticleSystem learnedTransitionVfx;
+    [Header("状态切换粒子特效（一次性，预制体）")]
+    public GameObject unlockTransitionVfxPrefab;
+    public GameObject learnedTransitionVfxPrefab;
+    public Transform stateTransitionVfxSpawnPoint;
+    public float stateTransitionVfxDestroyDelay = 2f;
 
     [Header("悬停动效")]
     public float hoverLoopScaleStrength = 0.08f;
@@ -182,6 +184,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private bool isPointerDown = false;
     private Quaternion defaultTiltLocalRotation = Quaternion.identity;
     private Quaternion defaultShakeLocalRotation = Quaternion.identity;
+    private bool unlockVfxPlayedSinceVisible = false;
 
     public SkillNodeState State => currentState;
     public bool IsVisible => isVisible;
@@ -243,6 +246,10 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
         SkillNodeState previousState = currentState;
         currentState = newState;
+        if (newState == SkillNodeState.Locked)
+        {
+            unlockVfxPlayedSinceVisible = false;
+        }
 
         bool shouldPlayAnimation = (previousState == SkillNodeState.Locked && newState == SkillNodeState.Unlocked) ||
                                   (previousState == SkillNodeState.Unlocked && newState == SkillNodeState.Learned);
@@ -380,6 +387,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
     public void SetVisibility(bool visible, bool immediate = false)
     {
+        bool wasVisible = isVisible;
         isVisible = visible;
 
         if (canvasGroup != null)
@@ -431,6 +439,13 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (!visible && infoPanel != null)
         {
             HideInfoPanel();
+        }
+
+        // 节点从不可见 -> 可见 且当前就是解锁态时，补播一次解锁特效（避免状态早于显示导致漏播）
+        if (!wasVisible && visible && currentState == SkillNodeState.Unlocked && !unlockVfxPlayedSinceVisible)
+        {
+            SpawnOneShotStateTransitionVfx(unlockTransitionVfxPrefab);
+            unlockVfxPlayedSinceVisible = true;
         }
     }
 
@@ -536,15 +551,28 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         if (previousState == newState) return;
 
-        if (previousState == SkillNodeState.Locked && newState == SkillNodeState.Unlocked && unlockTransitionVfx != null)
+        if (previousState == SkillNodeState.Locked && newState == SkillNodeState.Unlocked)
         {
-            unlockTransitionVfx.Play();
+            SpawnOneShotStateTransitionVfx(unlockTransitionVfxPrefab);
+            unlockVfxPlayedSinceVisible = true;
         }
 
-        if (newState == SkillNodeState.Learned && learnedTransitionVfx != null)
+        if (newState == SkillNodeState.Learned)
         {
-            learnedTransitionVfx.Play();
+            SpawnOneShotStateTransitionVfx(learnedTransitionVfxPrefab);
         }
+    }
+
+    private void SpawnOneShotStateTransitionVfx(GameObject vfxPrefab)
+    {
+        if (vfxPrefab == null) return;
+
+        Transform spawnPoint = stateTransitionVfxSpawnPoint != null ? stateTransitionVfxSpawnPoint : transform;
+        GameObject vfxInstance = Instantiate(vfxPrefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
+        vfxInstance.transform.localPosition = Vector3.zero;
+        vfxInstance.transform.localRotation = Quaternion.identity;
+        float destroyDelay = Mathf.Max(0.1f, stateTransitionVfxDestroyDelay);
+        Destroy(vfxInstance, destroyDelay);
     }
 
     private void SetNodeColor(Color color)

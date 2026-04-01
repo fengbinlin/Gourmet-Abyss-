@@ -89,6 +89,13 @@ public class TopDownController : MonoBehaviour
     [SerializeField] private CameraFollow hungerDamageCameraFollow;
     [SerializeField] private float hungerDamageShakeDuration = 0.12f;
     [SerializeField] private float hungerDamageShakeMagnitude = 0.06f;
+
+    [Header("受击材质闪白反馈")]
+    [Tooltip("不填则自动从 Animator 对应模型层级收集 Renderer")]
+    [SerializeField] private Renderer[] hitFlashRenderers;
+    [SerializeField] private float hitFlashWhiteHoldTime = 0.05f;
+    [SerializeField] private float hitFlashRestoreDuration = 0.12f;
+    [SerializeField] private Color hitFlashColor = Color.white;
     #endregion
 
     #region --- 6. 足迹粒子效果 ---
@@ -190,6 +197,15 @@ public class TopDownController : MonoBehaviour
     private Rigidbody rb;
     private Vector3 moveInput;
     private Vector3 currentAimPoint;
+    private Coroutine hitFlashCoroutine;
+
+    private readonly List<Material> cachedHitFlashMaterials = new List<Material>();
+    private readonly List<Color> cachedHitFlashOriginalColors = new List<Color>();
+    private readonly List<int> cachedHitFlashColorPropertyIds = new List<int>();
+    private readonly List<bool> cachedHitFlashUsesEmission = new List<bool>();
+    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     // 新增：鼠标活动检测
     private bool mouseIsActive = false;
@@ -203,6 +219,7 @@ public class TopDownController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         if (animator == null) animator = GetComponent<Animator>();
+        CacheHitFlashRenderersIfNeeded();
 
 
         // 初始化武器
@@ -297,6 +314,108 @@ public class TopDownController : MonoBehaviour
     {
         PlayHitAnimation();
         TryPlayHungerDamageCameraShake();
+        PlayHitFlashFeedback();
+    }
+
+    private void CacheHitFlashRenderersIfNeeded()
+    {
+        if (hitFlashRenderers != null && hitFlashRenderers.Length > 0) return;
+
+        Transform root = animator != null ? animator.transform : transform;
+        hitFlashRenderers = root.GetComponentsInChildren<Renderer>(true);
+    }
+
+    private void PlayHitFlashFeedback()
+    {
+        if (isDead) return;
+        CacheHitFlashRenderersIfNeeded();
+        if (hitFlashRenderers == null || hitFlashRenderers.Length == 0) return;
+
+        if (hitFlashCoroutine != null)
+        {
+            StopCoroutine(hitFlashCoroutine);
+            RestoreHitFlashImmediate();
+        }
+
+        hitFlashCoroutine = StartCoroutine(HitFlashRoutine());
+    }
+
+    private IEnumerator HitFlashRoutine()
+    {
+        cachedHitFlashMaterials.Clear();
+        cachedHitFlashOriginalColors.Clear();
+        cachedHitFlashColorPropertyIds.Clear();
+        cachedHitFlashUsesEmission.Clear();
+
+        for (int i = 0; i < hitFlashRenderers.Length; i++)
+        {
+            Renderer r = hitFlashRenderers[i];
+            if (r == null) continue;
+
+            Material[] mats = r.materials;
+            for (int j = 0; j < mats.Length; j++)
+            {
+                Material mat = mats[j];
+                if (mat == null) continue;
+
+                int propId = 0;
+                bool useEmission = false;
+                if (mat.HasProperty(EmissionColorId))
+                {
+                    propId = EmissionColorId;
+                    useEmission = true;
+                }
+                else if (mat.HasProperty(BaseColorId)) propId = BaseColorId;
+                else if (mat.HasProperty(ColorId)) propId = ColorId;
+                if (propId == 0) continue;
+
+                cachedHitFlashMaterials.Add(mat);
+                cachedHitFlashOriginalColors.Add(mat.GetColor(propId));
+                cachedHitFlashColorPropertyIds.Add(propId);
+                cachedHitFlashUsesEmission.Add(useEmission);
+                if (useEmission) mat.EnableKeyword("_EMISSION");
+                mat.SetColor(propId, hitFlashColor);
+            }
+        }
+
+        if (hitFlashWhiteHoldTime > 0f)
+            yield return new WaitForSeconds(hitFlashWhiteHoldTime);
+
+        float duration = Mathf.Max(0.01f, hitFlashRestoreDuration);
+        float timer = 0f;
+        while (timer < duration)
+        {
+            float t = timer / duration;
+            for (int i = 0; i < cachedHitFlashMaterials.Count; i++)
+            {
+                Material mat = cachedHitFlashMaterials[i];
+                if (mat == null) continue;
+                int propId = cachedHitFlashColorPropertyIds[i];
+                Color origin = cachedHitFlashOriginalColors[i];
+                mat.SetColor(propId, Color.Lerp(hitFlashColor, origin, t));
+            }
+
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        RestoreHitFlashImmediate();
+        hitFlashCoroutine = null;
+    }
+
+    private void RestoreHitFlashImmediate()
+    {
+        for (int i = 0; i < cachedHitFlashMaterials.Count; i++)
+        {
+            Material mat = cachedHitFlashMaterials[i];
+            if (mat == null) continue;
+            int propId = cachedHitFlashColorPropertyIds[i];
+            mat.SetColor(propId, cachedHitFlashOriginalColors[i]);
+        }
+
+        cachedHitFlashMaterials.Clear();
+        cachedHitFlashOriginalColors.Clear();
+        cachedHitFlashColorPropertyIds.Clear();
     }
 
     private void TryPlayHungerDamageCameraShake()
@@ -986,6 +1105,13 @@ public class TopDownController : MonoBehaviour
     // 新增：在禁用时清理武器
     private void OnDisable()
     {
+        if (hitFlashCoroutine != null)
+        {
+            StopCoroutine(hitFlashCoroutine);
+            hitFlashCoroutine = null;
+            RestoreHitFlashImmediate();
+        }
+
         if (secondaryWeapon != null)
         {
             secondaryWeapon.OnControllerDisabled();
@@ -1004,6 +1130,13 @@ public class TopDownController : MonoBehaviour
         {
             secondaryWeapon.OnControllerDestroyed();
         }
+
+        if (hitFlashCoroutine != null)
+        {
+            StopCoroutine(hitFlashCoroutine);
+            hitFlashCoroutine = null;
+        }
+        RestoreHitFlashImmediate();
     }
     #endregion
 

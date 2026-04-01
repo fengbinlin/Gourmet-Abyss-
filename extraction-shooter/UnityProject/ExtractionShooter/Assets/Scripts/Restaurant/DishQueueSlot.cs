@@ -119,4 +119,12 @@ public class DishQueueSlot : MonoBehaviour
     {
         SetLockedPreviewSlot(true);
     }
+
+    /// <summary>食材飞行入队的落点：优先菜图标位置。</summary>
+    public Vector3 GetQueueFlyTargetWorldPosition()
+    {
+        if (dishIcon != null)
+            return dishIcon.transform.position;
+        return transform.position;
+    }
 }

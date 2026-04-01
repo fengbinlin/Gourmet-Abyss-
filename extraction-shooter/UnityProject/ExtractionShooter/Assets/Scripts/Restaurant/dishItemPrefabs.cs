@@ -149,8 +149,14 @@ public class dishItemPrefabs : MonoBehaviour
     /// <summary>点击整行选中（由 Inspector 手动绑定任意可点击按钮）。</summary>
     public void OnDishRowClicked()
     {
-        if (_owner != null)
-            _owner.SelectDishItemByIndex(_itemIndex);
+        if (_owner == null) return;
+
+        bool wasSelected = _owner.IsDishSelected(_itemIndex);
+        _owner.SelectDishItemByIndex(_itemIndex);
+
+        // 已选中时再次点击整行，等同点击“烹饪”按钮
+        if (wasSelected)
+            OnCookButtonClicked();
     }
 
     public void OnCookButtonClicked()
@@ -270,11 +276,7 @@ public class dishItemPrefabs : MonoBehaviour
 
     private static float GetColorMultiplier(bool selected, bool canCook)
     {
-        if (selected)
-        {
-            if (canCook) return 1f;
-            return 0.42f;
-        }
-        return canCook ? 0.62f : 0.42f;
+        if (canCook) return 1f;
+        return 0.42f;
     }
 }

@@ -48,6 +48,14 @@ public class InventoryManager : MonoBehaviour
         public Vector3 fromWorldPos;
     }
 
+    public struct IngredientFlySource
+    {
+        public ResourceType itemType;
+        public Sprite icon;
+        public int slotIndex;
+        public Vector3 fromWorldPos;
+    }
+
     private void Awake()
     {
         instance = this;
@@ -790,6 +798,51 @@ public class InventoryManager : MonoBehaviour
         if (GameValManager.Instance == null) return null;
         ResourceItem info = GameValManager.Instance.GetResourceInfo(type);
         return info != null ? info.Icon : null;
+    }
+
+    /// <summary>
+    /// 仅收集食材飞行起点，不扣除背包道具。每份需求会生成一个来源点。
+    /// </summary>
+    public bool TryBuildIngredientFlySourcesForRecipe(DishRecipe recipe, out List<IngredientFlySource> sources)
+    {
+        sources = new List<IngredientFlySource>();
+        if (recipe == null || recipe.ingredients == null) return false;
+
+        foreach (DishIngredient ing in recipe.ingredients)
+        {
+            if (ing == null || ing.requiredCount <= 0) continue;
+            int remain = ing.requiredCount;
+            Sprite icon = GetResourceIcon(ing.resourceType);
+
+            for (int i = 0; i < slots.Count && i < usableSlotCount && remain > 0; i++)
+            {
+                InventoryItemUI slot = slots[i];
+                if (slot == null || slot.IsEmpty()) continue;
+                if (slot.GetItemType() != ing.resourceType) continue;
+
+                int provide = Mathf.Min(remain, slot.GetCurrentCount());
+                for (int k = 0; k < provide; k++)
+                {
+                    sources.Add(new IngredientFlySource
+                    {
+                        itemType = ing.resourceType,
+                        icon = icon,
+                        slotIndex = i,
+                        fromWorldPos = slot.transform.position
+                    });
+                }
+
+                remain -= provide;
+            }
+
+            if (remain > 0)
+            {
+                sources.Clear();
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private IEnumerator PlayTransferToRestaurantEffects(List<TransferFlyRequest> requests)

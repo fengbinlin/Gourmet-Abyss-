@@ -53,6 +53,16 @@ public class RestaurantPanel : MonoBehaviour
     [Header("食材实例效果")]
     public GameObject ingredientInstancePrefab;  // 食材实例预制体
     public Transform ingredientSpawnParent;      // 生成父物体
+    [Header("背包 -> 排队槽 飞行动画")]
+    [SerializeField] private GameObject queueIngredientFlyPrefab;
+    [SerializeField] private Transform queueIngredientFlyParent;
+    [SerializeField] private RectTransform queueIngredientFlyUIRoot;
+    [SerializeField] private Camera queueIngredientFlyUICamera;
+    [SerializeField] private float queueIngredientFlyDuration = 0.32f;
+    [SerializeField] private float queueIngredientFlyArcHeight = 46f;
+    [SerializeField] private float queueIngredientSpawnInterval = 0.03f;
+    [SerializeField] private float queueIngredientLandingDuration = 0.14f;
+    [SerializeField] private float queueIngredientLandingScaleUp = 1.18f;
     [Header("菜碟配置")]
     public List<Plate> platesList = new List<Plate>(); //餐厅有的菜碟
     [Header("菜碟配置（全部候选）")]
@@ -389,8 +399,31 @@ public class RestaurantPanel : MonoBehaviour
             return false;
         }
 
-        if (!ConsumeIngredientsForRecipe(recipe))
+        if (InventoryManager.instance == null)
             return false;
+
+        if (!InventoryManager.instance.TryBuildIngredientFlySourcesForRecipe(recipe, out List<InventoryManager.IngredientFlySource> flySources))
+            return false;
+
+        StartCoroutine(CoEnqueueDishAfterIngredientFly(recipe, flySources));
+        return true;
+    }
+
+    private IEnumerator CoEnqueueDishAfterIngredientFly(DishRecipe recipe, List<InventoryManager.IngredientFlySource> flySources)
+    {
+        if (recipe == null) yield break;
+
+        int idx = FindSuitableCookQueueSlotIndex(recipe);
+        if (idx < 0) yield break;
+
+        yield return StartCoroutine(PlayIngredientFlyToQueueCoroutine(flySources, idx));
+
+        if (!ConsumeIngredientsForRecipe(recipe))
+            yield break;
+
+        idx = FindSuitableCookQueueSlotIndex(recipe);
+        if (idx < 0)
+            yield break;
 
         CookQueueStackEntry e = _cookQueueData[idx];
         if (e.IsEmpty)
@@ -404,10 +437,7 @@ public class RestaurantPanel : MonoBehaviour
         RefreshCookQueueUI();
         PulseCookQueueSlotIfValid(idx);
         TryDispatchQueueToPots();
-
         StartCoroutine(CoRefreshMenuUiDeferred());
-
-        return true;
     }
 
     private void PulseCookQueueSlotIfValid(int index)
@@ -476,6 +506,131 @@ public class RestaurantPanel : MonoBehaviour
     {
         if (InventoryManager.instance == null || recipe == null) return false;
         return InventoryManager.instance.TryConsumeIngredientsForRecipe(recipe);
+    }
+
+    private IEnumerator PlayIngredientFlyToQueueCoroutine(List<InventoryManager.IngredientFlySource> flySources, int queueIndex)
+    {
+        if (flySources == null || flySources.Count == 0)
+            yield break;
+
+        if (allDishQueueSlots == null || queueIndex < 0 || queueIndex >= allDishQueueSlots.Count)
+            yield break;
+        DishQueueSlot queueSlot = allDishQueueSlots[queueIndex];
+        if (queueSlot == null) yield break;
+
+        Vector3 targetWorldPos = queueSlot.GetQueueFlyTargetWorldPosition();
+        float spawnInterval = Mathf.Max(0f, queueIngredientSpawnInterval);
+
+        for (int i = 0; i < flySources.Count; i++)
+        {
+            StartCoroutine(PlaySingleIngredientFlyToQueueCoroutine(flySources[i], targetWorldPos));
+            if (spawnInterval > 0f)
+                yield return new WaitForSeconds(spawnInterval);
+        }
+
+        float wait = Mathf.Max(0.01f, queueIngredientFlyDuration + queueIngredientLandingDuration + 0.02f);
+        yield return new WaitForSeconds(wait);
+    }
+
+    private IEnumerator PlaySingleIngredientFlyToQueueCoroutine(InventoryManager.IngredientFlySource source, Vector3 targetWorldPos)
+    {
+        GameObject prefab = queueIngredientFlyPrefab != null ? queueIngredientFlyPrefab : ingredientInstancePrefab;
+        if (prefab == null) yield break;
+
+        GameObject flyObj = Instantiate(prefab, queueIngredientFlyParent);
+        if (flyObj == null) yield break;
+
+        IngredientInstanceController ingredientController = flyObj.GetComponent<IngredientInstanceController>();
+        if (ingredientController != null)
+            ingredientController.enabled = false;
+
+        if (source.icon != null)
+        {
+            Image img = flyObj.GetComponentInChildren<Image>(true);
+            if (img != null) img.sprite = source.icon;
+            SpriteRenderer sr = flyObj.GetComponentInChildren<SpriteRenderer>(true);
+            if (sr != null) sr.sprite = source.icon;
+        }
+
+        RectTransform flyRect = flyObj.GetComponent<RectTransform>();
+        bool isUIFly = flyRect != null && queueIngredientFlyUIRoot != null;
+        float duration = Mathf.Max(0.01f, queueIngredientFlyDuration);
+        float arc = queueIngredientFlyArcHeight;
+
+        if (isUIFly)
+        {
+            flyRect.SetParent(queueIngredientFlyUIRoot, false);
+            Vector2 startPos = WorldToAnchoredPosition(queueIngredientFlyUIRoot, source.fromWorldPos);
+            Vector2 endPos = WorldToAnchoredPosition(queueIngredientFlyUIRoot, targetWorldPos);
+            float elapsed = 0f;
+            flyRect.anchoredPosition = startPos;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                Vector2 p = Vector2.Lerp(startPos, endPos, t);
+                p.y += 4f * t * (1f - t) * arc;
+                flyRect.anchoredPosition = p;
+                yield return null;
+            }
+            flyRect.anchoredPosition = endPos;
+        }
+        else
+        {
+            Vector3 startPos = source.fromWorldPos;
+            float elapsed = 0f;
+            flyObj.transform.position = startPos;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                Vector3 p = Vector3.Lerp(startPos, targetWorldPos, t);
+                p.y += 4f * t * (1f - t) * (arc * 0.01f);
+                flyObj.transform.position = p;
+                yield return null;
+            }
+            flyObj.transform.position = targetWorldPos;
+        }
+
+        yield return StartCoroutine(CoPlayLandingScalePulse(flyObj.transform));
+        Destroy(flyObj);
+    }
+
+    private IEnumerator CoPlayLandingScalePulse(Transform target)
+    {
+        if (target == null) yield break;
+        Vector3 baseScale = target.localScale;
+        Vector3 peak = baseScale * Mathf.Max(1f, queueIngredientLandingScaleUp);
+        float duration = Mathf.Max(0.01f, queueIngredientLandingDuration);
+        float half = duration * 0.5f;
+
+        float elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / half);
+            target.localScale = Vector3.LerpUnclamped(baseScale, peak, t);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / half);
+            target.localScale = Vector3.LerpUnclamped(peak, baseScale, t);
+            yield return null;
+        }
+
+        target.localScale = baseScale;
+    }
+
+    private Vector2 WorldToAnchoredPosition(RectTransform root, Vector3 worldPos)
+    {
+        Camera cam = queueIngredientFlyUICamera;
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(root, screenPos, cam, out Vector2 localPos);
+        return localPos;
     }
 
     /// <summary>餐厅仅一口锅：使用 <see cref="potsList"/> 中第一个锅位（下标 0）。</summary>
@@ -603,6 +758,11 @@ public class RestaurantPanel : MonoBehaviour
         if (autoScrollToSelection)
             ScrollDishListToSelected();
         RefreshIngredientSideIndicators();
+    }
+
+    public bool IsDishSelected(int index)
+    {
+        return _selectedDishIndex == index;
     }
 
     private void HideIngredientSideIndicators()
