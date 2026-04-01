@@ -133,6 +133,22 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public int rotationShakeVibrato = 5;       // 旋转震动次数
     public float rotationShakeRandomness = 90f; // 旋转随机性
 
+    [Header("状态粒子特效（常驻）")]
+    public GameObject lockedStateVfx;
+    public GameObject unlockedStateVfx;
+    public GameObject learnableStateVfx;
+    public GameObject learnedStateVfx;
+
+    [Header("状态切换粒子特效（一次性）")]
+    public ParticleSystem unlockTransitionVfx;
+    public ParticleSystem learnedTransitionVfx;
+
+    [Header("悬停动效")]
+    public float hoverLoopScaleStrength = 0.08f;
+    public float hoverLoopScaleDuration = 0.35f;
+    public float hoverLoopRotateAngle = 6f;
+    public float hoverLoopRotateDuration = 0.4f;
+
     [Header("信息面板设置")]
     public Vector2 infoPanelOffset = new Vector2(0, 120f); // 面板偏移位置
     public float infoPanelShowDelay = 0.1f; // 鼠标进入后显示面板的延迟
@@ -150,6 +166,10 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private Coroutine showInfoPanelCoroutine;
     private Coroutine hideInfoPanelCoroutine;
     private bool isMouseOver = false;
+    private Tween hoverScaleTween;
+    private Tween hoverRotateTween;
+    private Vector3 defaultLocalScale = Vector3.one;
+    private Quaternion defaultLocalRotation = Quaternion.identity;
 
     public SkillNodeState State => currentState;
     public bool IsVisible => isVisible;
@@ -175,6 +195,9 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             button.onClick.AddListener(() => onNodeClicked?.Invoke(this));
         }
+
+        defaultLocalScale = transform.localScale;
+        defaultLocalRotation = transform.localRotation;
 
         // 初始化信息面板
         if (infoPanel != null)
@@ -203,6 +226,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                                   (previousState == SkillNodeState.Unlocked && newState == SkillNodeState.Learned);
 
         UpdateVisuals(true);
+        PlayStateTransitionVfx(previousState, newState);
 
         if (shouldPlayAnimation && isVisible)
         {
@@ -408,6 +432,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             case SkillNodeState.Locked:
                 SetNodeColor(lockedColor);
+                ApplyStateVfx(SkillNodeState.Locked, false);
 
                 if (lockIcon != null && lockIcon.activeSelf != true)
                 {
@@ -453,11 +478,13 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
                 // 按资源状态决定学习按钮是否可点
                 bool canLearn = resourceEnough && CanLearn();
+                ApplyStateVfx(SkillNodeState.Unlocked, canLearn);
                 if (learnButton != null) learnButton.interactable = canLearn;
                 break;
 
             case SkillNodeState.Learned:
                 SetNodeColor(learnedColor);
+                ApplyStateVfx(SkillNodeState.Learned, false);
 
                 if (lockIcon != null && lockIcon.activeSelf != false)
                 {
@@ -472,6 +499,29 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                     learnButton.interactable = false;
                 }
                 break;
+        }
+    }
+
+    private void ApplyStateVfx(SkillNodeState state, bool isLearnable)
+    {
+        if (lockedStateVfx != null) lockedStateVfx.SetActive(state == SkillNodeState.Locked);
+        if (unlockedStateVfx != null) unlockedStateVfx.SetActive(state == SkillNodeState.Unlocked && !isLearnable);
+        if (learnableStateVfx != null) learnableStateVfx.SetActive(state == SkillNodeState.Unlocked && isLearnable);
+        if (learnedStateVfx != null) learnedStateVfx.SetActive(state == SkillNodeState.Learned);
+    }
+
+    private void PlayStateTransitionVfx(SkillNodeState previousState, SkillNodeState newState)
+    {
+        if (previousState == newState) return;
+
+        if (previousState == SkillNodeState.Locked && newState == SkillNodeState.Unlocked && unlockTransitionVfx != null)
+        {
+            unlockTransitionVfx.Play();
+        }
+
+        if (newState == SkillNodeState.Learned && learnedTransitionVfx != null)
+        {
+            learnedTransitionVfx.Play();
         }
     }
 
@@ -508,7 +558,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public void TryLearn()
     {
         transform.DOKill(true);
-        transform.localRotation = Quaternion.identity;
+        transform.localRotation = defaultLocalRotation;
         if (!isVisible) return;
         var cost = skillData.GetCurrentUpgradeCost();
         if (CanLearn() && GameValManager.Instance.TryConsumeResource(cost.costType, cost.costAmount))
@@ -519,9 +569,9 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
             // ✅ 先杀掉现有动画并重置
             transform.DOKill(true);
-            transform.localRotation = Quaternion.identity;
+            transform.localRotation = defaultLocalRotation;
             print("恢复旋转");
-            transform.localScale = Vector3.one;
+            transform.localScale = defaultLocalScale;
 
             Sequence learnSequence = DOTween.Sequence();
             learnSequence.Append(transform.DOScale(1.2f, 0.1f).SetEase(Ease.OutCubic));
@@ -529,7 +579,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             learnSequence.Append(transform.DOScale(1f, 0.1f).SetEase(Ease.InCubic));
             learnSequence.OnComplete(() =>
             {
-                transform.localRotation = Quaternion.identity; // 强制归位
+                transform.localRotation = defaultLocalRotation; // 强制归位
             });
 
             if (skillTree != null)
@@ -580,7 +630,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
         if (currentState != SkillNodeState.Locked && isVisible)
         {
-            transform.DOScale(hoverScale, 0.2f).SetEase(Ease.OutCubic);
+            StartHoverMotion();
         }
 
         // 延迟显示信息面板
@@ -602,9 +652,9 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         isMouseOver = false;
 
-        if (isVisible)
+        if (isVisible && currentState != SkillNodeState.Locked)
         {
-            transform.DOScale(1f, 0.2f).SetEase(Ease.OutCubic);
+            StopHoverMotion(true);
         }
 
         // 延迟隐藏信息面板
@@ -639,6 +689,39 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         {
             HideInfoPanel();
         }
+    }
+
+    private void StartHoverMotion()
+    {
+        StopHoverMotion(false);
+
+        float targetScaleFactor = Mathf.Max(1f, hoverScale) + hoverLoopScaleStrength;
+        Vector3 targetScale = defaultLocalScale * targetScaleFactor;
+
+        hoverScaleTween = transform.DOScale(targetScale, hoverLoopScaleDuration)
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo);
+
+        float clampedAngle = Mathf.Clamp(hoverLoopRotateAngle, 0f, 30f);
+        hoverRotateTween = transform.DOLocalRotate(
+                new Vector3(defaultLocalRotation.eulerAngles.x, defaultLocalRotation.eulerAngles.y, clampedAngle),
+                hoverLoopRotateDuration
+            )
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo);
+    }
+
+    private void StopHoverMotion(bool resetTransform)
+    {
+        hoverScaleTween?.Kill();
+        hoverRotateTween?.Kill();
+        hoverScaleTween = null;
+        hoverRotateTween = null;
+
+        if (!resetTransform) return;
+
+        transform.DOScale(defaultLocalScale, 0.2f).SetEase(Ease.OutCubic);
+        transform.DOLocalRotateQuaternion(defaultLocalRotation, 0.2f).SetEase(Ease.OutCubic);
     }
 
     private void ShowInfoPanel()
@@ -760,5 +843,8 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         // 对象被禁用时隐藏信息面板
         HideInfoPanel();
+        StopHoverMotion(false);
+        transform.localScale = defaultLocalScale;
+        transform.localRotation = defaultLocalRotation;
     }
 }

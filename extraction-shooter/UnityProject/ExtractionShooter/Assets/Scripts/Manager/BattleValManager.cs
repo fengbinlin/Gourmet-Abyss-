@@ -157,14 +157,16 @@ public class BattleValManager : MonoBehaviour
         }
 
         // 弹夹进度条：装填时快速变满（平滑），开火时也平滑减少
-        if (primaryMagazineImage != null && primaryReserveAmmoMax > 0)
+        int primaryEffectiveMagazineMax = GetPrimaryEffectiveMagazineMax();
+        if (primaryMagazineImage != null && primaryEffectiveMagazineMax > 0)
         {
-            primaryMagazineUiFillCurrent = primaryReserveAmmoCurrent * 1.0f / primaryReserveAmmoMax;
+            primaryMagazineUiFillCurrent = primaryReserveAmmoCurrent * 1.0f / primaryEffectiveMagazineMax;
             primaryMagazineImage.fillAmount = primaryMagazineUiFillCurrent;
         }
-        if (secondaryMagazineImage != null && secondaryReserveAmmoMax > 0)
+        int secondaryEffectiveMagazineMax = GetSecondaryEffectiveMagazineMax();
+        if (secondaryMagazineImage != null && secondaryEffectiveMagazineMax > 0)
         {
-            secondaryMagazineUiFillCurrent = secondaryReserveAmmoCurrent * 1.0f / secondaryReserveAmmoMax;
+            secondaryMagazineUiFillCurrent = secondaryReserveAmmoCurrent * 1.0f / secondaryEffectiveMagazineMax;
             secondaryMagazineImage.fillAmount = secondaryMagazineUiFillCurrent;
         }
 
@@ -487,8 +489,8 @@ public class BattleValManager : MonoBehaviour
         secondaryAmmoCurrent = secondaryAmmoMax;
 
         // 弹夹：默认一管子弹（从总弹药中取，但第一次不扣总弹药UI）
-        primaryReserveAmmoCurrent = Mathf.Min(primaryReserveAmmoMax, primaryAmmoCurrent);
-        secondaryReserveAmmoCurrent = Mathf.Min(secondaryReserveAmmoMax, secondaryAmmoCurrent);
+        primaryReserveAmmoCurrent = Mathf.Min(GetPrimaryEffectiveMagazineMax(), primaryAmmoCurrent);
+        secondaryReserveAmmoCurrent = Mathf.Min(GetSecondaryEffectiveMagazineMax(), secondaryAmmoCurrent);
 
         healthTips.SetActive(false);
         // 重置进度条到初始状态
@@ -515,9 +517,10 @@ public class BattleValManager : MonoBehaviour
         if (subWeaponImage != null && secondaryAmmoMax > 0)
             subWeaponImage.fillAmount = subWeaponUiFillCurrent;
 
-        if (primaryMagazineImage != null && primaryReserveAmmoMax > 0)
+        int primaryEffectiveMagazineMax = GetPrimaryEffectiveMagazineMax();
+        if (primaryMagazineImage != null && primaryEffectiveMagazineMax > 0)
         {
-            float target = primaryReserveAmmoCurrent * 1.0f / primaryReserveAmmoMax;
+            float target = primaryReserveAmmoCurrent * 1.0f / primaryEffectiveMagazineMax;
             primaryMagazineUiFillCurrent = Mathf.MoveTowards(
                 primaryMagazineUiFillCurrent,
                 target,
@@ -525,9 +528,10 @@ public class BattleValManager : MonoBehaviour
             );
             primaryMagazineImage.fillAmount = primaryMagazineUiFillCurrent;
         }
-        if (secondaryMagazineImage != null && secondaryReserveAmmoMax > 0)
+        int secondaryEffectiveMagazineMax = GetSecondaryEffectiveMagazineMax();
+        if (secondaryMagazineImage != null && secondaryEffectiveMagazineMax > 0)
         {
-            float target = secondaryReserveAmmoCurrent * 1.0f / secondaryReserveAmmoMax;
+            float target = secondaryReserveAmmoCurrent * 1.0f / secondaryEffectiveMagazineMax;
             secondaryMagazineUiFillCurrent = Mathf.MoveTowards(
                 secondaryMagazineUiFillCurrent,
                 target,
@@ -578,12 +582,22 @@ public class BattleValManager : MonoBehaviour
     #endregion
 
     #region 弹夹装填逻辑
+    private int GetPrimaryEffectiveMagazineMax()
+    {
+        return Mathf.Max(1, Mathf.Min(primaryReserveAmmoMax, primaryAmmoMax));
+    }
+
+    private int GetSecondaryEffectiveMagazineMax()
+    {
+        return Mathf.Max(1, Mathf.Min(secondaryReserveAmmoMax, secondaryAmmoMax));
+    }
+
     public void ReloadPrimaryMagazine()
     {
         // 弹夹装填完成时：从“总弹药”里扣除本次装填的子弹
         if (primaryAmmoCurrent <= 0) return;
 
-        int bulletsToLoad = Mathf.Min(primaryReserveAmmoMax, primaryAmmoCurrent);
+        int bulletsToLoad = Mathf.Min(GetPrimaryEffectiveMagazineMax(), primaryAmmoCurrent);
         if (bulletsToLoad <= 0) return;
 
         primaryAmmoCurrent -= bulletsToLoad;
@@ -595,7 +609,7 @@ public class BattleValManager : MonoBehaviour
     {
         if (secondaryAmmoCurrent <= 0) return;
 
-        int bulletsToLoad = Mathf.Min(secondaryReserveAmmoMax, secondaryAmmoCurrent);
+        int bulletsToLoad = Mathf.Min(GetSecondaryEffectiveMagazineMax(), secondaryAmmoCurrent);
         if (bulletsToLoad <= 0) return;
 
         secondaryAmmoCurrent -= bulletsToLoad;

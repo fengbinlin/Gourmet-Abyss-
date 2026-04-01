@@ -24,10 +24,21 @@ public class InventoryManager : MonoBehaviour
     [SerializeField] private float transferFlyArcHeight = 45f;
     [SerializeField] private float transferSpawnInterval = 0.04f;
 
+    [Header("背包槽位入场动效")]
+    [SerializeField] private bool playEntranceOnStart = true;
+    [SerializeField] private float slotEntranceDelayStep = 0.045f;
+    [SerializeField] private float slotEntranceDuration = 0.42f;
+    [SerializeField] private float slotEntranceFromYOffset = -95f;
+    [SerializeField] private float slotEntranceOverhead = 42f;
+    [SerializeField] private float slotEntranceStartScale = 0.84f;
+    [SerializeField] private float slotLandingWobbleDuration = 0.28f;
+    [SerializeField] private float slotLandingWobbleScale = 1.18f;
+
     // 格子列表（含多出的 1 格锁定预览；真正可用数见 usableSlotCount）
     private List<InventoryItemUI> slots = new List<InventoryItemUI>();
     /// <summary>与 WeaponStatsManager.inventorySlotCount 一致，不含多出来的预览格。</summary>
     private int usableSlotCount;
+    private Coroutine slotEntranceCoroutine;
 
     private struct TransferFlyRequest
     {
@@ -92,6 +103,11 @@ public class InventoryManager : MonoBehaviour
         // AddItem(ResourceType.LootMushroom, 4);
         // AddItem(ResourceType.LootPumkin, 4);
         OnInventoryStatsUpdated();
+
+        if (playEntranceOnStart)
+        {
+            PlaySlotsEntranceAnimation();
+        }
     }
 
     private void OnDestroy()
@@ -327,6 +343,91 @@ public class InventoryManager : MonoBehaviour
 
         slots.Add(slotUI);
         return slotUI;
+    }
+
+    public void PlaySlotsEntranceAnimation()
+    {
+        if (!isActiveAndEnabled || slots == null || slots.Count == 0) return;
+        if (slotEntranceCoroutine != null)
+            StopCoroutine(slotEntranceCoroutine);
+        slotEntranceCoroutine = StartCoroutine(CoPlaySlotsEntranceAnimation());
+    }
+
+    private IEnumerator CoPlaySlotsEntranceAnimation()
+    {
+        yield return null; // 等待一帧，确保 GridLayout 已经完成布局
+
+        float delayStep = Mathf.Max(0f, slotEntranceDelayStep);
+        for (int i = 0; i < slots.Count; i++)
+        {
+            InventoryItemUI slot = slots[i];
+            if (slot == null) continue;
+            StartCoroutine(CoAnimateSingleSlotEntrance(slot.transform as RectTransform));
+            if (delayStep > 0f)
+                yield return new WaitForSeconds(delayStep);
+        }
+
+        slotEntranceCoroutine = null;
+    }
+
+    private IEnumerator CoAnimateSingleSlotEntrance(RectTransform slotRect)
+    {
+        if (slotRect == null) yield break;
+
+        Vector2 endPos = slotRect.anchoredPosition;
+        Vector2 startPos = endPos + new Vector2(0f, slotEntranceFromYOffset);
+        Vector3 baseScale = slotRect.localScale;
+        CanvasGroup cg = slotRect.GetComponent<CanvasGroup>();
+        bool addedCanvasGroup = false;
+        if (cg == null)
+        {
+            cg = slotRect.gameObject.AddComponent<CanvasGroup>();
+            addedCanvasGroup = true;
+        }
+
+        float duration = Mathf.Max(0.05f, slotEntranceDuration);
+        float overhead = Mathf.Max(0f, slotEntranceOverhead);
+        float startScaleMul = Mathf.Clamp(slotEntranceStartScale, 0.5f, 1.2f);
+        float elapsed = 0f;
+        cg.alpha = 0f;
+        slotRect.anchoredPosition = startPos;
+        slotRect.localScale = baseScale * startScaleMul;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 3f); // 丝滑减速
+            Vector2 pos = Vector2.LerpUnclamped(startPos, endPos, eased);
+            pos.y += 4f * t * (1f - t) * overhead; // overhead 抛物线
+            slotRect.anchoredPosition = pos;
+            slotRect.localScale = Vector3.LerpUnclamped(baseScale * startScaleMul, baseScale, eased);
+            cg.alpha = Mathf.LerpUnclamped(0f, 1f, eased);
+            yield return null;
+        }
+
+        slotRect.anchoredPosition = endPos;
+        slotRect.localScale = baseScale;
+        cg.alpha = 1f;
+
+        float wobbleDuration = Mathf.Max(0.01f, slotLandingWobbleDuration);
+        float wobblePeak = Mathf.Max(1f, slotLandingWobbleScale);
+        float wobbleElapsed = 0f;
+        while (wobbleElapsed < wobbleDuration)
+        {
+            wobbleElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(wobbleElapsed / wobbleDuration);
+            float dampedWave = Mathf.Sin(t * Mathf.PI * 2.2f) * (1f - t);
+            float mul = 1f + (wobblePeak - 1f) * dampedWave;
+            slotRect.localScale = baseScale * mul;
+            yield return null;
+        }
+        slotRect.localScale = baseScale;
+
+        if (addedCanvasGroup && cg != null)
+        {
+            Destroy(cg);
+        }
     }
 
     // 添加物品到背包

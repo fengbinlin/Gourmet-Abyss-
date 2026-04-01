@@ -307,6 +307,7 @@ public class LevelManager : MonoBehaviour
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
+        InventoryManager.instance?.PlaySlotsEntranceAnimation();
     }
 
     private IEnumerator FromLevelToHomeProcess(string levelName)
@@ -389,6 +390,7 @@ public class LevelManager : MonoBehaviour
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
         UIManager.instance?.SetBattleUIActive(false);
         BattleValManager.Instance?.ResetValues();
+        InventoryManager.instance?.PlaySlotsEntranceAnimation();
     }
 
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
