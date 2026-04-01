@@ -16,6 +16,9 @@ public class CookBookTreasure : MonoBehaviour
     public float timeNeedToHold = 2f;
     public bool isOpen = false;
 
+    [Header("特效")]
+    public GameObject vfxObject;
+
     [Header("掉落动画参数")]
     [Tooltip("宝箱前方生成宝物的水平偏移距离")]
     public float spawnForwardOffset = -2f;
@@ -38,15 +41,12 @@ public class CookBookTreasure : MonoBehaviour
     private void Start()
     {
         // 如果配置了只允许开启一次，并且 Data 标记为已经开启过
-        // 则在生成时直接设置为已开启状态，并禁止再开启
+        // 则在生成时直接销毁宝箱
         if (data != null && data.onlyOpenOnce && data.hasBeenOpened)
         {
             isOpen = true;
-            if (_animator != null)
-            {
-                // 按需求调用 TresasureHasBeenOpen Trigger，让宝箱直接显示为开启后的状态
-                _animator.SetTrigger("TresasureHasBeenOpen");
-            }
+            if (vfxObject != null) vfxObject.SetActive(false);
+            Destroy(gameObject);
         }
     }
 
@@ -68,6 +68,7 @@ public class CookBookTreasure : MonoBehaviour
         }
 
         isOpen = true;
+        if (vfxObject != null) vfxObject.SetActive(false);
 
         if (_animator != null)
         {

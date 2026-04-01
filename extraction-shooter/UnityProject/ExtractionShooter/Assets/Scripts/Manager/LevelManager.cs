@@ -14,6 +14,7 @@ public class LevelManager : MonoBehaviour
     [Header("场景对象")]
     public GameObject homeSceneObject;
     public GameObject restaurantObject;
+    public GameObject postProcessObject;
 
     [Header("过渡系统")]
     public EmissionTransition emissionTransition;
@@ -173,6 +174,10 @@ public class LevelManager : MonoBehaviour
         {
             homeSceneObject.SetActive(false);
         }
+        if (postProcessObject != null)
+        {
+            postProcessObject.SetActive(false);
+        }
         MoveRestaurantForBattle();
         KeepMainCamera.instance.tKeepMainCamera();
 
@@ -278,6 +283,10 @@ public class LevelManager : MonoBehaviour
         {
             homeSceneObject.SetActive(true);
         }
+        if (postProcessObject != null)
+        {
+            postProcessObject.SetActive(true);
+        }
         RestoreRestaurantToHomePosition();
 
         // 7. 主场景车辆从白色过渡到原色
@@ -362,6 +371,10 @@ public class LevelManager : MonoBehaviour
         if (homeSceneObject != null)
         {
             homeSceneObject.SetActive(true);
+        }
+        if (postProcessObject != null)
+        {
+            postProcessObject.SetActive(true);
         }
         RestoreRestaurantToHomePosition();
         KeepMainCamera.instance.tKeepMainCamera();

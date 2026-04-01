@@ -219,8 +219,23 @@ public class SkillTree : MonoBehaviour
         lineRenderer.positionCount = 2;
         lineRenderer.startWidth = lineWidth;
         lineRenderer.endWidth = lineWidth;
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.textureMode = LineTextureMode.Tile;
+
+        // 材质必须从预制体克隆，否则自发光等属性无法继承/独立调参
+        if (lineRendererPrefab != null)
+        {
+            var prefabShared = lineRendererPrefab.sharedMaterial;
+            if (prefabShared != null)
+            {
+                var instanceMat = new Material(prefabShared);
+                // 兼容开启自发光关键字（部分 Shader 需要）
+                if (instanceMat.HasProperty("_EmissionColor"))
+                {
+                    instanceMat.EnableKeyword("_EMISSION");
+                }
+                lineRenderer.material = instanceMat; // 每条线独立实例
+            }
+        }
     }
 
     private void UpdateAllLines(bool immediate = false)

@@ -9,6 +9,8 @@ public class Treasure : MonoBehaviour
 {
     public float timeNeedToHold = 2;
     public bool isOpen = false;
+    [Header("特效")]
+    public GameObject vfxObject;
 
     // 宝箱前方生成宝物的水平偏移距离
     public float spawnForwardOffset = -2f;
@@ -20,7 +22,11 @@ public class Treasure : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-
+        if (isOpen)
+        {
+            if (vfxObject != null) vfxObject.SetActive(false);
+            Destroy(gameObject);
+        }
     }
 
     // Update is called once per frame
@@ -32,6 +38,7 @@ public class Treasure : MonoBehaviour
     public void Open()
     {
         isOpen = true;
+        if (vfxObject != null) vfxObject.SetActive(false);
         transform.GetComponent<Animator>().SetTrigger("Open");
         print("宝箱打开");
         // 调用生成随机已解锁宝物的方法

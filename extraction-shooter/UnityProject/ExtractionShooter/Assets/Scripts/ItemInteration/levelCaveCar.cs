@@ -19,6 +19,13 @@ public class levelCaveCar : MonoBehaviour
     [SerializeField] private float pulseScaleMultiplier = 1.12f;
     private Vector3 originalScale;
     private Coroutine pulseCoroutine;
+
+    [Header("返回地面特效")]
+    [SerializeField] private GameObject returnToHomeVfxPrefab;
+    [SerializeField] private Transform returnToHomeVfxSpawnPoint;
+    [SerializeField] private bool useSpawnPointRotation = false;
+    [SerializeField] private Vector3 returnToHomeVfxPositionOffset = Vector3.zero;
+    [SerializeField] private Vector3 returnToHomeVfxRotationOffset = Vector3.zero;
     
     private void Awake()
     {
@@ -46,6 +53,8 @@ public class levelCaveCar : MonoBehaviour
     {
         if (LevelManager.instance == null || LevelManager.instance.IsTransitioning())
             return;
+
+        SpawnReturnToHomeVfx();
             
         LevelManager.instance.FromLevelToHome(levelName);
         
@@ -59,6 +68,17 @@ public class levelCaveCar : MonoBehaviour
         {
             player.GetComponent<TopDownController>().enabled = false;
         }
+    }
+
+    private void SpawnReturnToHomeVfx()
+    {
+        if (returnToHomeVfxPrefab == null) return;
+
+        Transform spawnPoint = returnToHomeVfxSpawnPoint != null ? returnToHomeVfxSpawnPoint : transform;
+        Vector3 spawnPosition = spawnPoint.TransformPoint(returnToHomeVfxPositionOffset);
+        Quaternion baseRotation = useSpawnPointRotation ? spawnPoint.rotation : Quaternion.identity;
+        Quaternion spawnRotation = baseRotation * Quaternion.Euler(returnToHomeVfxRotationOffset);
+        Instantiate(returnToHomeVfxPrefab, spawnPosition, spawnRotation);
     }
     
     private void OnTriggerEnter(Collider other)

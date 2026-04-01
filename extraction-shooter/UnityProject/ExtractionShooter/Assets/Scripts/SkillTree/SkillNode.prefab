@@ -785,10 +785,16 @@ MonoBehaviour:
   learnedStateVfx: {fileID: 0}
   unlockTransitionVfx: {fileID: 0}
   learnedTransitionVfx: {fileID: 0}
-  hoverLoopScaleStrength: 0.05
+  hoverLoopScaleStrength: 0.01
   hoverLoopScaleDuration: 0.2
-  hoverLoopRotateAngle: 2
-  hoverLoopRotateDuration: 0.03
+  hoverTiltAmount: 0
+  hoverTiltFollowSpeed: 0
+  hoverAutoFloatAmount: 24
+  clickScaleAmount: 0.08
+  clickPunchDuration: 0.16
+  clickRotatePunch: 8
+  shakePivot: {fileID: 0}
+  tiltPivot: {fileID: 0}
   infoPanelOffset: {x: 0, y: 1500}
   infoPanelShowDelay: 0.1
   infoPanelHideDelay: 0.1
@@ -1495,7 +1501,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: 453235855acef3148a7e80a066ea74f7, type: 2}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -1570,7 +1576,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: 453235855acef3148a7e80a066ea74f7, type: 2}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -1902,7 +1908,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: 453235855acef3148a7e80a066ea74f7, type: 2}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -2159,7 +2165,7 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
     m_ConstantMin: 0
-    m_ConstantMax: 0.23
+    m_ConstantMax: 0.19
   _startSpeed:
     m_Mode: 3
     m_CurveMultiplier: 0
@@ -2175,8 +2181,8 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    m_ConstantMin: 6
-    m_ConstantMax: 7
+    m_ConstantMin: 4
+    m_ConstantMax: 6
   _colorOverLifetime:
     m_Mode: 1
     m_GradientMin:

@@ -96,7 +96,7 @@ public enum SkillNodeState
     Learned     // 已学习
 }
 
-public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
 {
     [Header("技能数据")]
     public SkillNodeData skillData;
@@ -146,8 +146,18 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     [Header("悬停动效")]
     public float hoverLoopScaleStrength = 0.08f;
     public float hoverLoopScaleDuration = 0.35f;
-    public float hoverLoopRotateAngle = 6f;
-    public float hoverLoopRotateDuration = 0.4f;
+    public float hoverTiltAmount = 8f;
+    public float hoverTiltFollowSpeed = 16f;
+    public float hoverAutoFloatAmount = 2.5f;
+
+    [Header("点击动效")]
+    public float clickScaleAmount = 0.08f;
+    public float clickPunchDuration = 0.16f;
+    public float clickRotatePunch = 8f;
+
+    [Header("动效层级（可选）")]
+    public Transform shakePivot;
+    public Transform tiltPivot;
 
     [Header("信息面板设置")]
     public Vector2 infoPanelOffset = new Vector2(0, 120f); // 面板偏移位置
@@ -167,9 +177,11 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private Coroutine hideInfoPanelCoroutine;
     private bool isMouseOver = false;
     private Tween hoverScaleTween;
-    private Tween hoverRotateTween;
     private Vector3 defaultLocalScale = Vector3.one;
     private Quaternion defaultLocalRotation = Quaternion.identity;
+    private bool isPointerDown = false;
+    private Quaternion defaultTiltLocalRotation = Quaternion.identity;
+    private Quaternion defaultShakeLocalRotation = Quaternion.identity;
 
     public SkillNodeState State => currentState;
     public bool IsVisible => isVisible;
@@ -199,6 +211,11 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         defaultLocalScale = transform.localScale;
         defaultLocalRotation = transform.localRotation;
 
+        if (shakePivot == null) shakePivot = transform;
+        if (tiltPivot == null) tiltPivot = transform;
+        defaultShakeLocalRotation = shakePivot.localRotation;
+        defaultTiltLocalRotation = tiltPivot.localRotation;
+
         // 初始化信息面板
         if (infoPanel != null)
         {
@@ -209,6 +226,11 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private void Start()
     {
         UpdateVisuals(true);
+    }
+
+    private void Update()
+    {
+        UpdateHoverTilt();
     }
 
     public void SetState(SkillNodeState newState, bool forceUpdate = false)
@@ -695,6 +717,8 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         StopHoverMotion(false);
 
+        ResetMotionToDefaultInstant();
+
         float targetScaleFactor = Mathf.Max(1f, hoverScale) + hoverLoopScaleStrength;
         Vector3 targetScale = defaultLocalScale * targetScaleFactor;
 
@@ -702,26 +726,110 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             .SetEase(Ease.InOutSine)
             .SetLoops(-1, LoopType.Yoyo);
 
-        float clampedAngle = Mathf.Clamp(hoverLoopRotateAngle, 0f, 30f);
-        hoverRotateTween = transform.DOLocalRotate(
-                new Vector3(defaultLocalRotation.eulerAngles.x, defaultLocalRotation.eulerAngles.y, clampedAngle),
-                hoverLoopRotateDuration
-            )
-            .SetEase(Ease.InOutSine)
-            .SetLoops(-1, LoopType.Yoyo);
+        if (shakePivot != null)
+        {
+            shakePivot.DOPunchRotation(
+                Vector3.forward * 6f,
+                0.16f,
+                10,
+                0.8f
+            );
+        }
     }
 
     private void StopHoverMotion(bool resetTransform)
     {
         hoverScaleTween?.Kill();
-        hoverRotateTween?.Kill();
         hoverScaleTween = null;
-        hoverRotateTween = null;
 
         if (!resetTransform) return;
 
         transform.DOScale(defaultLocalScale, 0.2f).SetEase(Ease.OutCubic);
-        transform.DOLocalRotateQuaternion(defaultLocalRotation, 0.2f).SetEase(Ease.OutCubic);
+        if (tiltPivot != null)
+            tiltPivot.DOLocalRotateQuaternion(defaultTiltLocalRotation, 0.2f).SetEase(Ease.OutCubic);
+        if (shakePivot != null)
+            shakePivot.DOLocalRotateQuaternion(defaultShakeLocalRotation, 0.2f).SetEase(Ease.OutCubic);
+    }
+
+    private void ResetMotionToDefaultInstant()
+    {
+        transform.DOKill(true);
+        if (tiltPivot != null) tiltPivot.DOKill(true);
+        if (shakePivot != null) shakePivot.DOKill(true);
+
+        transform.localScale = defaultLocalScale;
+        transform.localRotation = defaultLocalRotation;
+        if (tiltPivot != null) tiltPivot.localRotation = defaultTiltLocalRotation;
+        if (shakePivot != null) shakePivot.localRotation = defaultShakeLocalRotation;
+    }
+
+    private void UpdateHoverTilt()
+    {
+        if (!isMouseOver || !isVisible || currentState == SkillNodeState.Locked)
+            return;
+
+        if (Camera.main == null)
+            return;
+
+        Transform tiltTarget = tiltPivot != null ? tiltPivot : transform;
+        Vector3 screenPos = RectTransformUtility.WorldToScreenPoint(Camera.main, tiltTarget.position);
+        Vector2 delta = (Vector2)Input.mousePosition - (Vector2)screenPos;
+        float normalizedX = Mathf.Clamp(delta.x / 180f, -1f, 1f);
+        float normalizedY = Mathf.Clamp(delta.y / 180f, -1f, 1f);
+
+        // 统一相位：不依赖 siblingIndex，避免同一节点在不同布局/刷新后相位漂移
+        float autoWaveX = Mathf.Sin(Time.unscaledTime * 2.4f) * hoverAutoFloatAmount;
+        float autoWaveY = Mathf.Cos(Time.unscaledTime * 2.1f) * hoverAutoFloatAmount;
+
+        Vector3 baseEuler = defaultTiltLocalRotation.eulerAngles;
+        Vector3 targetEuler = new Vector3(
+            baseEuler.x + (-normalizedY * hoverTiltAmount) + autoWaveX,
+            baseEuler.y + (normalizedX * hoverTiltAmount) + autoWaveY,
+            baseEuler.z
+        );
+
+        Quaternion targetRotation = Quaternion.Euler(targetEuler);
+        tiltTarget.localRotation = Quaternion.Lerp(
+            tiltTarget.localRotation,
+            targetRotation,
+            hoverTiltFollowSpeed * Time.unscaledDeltaTime
+        );
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (!isVisible || currentState == SkillNodeState.Locked)
+            return;
+
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        isPointerDown = true;
+        transform.DOScale(defaultLocalScale * (Mathf.Max(1f, hoverScale) - clickScaleAmount), 0.08f).SetEase(Ease.OutQuad);
+        if (shakePivot != null)
+            shakePivot.DOPunchRotation(Vector3.forward * -clickRotatePunch, clickPunchDuration, 10, 1f);
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        if (!isPointerDown)
+            return;
+
+        isPointerDown = false;
+
+        if (isMouseOver && isVisible && currentState != SkillNodeState.Locked)
+        {
+            transform.DOScale(defaultLocalScale * Mathf.Max(1f, hoverScale), 0.12f).SetEase(Ease.OutBack);
+            if (shakePivot != null)
+                shakePivot.DOPunchRotation(Vector3.forward * (clickRotatePunch * 0.6f), 0.12f, 8, 0.8f);
+        }
+        else
+        {
+            StopHoverMotion(true);
+        }
     }
 
     private void ShowInfoPanel()
@@ -844,7 +952,10 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         // 对象被禁用时隐藏信息面板
         HideInfoPanel();
         StopHoverMotion(false);
+        isPointerDown = false;
         transform.localScale = defaultLocalScale;
         transform.localRotation = defaultLocalRotation;
+        if (tiltPivot != null) tiltPivot.localRotation = defaultTiltLocalRotation;
+        if (shakePivot != null) shakePivot.localRotation = defaultShakeLocalRotation;
     }
 }
