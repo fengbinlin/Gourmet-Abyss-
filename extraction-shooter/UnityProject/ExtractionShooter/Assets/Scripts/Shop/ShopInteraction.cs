@@ -36,6 +36,8 @@ public class ShopInteraction : MonoBehaviour
 
     [Header("打开商店 UI 时相机（对准餐厅第一口锅）")]
     [SerializeField] private float shopUiOrthoSize = 5.5f;
+    [Tooltip("打开商店 UI 时，相机 Y 轴额外向下偏移（世界坐标，Y_focus = 锅位Y - 偏移）。正值会让相机更低。")]
+    [SerializeField] private float shopCameraYDownOffset = 0.35f;
 
     [Header("进入餐厅范围：首锅缩放提示")]
     [SerializeField] private float firstPotEnterPulsePeak = 1.14f;
@@ -294,7 +296,7 @@ public class ShopInteraction : MonoBehaviour
             return;
         Vector3 w = panel.potsList[0].transform.position;
         CameraFollow.PushXFocusRequest(ShopCameraUiKey, w.x);
-        CameraFollow.PushYFocusRequest(ShopCameraUiKey, w.y);
+        CameraFollow.PushYFocusRequest(ShopCameraUiKey, w.y - shopCameraYDownOffset);
         CameraFollow.PushOrthoSizeRequest(ShopCameraUiKey, Mathf.Max(0.5f, shopUiOrthoSize));
     }
 

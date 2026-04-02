@@ -47,6 +47,10 @@ public class MoneyChest : MonoBehaviour
     [SerializeField] private ProjectileLauncher projectileLauncher;
     [SerializeField] private Transform playerTransform;
 
+    [Header("取钱金币飞行轨迹参数（面板配置）")]
+    [SerializeField] private float moneyProjectileFlightDuration = 2f;
+    [SerializeField] private float moneyProjectileMaxHeight = 5f;
+
     [Header("调试")]
     [SerializeField] private bool debugMode = false;
 
@@ -152,18 +156,20 @@ public class MoneyChest : MonoBehaviour
         if (projectileLauncher != null && playerTransform != null)
         {
             AudioManager.Instance.PlayAudio("2");
-            projectileLauncher.SpawnProjectile(
-                transform,
-                playerTransform,
-                ResourceType.Money,
-                actualAmount,
-                () =>
-                {
-                    if (GameValManager.Instance != null)
-                        GameValManager.Instance.AddResource(ResourceType.Money, actualAmount);
-                    OnMoneyChanged?.Invoke(currentMoney, -actualAmount);
-                }
-            );
+                projectileLauncher.SpawnProjectile(
+                    transform,
+                    playerTransform,
+                    ResourceType.Money,
+                    actualAmount,
+                    () =>
+                    {
+                        if (GameValManager.Instance != null)
+                            GameValManager.Instance.AddResource(ResourceType.Money, actualAmount);
+                        OnMoneyChanged?.Invoke(currentMoney, -actualAmount);
+                    },
+                    moneyProjectileFlightDuration,
+                    moneyProjectileMaxHeight
+                );
         }
         return actualAmount;
     }

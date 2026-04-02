@@ -39,6 +39,18 @@ public class RestaurantPanel : MonoBehaviour
     public Image rightIngredientIcon;
     public Text rightIngredientCountText;
 
+    [Header("选中食材指示反馈（Scale 波动）")]
+    [SerializeField] private bool enableIngredientIndicatorScalePulse = true;
+    [SerializeField] private float ingredientIndicatorPulseScaleMultiplier = 1.12f;
+    [SerializeField] private float ingredientIndicatorPulseDuration = 0.18f;
+    [SerializeField] private float ingredientIndicatorPulseDelay = 0f;
+
+    private Coroutine _leftIndicatorPulseCoroutine;
+    private Coroutine _rightIndicatorPulseCoroutine;
+    private Coroutine _ingredientIndicatorDelayedPulseCoroutine;
+    private Vector3 _leftIndicatorBaseScale = Vector3.one;
+    private Vector3 _rightIndicatorBaseScale = Vector3.one;
+
     [Header("菜单数据")]
     public List<DishRecipe> dishRecipes = new List<DishRecipe>();
 
@@ -137,6 +149,12 @@ public class RestaurantPanel : MonoBehaviour
         SetCookingProgress(0f);
         SetPlateSellProgress(0f);
         HideIngredientSideIndicators();
+
+        // 缓存一个稳定的“基准缩放”，后续脉冲动画每次都从这个值开始/结束，避免叠加越变越大
+        if (leftIngredientIndicatorRoot != null)
+            _leftIndicatorBaseScale = leftIngredientIndicatorRoot.transform.localScale;
+        if (rightIngredientIndicatorRoot != null)
+            _rightIndicatorBaseScale = rightIngredientIndicatorRoot.transform.localScale;
     }
 
     private void OnEnable()
@@ -210,6 +228,22 @@ public class RestaurantPanel : MonoBehaviour
         if (ShopSlotManager.Instance != null)
         {
             ShopSlotManager.Instance.OnRestaurantPlateSlotsChanged -= SyncRestaurantUnitsFromStats;
+        }
+
+        if (_leftIndicatorPulseCoroutine != null)
+        {
+            StopCoroutine(_leftIndicatorPulseCoroutine);
+            _leftIndicatorPulseCoroutine = null;
+        }
+        if (_rightIndicatorPulseCoroutine != null)
+        {
+            StopCoroutine(_rightIndicatorPulseCoroutine);
+            _rightIndicatorPulseCoroutine = null;
+        }
+        if (_ingredientIndicatorDelayedPulseCoroutine != null)
+        {
+            StopCoroutine(_ingredientIndicatorDelayedPulseCoroutine);
+            _ingredientIndicatorDelayedPulseCoroutine = null;
         }
     }
 
@@ -746,6 +780,7 @@ public class RestaurantPanel : MonoBehaviour
     public void SelectDishItemByIndex(int index, bool autoScrollToSelection = true)
     {
         if (_dishItemWidgets == null || _dishItemWidgets.Count == 0) return;
+        int prevSelectedIndex = _selectedDishIndex;
         index = Mathf.Clamp(index, 0, _dishItemWidgets.Count - 1);
         _selectedDishIndex = index;
         for (int i = 0; i < _dishItemWidgets.Count; i++)
@@ -758,6 +793,12 @@ public class RestaurantPanel : MonoBehaviour
         if (autoScrollToSelection)
             ScrollDishListToSelected();
         RefreshIngredientSideIndicators();
+
+        // 选中项变化时：给食材指示做一次 Scale 波动反馈
+        if (enableIngredientIndicatorScalePulse && prevSelectedIndex != _selectedDishIndex)
+        {
+            PulseIngredientIndicatorScale();
+        }
     }
 
     public bool IsDishSelected(int index)
@@ -812,6 +853,89 @@ public class RestaurantPanel : MonoBehaviour
                 rightIngredientIndicatorRoot.SetActive(true);
             ApplyIngredientSideIndicator(ings[1], rightIngredientIcon, rightIngredientCountText);
         }
+
+        CaptureIndicatorBaseScaleIfSafe();
+    }
+
+    private void CaptureIndicatorBaseScaleIfSafe()
+    {
+        if (!enableIngredientIndicatorScalePulse) return;
+
+        // 只有在没有对应脉冲协程运行时才更新“基准缩放”，避免把当前波动中的 Scale 当成基准导致越叠越大
+        if (_leftIndicatorPulseCoroutine == null && leftIngredientIndicatorRoot != null && leftIngredientIndicatorRoot.activeSelf)
+            _leftIndicatorBaseScale = leftIngredientIndicatorRoot.transform.localScale;
+        if (_rightIndicatorPulseCoroutine == null && rightIngredientIndicatorRoot != null && rightIngredientIndicatorRoot.activeSelf)
+            _rightIndicatorBaseScale = rightIngredientIndicatorRoot.transform.localScale;
+    }
+
+    private void PulseIngredientIndicatorScale()
+    {
+        if (!enableIngredientIndicatorScalePulse) return;
+
+        if (ingredientIndicatorPulseDelay > 0f)
+        {
+            if (_ingredientIndicatorDelayedPulseCoroutine != null)
+                StopCoroutine(_ingredientIndicatorDelayedPulseCoroutine);
+            _ingredientIndicatorDelayedPulseCoroutine = StartCoroutine(CoDelayedPulse(ingredientIndicatorPulseDelay));
+            return;
+        }
+
+        // 同时对左/右都能起效（但 RefreshIngredientSideIndicators 会决定谁处于激活状态）
+        if (leftIngredientIndicatorRoot != null && leftIngredientIndicatorRoot.activeSelf)
+        {
+            if (_leftIndicatorPulseCoroutine != null) StopCoroutine(_leftIndicatorPulseCoroutine);
+            leftIngredientIndicatorRoot.transform.localScale = _leftIndicatorBaseScale;
+            _leftIndicatorPulseCoroutine = StartCoroutine(CoPulseIndicatorScale(leftIngredientIndicatorRoot.transform, _leftIndicatorBaseScale, true));
+        }
+        if (rightIngredientIndicatorRoot != null && rightIngredientIndicatorRoot.activeSelf)
+        {
+            if (_rightIndicatorPulseCoroutine != null) StopCoroutine(_rightIndicatorPulseCoroutine);
+            rightIngredientIndicatorRoot.transform.localScale = _rightIndicatorBaseScale;
+            _rightIndicatorPulseCoroutine = StartCoroutine(CoPulseIndicatorScale(rightIngredientIndicatorRoot.transform, _rightIndicatorBaseScale, false));
+        }
+    }
+
+    private IEnumerator CoDelayedPulse(float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+        PulseIngredientIndicatorScale();
+        _ingredientIndicatorDelayedPulseCoroutine = null;
+    }
+
+    private IEnumerator CoPulseIndicatorScale(Transform target, Vector3 baseScale, bool isLeft)
+    {
+        if (target == null) yield break;
+
+        float duration = Mathf.Max(0.01f, ingredientIndicatorPulseDuration);
+        float half = duration * 0.5f;
+
+        // 起始保证回到基准
+        target.localScale = baseScale;
+
+        float elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / half);
+            float eased = Mathf.SmoothStep(0f, 1f, t);
+            target.localScale = Vector3.LerpUnclamped(baseScale, baseScale * ingredientIndicatorPulseScaleMultiplier, eased);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / half);
+            float eased = Mathf.SmoothStep(0f, 1f, t);
+            target.localScale = Vector3.LerpUnclamped(baseScale * ingredientIndicatorPulseScaleMultiplier, baseScale, eased);
+            yield return null;
+        }
+
+        target.localScale = baseScale;
+
+        if (isLeft) _leftIndicatorPulseCoroutine = null;
+        else _rightIndicatorPulseCoroutine = null;
     }
 
     private static void ApplyIngredientSideIndicator(DishIngredient ing, Image icon, Text countText)

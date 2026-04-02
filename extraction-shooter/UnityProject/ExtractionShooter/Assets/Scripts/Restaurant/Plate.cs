@@ -57,6 +57,10 @@ public class Plate : MonoBehaviour
     [Tooltip("自动售出金币飞向钱箱时的表现数量上限")]
     [SerializeField] private int maxVisualCoins = 12;
 
+    [Header("售卖金币飞行轨迹参数（面板配置）")]
+    [SerializeField] private float moneyProjectileFlightDuration = 2f;
+    [SerializeField] private float moneyProjectileMaxHeight = 5f;
+
     [Header("UI组件")]
     public Text dishNameText;               // 菜名显示
     public Text amountText;                 // 数量显示
@@ -283,7 +287,9 @@ public class Plate : MonoBehaviour
                 target,
                 ResourceType.Money,
                 capture,
-                () => { MoneyChest.Instance.AddMoney(capture); }
+                () => { MoneyChest.Instance.AddMoney(capture); },
+                moneyProjectileFlightDuration,
+                moneyProjectileMaxHeight
             );
             yield return new WaitForSeconds(spawnInterval);
         }

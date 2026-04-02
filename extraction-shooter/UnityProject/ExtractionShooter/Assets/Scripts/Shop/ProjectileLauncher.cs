@@ -23,13 +23,26 @@ public class ProjectileLauncher : MonoBehaviour
 
     public void SpawnProjectile(Transform start, Transform target, ResourceType itemType, int amount, System.Action onArrive)
     {
+        SpawnProjectile(start, target, itemType, amount, onArrive, flightDuration, maxHeight);
+    }
+
+    // 给调用方传入“自己的轨迹参数”，避免所有发射都使用 ProjectileLauncher 的那套默认值
+    public void SpawnProjectile(
+        Transform start,
+        Transform target,
+        ResourceType itemType,
+        int amount,
+        System.Action onArrive,
+        float customFlightDuration,
+        float customMaxHeight)
+    {
         GameObject projectileObj = FlyObjectPool.Instance.GetObject(start.position);
         ProjectileObject projectile = projectileObj.GetComponent<ProjectileObject>();
         if (projectile == null)
             projectile = projectileObj.AddComponent<ProjectileObject>();
 
-        projectile.flightDuration = flightDuration;
-        projectile.maxHeight = maxHeight;
+        projectile.flightDuration = customFlightDuration;
+        projectile.maxHeight = customMaxHeight;
         projectile.itemType = itemType;
         projectile.amount = amount;
         projectile.onArrive = onArrive;

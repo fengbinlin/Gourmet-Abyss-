@@ -113,6 +113,10 @@ public class CustomerNPC : MonoBehaviour
     public Transform coinSpawnPoint;
     [Tooltip("飞向钱箱的金币最多生成数量，超出部分只加数值不生成抛射物")]
     [SerializeField] private int maxVisualCoins = 12;
+
+    [Header("顾客金币飞行轨迹参数（面板配置）")]
+    [SerializeField] private float moneyProjectileFlightDuration = 2f;
+    [SerializeField] private float moneyProjectileMaxHeight = 5f;
     // 气泡相关变量
     private Coroutine bubbleRoutineCoroutine;  // 循环更新协程
     private Coroutine bubbleHideCoroutine;     // 气泡隐藏协程
@@ -1021,7 +1025,9 @@ public class CustomerNPC : MonoBehaviour
                 target,
                 ResourceType.Money,
                 capture,
-                () => { MoneyChest.Instance.AddMoney(capture); }
+                () => { MoneyChest.Instance.AddMoney(capture); },
+                moneyProjectileFlightDuration,
+                moneyProjectileMaxHeight
             );
             yield return new WaitForSeconds(spawnInterval);
         }
