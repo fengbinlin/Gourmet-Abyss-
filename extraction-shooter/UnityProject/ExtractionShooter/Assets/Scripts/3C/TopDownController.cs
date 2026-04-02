@@ -7,6 +7,17 @@ using System.Collections;
 [RequireComponent(typeof(Animator))]
 public class TopDownController : MonoBehaviour
 {
+    [System.Serializable]
+    private class TreasureBuffVfxEntry
+    {
+        public battlePropType propType;
+        public GameObject vfxPrefab;
+        [Tooltip("对应道具拾取后在 WeaponTipsUI 显示的简短文本（可留空不显示）")]
+        public string tipsText;
+        [Tooltip("覆盖 WeaponTipsUI 显示时长（<=0 则使用 treasureTipsDuration）")]
+        public float tipsDurationOverride = -1f;
+    }
+
     [Header("掉落设置")]
     [Tooltip("掉落物品的预制体列表")]
     public List<GameObject> dropItems = new List<GameObject>();
@@ -55,6 +66,33 @@ public class TopDownController : MonoBehaviour
     [SerializeField] private Text weaponTipsUI;
     [SerializeField] private float weaponTipsDuration = 1.5f; // 提示持续时间
     private Coroutine weaponTipsCoroutine;
+
+    [Header("道具拾取特效")]
+    [Tooltip("当某个道具的专属配置缺失时，回退使用这个通用粒子特效（会跟随玩家生成，并在道具效果持续时间后隐藏）")]
+    [SerializeField] private GameObject treasureEffectVfxPrefab;
+    [Tooltip("粒子特效生成位置偏移（相对于玩家）")]
+    [SerializeField] private Vector3 treasureEffectVfxOffset = new Vector3(0f, 1.2f, 0f);
+    [Tooltip("拾取道具后 WeaponTipsUI 显示的默认持续时间（秒）")]
+    [SerializeField] private float treasureTipsDuration = 0.9f;
+
+    [Header("拾取瞬间共用特效")]
+    [Tooltip("拾取道具的瞬间共用特效（会播放一小段时间后隐藏），不用于 BUFF 持续显示")]
+    [SerializeField] private GameObject treasurePickupInstantVfxPrefab;
+    [Tooltip("拾取瞬间共用特效持续时间（秒）")]
+    [SerializeField] private float treasurePickupInstantVfxDuration = 0.35f;
+    [Tooltip("拾取瞬间共用特效位置偏移（相对于玩家）")]
+    [SerializeField] private Vector3 treasurePickupInstantVfxOffset = new Vector3(0f, 1.3f, 0f);
+
+    [Header("道具-粒子/文案映射")]
+    [Tooltip("每个战斗道具各自对应的粒子特效与短文本提示；未配置时会回退到 treasureEffectVfxPrefab。")]
+    [SerializeField] private List<TreasureBuffVfxEntry> treasureBuffVfxEntries = new List<TreasureBuffVfxEntry>();
+
+    private GameObject activeTreasureVfxInstance;
+    private Coroutine treasureVfxCoroutine;
+
+    private GameObject activeTreasurePickupInstantVfxInstance;
+    private Coroutine treasurePickupInstantVfxCoroutine;
+    private Dictionary<battlePropType, TreasureBuffVfxEntry> treasureBuffVfxEntryMap;
 
     // 记录上帧是否在充能，避免提示文字每帧刷屏
     private bool wasPrimaryReloading = false;
@@ -248,6 +286,19 @@ public class TopDownController : MonoBehaviour
         }
         // 初始化足迹粒子系统
         InitializeFootstepParticles();
+
+        // 初始化道具-特效/文案映射
+        treasureBuffVfxEntryMap = new Dictionary<battlePropType, TreasureBuffVfxEntry>();
+        if (treasureBuffVfxEntries != null)
+        {
+            for (int i = 0; i < treasureBuffVfxEntries.Count; i++)
+            {
+                var e = treasureBuffVfxEntries[i];
+                if (e == null) continue;
+                if (treasureBuffVfxEntryMap.ContainsKey(e.propType)) continue;
+                treasureBuffVfxEntryMap[e.propType] = e;
+            }
+        }
     }
     void Start()
     {
@@ -908,6 +959,172 @@ public class TopDownController : MonoBehaviour
         Debug.Log("战斗状态: " + (isInCombat ? "开启" : "关闭"));
     }
 
+    /// <summary>
+    /// 拾取道具后触发：播放粒子特效 + 在短时间内展示 WeaponTipsUI 文本。
+    /// </summary>
+    public void PlayTreasurePickupEffect(float effectDuration, string tipsText)
+    {
+        // 1) UI提示
+        if (!string.IsNullOrEmpty(tipsText))
+            ShowWeaponTips(tipsText, treasureTipsDuration);
+
+        // 2) VFX
+        if (treasureEffectVfxPrefab == null) return;
+
+        float duration = Mathf.Max(0.01f, effectDuration);
+
+        if (treasureVfxCoroutine != null)
+        {
+            StopCoroutine(treasureVfxCoroutine);
+            treasureVfxCoroutine = null;
+        }
+
+        if (activeTreasureVfxInstance != null)
+        {
+            activeTreasureVfxInstance.SetActive(false);
+            activeTreasureVfxInstance = null;
+        }
+
+        Vector3 spawnPos = transform.position + treasureEffectVfxOffset;
+        activeTreasureVfxInstance = Instantiate(treasureEffectVfxPrefab, spawnPos, Quaternion.identity, transform);
+        activeTreasureVfxInstance.SetActive(true);
+
+        // 确保粒子立即播放（避免“预热”导致看起来没反应）
+        var pSystems = activeTreasureVfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < pSystems.Length; i++)
+        {
+            var ps = pSystems[i];
+            if (ps == null) continue;
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ps.Play(true);
+        }
+
+        treasureVfxCoroutine = StartCoroutine(HideTreasureVfxAfterDelay(duration));
+    }
+
+    /// <summary>
+    /// 拾取道具后触发：使用对应道具配置的 VFX + 文案。
+    /// </summary>
+    public void PlayTreasurePickupEffect(battlePropType propType, float effectDuration)
+    {
+        TreasureBuffVfxEntry entry = null;
+        if (treasureBuffVfxEntryMap != null)
+        {
+            treasureBuffVfxEntryMap.TryGetValue(propType, out entry);
+        }
+
+        // 拾取瞬间共用特效（短时间显示/隐藏）
+        PlayTreasurePickupInstantVfx();
+
+        // UI提示
+        if (entry != null && !string.IsNullOrEmpty(entry.tipsText))
+        {
+            float durationOverride = entry.tipsDurationOverride > 0f ? entry.tipsDurationOverride : treasureTipsDuration;
+            ShowWeaponTips(entry.tipsText, durationOverride);
+        }
+
+        // VFX
+        GameObject prefabToPlay = null;
+        if (entry != null && entry.vfxPrefab != null)
+            prefabToPlay = entry.vfxPrefab;
+        else
+            prefabToPlay = treasureEffectVfxPrefab;
+
+        if (prefabToPlay == null) return;
+
+        float duration = Mathf.Max(0.01f, effectDuration);
+
+        if (treasureVfxCoroutine != null)
+        {
+            StopCoroutine(treasureVfxCoroutine);
+            treasureVfxCoroutine = null;
+        }
+
+        if (activeTreasureVfxInstance != null)
+        {
+            activeTreasureVfxInstance.SetActive(false);
+            activeTreasureVfxInstance = null;
+        }
+
+        Vector3 spawnPos = transform.position + treasureEffectVfxOffset;
+        activeTreasureVfxInstance = Instantiate(prefabToPlay, spawnPos, Quaternion.identity, transform);
+        activeTreasureVfxInstance.SetActive(true);
+
+        // 确保粒子立即播放（避免“预热”导致看起来没反应）
+        var pSystems = activeTreasureVfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < pSystems.Length; i++)
+        {
+            var ps = pSystems[i];
+            if (ps == null) continue;
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ps.Play(true);
+        }
+
+        treasureVfxCoroutine = StartCoroutine(HideTreasureVfxAfterDelay(duration));
+    }
+
+    private void PlayTreasurePickupInstantVfx()
+    {
+        if (treasurePickupInstantVfxPrefab == null) return;
+
+        float duration = Mathf.Max(0.01f, treasurePickupInstantVfxDuration);
+
+        if (treasurePickupInstantVfxCoroutine != null)
+        {
+            StopCoroutine(treasurePickupInstantVfxCoroutine);
+            treasurePickupInstantVfxCoroutine = null;
+        }
+
+        if (activeTreasurePickupInstantVfxInstance != null)
+        {
+            activeTreasurePickupInstantVfxInstance.SetActive(false);
+            activeTreasurePickupInstantVfxInstance = null;
+        }
+
+        Vector3 spawnPos = transform.position + treasurePickupInstantVfxOffset;
+        activeTreasurePickupInstantVfxInstance = Instantiate(
+            treasurePickupInstantVfxPrefab,
+            spawnPos,
+            Quaternion.identity,
+            transform
+        );
+        activeTreasurePickupInstantVfxInstance.SetActive(true);
+
+        // 确保粒子立即播放（避免看起来没反应）
+        var pSystems = activeTreasurePickupInstantVfxInstance.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < pSystems.Length; i++)
+        {
+            var ps = pSystems[i];
+            if (ps == null) continue;
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ps.Play(true);
+        }
+
+        treasurePickupInstantVfxCoroutine = StartCoroutine(HideTreasurePickupInstantVfxAfterDelay(duration));
+    }
+
+    private IEnumerator HideTreasurePickupInstantVfxAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (activeTreasurePickupInstantVfxInstance != null)
+        {
+            activeTreasurePickupInstantVfxInstance.SetActive(false);
+            activeTreasurePickupInstantVfxInstance = null;
+        }
+        treasurePickupInstantVfxCoroutine = null;
+    }
+
+    private IEnumerator HideTreasureVfxAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (activeTreasureVfxInstance != null)
+        {
+            activeTreasureVfxInstance.SetActive(false);
+            activeTreasureVfxInstance = null;
+        }
+        treasureVfxCoroutine = null;
+    }
+
     // 新增：设置战斗状态
     public void SetCombatState(bool combatState)
     {
@@ -1116,6 +1333,28 @@ public class TopDownController : MonoBehaviour
         {
             secondaryWeapon.OnControllerDisabled();
         }
+
+        // 清理道具拾取相关特效
+        if (treasureVfxCoroutine != null)
+        {
+            StopCoroutine(treasureVfxCoroutine);
+            treasureVfxCoroutine = null;
+        }
+        if (activeTreasureVfxInstance != null)
+        {
+            activeTreasureVfxInstance.SetActive(false);
+            activeTreasureVfxInstance = null;
+        }
+        if (treasurePickupInstantVfxCoroutine != null)
+        {
+            StopCoroutine(treasurePickupInstantVfxCoroutine);
+            treasurePickupInstantVfxCoroutine = null;
+        }
+        if (activeTreasurePickupInstantVfxInstance != null)
+        {
+            activeTreasurePickupInstantVfxInstance.SetActive(false);
+            activeTreasurePickupInstantVfxInstance = null;
+        }
     }
 
     // 新增：在销毁时清理武器
@@ -1137,10 +1376,32 @@ public class TopDownController : MonoBehaviour
             hitFlashCoroutine = null;
         }
         RestoreHitFlashImmediate();
+
+        // 清理道具拾取相关特效
+        if (treasureVfxCoroutine != null)
+        {
+            StopCoroutine(treasureVfxCoroutine);
+            treasureVfxCoroutine = null;
+        }
+        if (activeTreasureVfxInstance != null)
+        {
+            Destroy(activeTreasureVfxInstance);
+            activeTreasureVfxInstance = null;
+        }
+        if (treasurePickupInstantVfxCoroutine != null)
+        {
+            StopCoroutine(treasurePickupInstantVfxCoroutine);
+            treasurePickupInstantVfxCoroutine = null;
+        }
+        if (activeTreasurePickupInstantVfxInstance != null)
+        {
+            Destroy(activeTreasurePickupInstantVfxInstance);
+            activeTreasurePickupInstantVfxInstance = null;
+        }
     }
     #endregion
 
-    private void ShowWeaponTips(string message)
+    private void ShowWeaponTips(string message, float durationOverride = -1f)
     {
         if (weaponTipsUI == null) return;
 
@@ -1151,7 +1412,8 @@ public class TopDownController : MonoBehaviour
         weaponTipsUI.text = message;
         weaponTipsUI.gameObject.SetActive(true);
 
-        weaponTipsCoroutine = StartCoroutine(HideWeaponTipsAfterDelay(weaponTipsDuration));
+        float duration = durationOverride > 0f ? durationOverride : weaponTipsDuration;
+        weaponTipsCoroutine = StartCoroutine(HideWeaponTipsAfterDelay(duration));
     }
 
     private IEnumerator HideWeaponTipsAfterDelay(float delay)

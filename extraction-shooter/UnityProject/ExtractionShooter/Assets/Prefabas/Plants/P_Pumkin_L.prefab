@@ -87,10 +87,10 @@ MonoBehaviour:
   bounceDuration: 0.2
   bounceFrequency: 8
   bounceScaleFactor: 0.1
-  maxUpdateDistance: 20
-  offScreenUpdateInterval: 0.5
-  farUpdateInterval: 0.2
-  stopUpdateDistance: 30
+  maxUpdateDistance: 50
+  offScreenUpdateInterval: 0.2
+  farUpdateInterval: 0.1
+  stopUpdateDistance: 0
 --- !u!114 &383926275256022188
 MonoBehaviour:
   m_ObjectHideFlags: 0

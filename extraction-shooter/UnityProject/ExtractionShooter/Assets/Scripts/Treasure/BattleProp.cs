@@ -29,14 +29,8 @@ public class BattleProp : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        //立即生效
-        foreach (treasure t in TreasureManager.treasureManager.treasuresList)
-        {
-            if (t.type == propType)
-            {
-                EffectImmediate = t.takeEffectImmeditely;
-            }
-        }
+        // 所有战斗道具：统一改为“拾取即生效”（不再走装备栏 + Q）
+        EffectImmediate = true;
 
     }
 
@@ -65,27 +59,59 @@ public class BattleProp : MonoBehaviour
             hasPickedUp = true;
             isPlayerEnter = true;
             Debug.Log("拾起道具");
-            //如果是食物，直接奏效，如果是道具，添加到便携装备栏
-            if (EffectImmediate)
-            {
-                //transform.GetComponent<PropEffect>().TakeEffect();
 
-                //立即生效
-                foreach (treasure t in TreasureManager.treasureManager.treasuresList)
-                {
-                    if (t.type == propType)
-                    {
-                        Debug.Log("启用道具：" + t.treasureName);
-                        GameObject propEffect = GameObject.Instantiate(t.propEffectObject);
-                        propEffect.GetComponent<PropEffect>().TakeEffect();
-                        Destroy(propEffect, 0.05f);
-                    }
-                }
-            }
-            else
+            // 不再放入装备栏（也就不需要按 Q 使用）
+            if (TreasureManager.treasureManager != null)
             {
-                //放进装备栏
-                TreasureManager.treasureManager.AddToEquipmentBar(propType);
+                TreasureManager.treasureManager.hasEquipment = false;
+            }
+
+            // 立即生效 + 触发 TopDownController 的粒子/提示
+            TreasureManager tm = TreasureManager.treasureManager;
+            if (tm != null && tm.treasuresList != null)
+            {
+                foreach (treasure t in tm.treasuresList)
+                {
+                    if (t.type != propType) continue;
+
+                    Debug.Log("启用道具：" + t.treasureName);
+
+                    if (t.propEffectObject == null) break;
+
+                    GameObject propEffect = GameObject.Instantiate(t.propEffectObject);
+
+                    float effectDuration = 0.6f; // 食物类效果即时，因此粒子/提示给一个短时段
+
+                    // 从具体道具参数读取“起效持续时间”，用于控制粒子特效隐藏时机
+                    if (propType == battlePropType.BodyArmor)
+                    {
+                        var eff = propEffect.GetComponent<PropEffect_BodyArmor>();
+                        effectDuration = eff != null ? Mathf.Max(0.01f, eff.reduceDuration) : 0.6f;
+                    }
+                    else if (propType == battlePropType.SkateBoard)
+                    {
+                        var eff = propEffect.GetComponent<PropEffect_SkateBoard>();
+                        effectDuration = eff != null ? Mathf.Max(0.01f, eff.Duration) : 0.6f;
+                    }
+                    else if (propType == battlePropType.Telescope)
+                    {
+                        var eff = propEffect.GetComponent<PropEffect_Telescope>();
+                        effectDuration = eff != null ? Mathf.Max(0.01f, eff.Duration) : 0.6f;
+                    }
+                    else if (propType == battlePropType.Cake || propType == battlePropType.Noodles)
+                    {
+                    // 食物即时生效：给一个短暂显示时长即可
+                    }
+
+                    TopDownController playerController = other.GetComponentInParent<TopDownController>();
+                playerController?.PlayTreasurePickupEffect(propType, effectDuration);
+
+                    var prop = propEffect.GetComponent<PropEffect>();
+                    prop?.TakeEffect();
+
+                    Destroy(propEffect, 0.05f);
+                    break;
+                }
             }
 
             Collider col = GetComponent<Collider>();
