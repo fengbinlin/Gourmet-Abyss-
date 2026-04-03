@@ -61,6 +61,18 @@ public class Plate : MonoBehaviour
     [SerializeField] private float moneyProjectileFlightDuration = 2f;
     [SerializeField] private float moneyProjectileMaxHeight = 5f;
 
+    [Header("售卖表现：盘中物品飞出")]
+    [Tooltip("售卖时在盘子位置生成的飞出物（会设置 dishIcon 精灵）。如果为空则退化为原逻辑：直接从盘子生成金币。")]
+    [SerializeField] private GameObject dishFlyOnSellPrefab;
+    [SerializeField] private float dishFlyOnSellUpDistance = 0.35f;
+    [SerializeField] private float dishFlyOnSellMoveDuration = 0.18f;
+    [SerializeField] private float dishFlyOnSellScalePulseDuration = 0.14f;
+    [SerializeField] private float dishFlyOnSellScaleUp = 1.22f;
+    [Tooltip("金币投射器 Spawn 的起点（由你在面板里拖引用）。卖出表现里会把它的位置移动到飞出物的终点。")]
+    [SerializeField] private Transform sellMoneyStartRoot;
+    [Tooltip("飞出物 prefab 的基础缩放倍率（只影响显示，不影响 Plate 数据）。")]
+    [SerializeField] private float dishFlyOnSellBaseScaleMultiplier = 1f;
+
     [Header("UI组件")]
     public Text dishNameText;               // 菜名显示
     public Text amountText;                 // 数量显示
@@ -242,17 +254,43 @@ public class Plate : MonoBehaviour
 
             // 先给 dishIcon 反馈，再生成金币投射器
             PlaySellFeedbackPulse();
+            // 记录本次要售卖的“那一份 Dish 引用”
+            // 关键：如果在飞出表现阶段期间，有新菜被 TryAddDish 加进来，
+            // 则 currentDish 引用会变化；售卖协程结束后不应再把新菜清空。
+            Dish dishRef = currentDish;
+            bool becameEmpty = dishRef != null && dishRef.IsEmpty();
 
-            Transform startTf = transform;
+            // 关键：在飞出物生成前就让“数量减少”在 UI 上可见，
+            // 避免用户感觉“要到飞完才扣数量”。
+            UpdateUI();
+
+            // 在清空 currentDish 之前先缓存“飞出物”所需信息，避免 UpdateUI 隐藏 dishIcon 导致位置/精灵不一致
+            Sprite dishSprite = currentDish?.recipe != null ? currentDish.recipe.dishIcon : null;
+            Vector3 sellItemStartPos = GetDishFlyTargetWorldPosition();
+
             Transform moneyBox = CustomerManager.instance != null ? CustomerManager.instance.moneyBoxTransform : null;
-            if (goldAmount > 0 && CustomerManager.instance != null)
-                yield return StartCoroutine(SpawnMoneySmoothlyForSell(goldAmount, startTf, moneyBox));
-
-            if (currentDish != null && currentDish.IsEmpty())
+            if (goldAmount > 0 && CustomerManager.instance != null && moneyBox != null)
             {
-                currentDish = null;
-                currentState = plateState.unUsed;
-                sourcePot = null;
+                // 先飞出物：上移 + scale 波动后销毁，再在销毁点生成金币
+                yield return StartCoroutine(CoDishFlyUpThenSpawnMoney(goldAmount, dishSprite, sellItemStartPos, moneyBox));
+            }
+            else
+            {
+                // 退化到原逻辑
+                Transform startTf = transform;
+                yield return StartCoroutine(SpawnMoneySmoothlyForSell(goldAmount, startTf, moneyBox));
+            }
+
+            if (becameEmpty)
+            {
+                // 只有当 currentDish 仍然是售卖前那份引用时，才清空。
+                // 否则说明期间已经被新菜替换，保持当前盘子数据不变。
+                if (currentDish == dishRef)
+                {
+                    currentDish = null;
+                    currentState = plateState.unUsed;
+                    sourcePot = null;
+                }
             }
             UpdateUI();
 
@@ -292,6 +330,158 @@ public class Plate : MonoBehaviour
                 moneyProjectileMaxHeight
             );
             yield return new WaitForSeconds(spawnInterval);
+        }
+    }
+
+    private IEnumerator CoDishFlyUpThenSpawnMoney(int goldAmount, Sprite dishSprite, Vector3 platePos, Transform moneyBox)
+    {
+        if (dishSprite == null || moneyBox == null)
+        {
+            yield return StartCoroutine(SpawnMoneySmoothlyForSell(goldAmount, transform, moneyBox));
+            yield break;
+        }
+
+        Vector3 startPos = platePos;
+        Vector3 endPos = platePos + Vector3.up * dishFlyOnSellUpDistance;
+
+        // 关键点：让 prefab 在“未激活父物体下”实例化，避免其脚本在实例化瞬间就触发 Awake/OnEnable 造成数据被动改。
+        GameObject flyObj = null;
+        GameObject inactiveRoot = null;
+        try
+        {
+            if (dishFlyOnSellPrefab != null)
+            {
+                inactiveRoot = new GameObject("DishFlyOnSellRoot_tmp");
+                inactiveRoot.SetActive(false);
+
+                flyObj = Instantiate(dishFlyOnSellPrefab, startPos, Quaternion.identity, inactiveRoot.transform);
+
+                if (flyObj != null)
+                {
+                    // 在把父物体激活前，把会执行逻辑的脚本全部禁用，只保留渲染相关组件。
+                    // SpriteRenderer / UI.Image 不是 MonoBehaviour（或即使是也需要显示），这里仅禁用除它们之外的 MonoBehaviour。
+                    var mbs = flyObj.GetComponentsInChildren<MonoBehaviour>(true);
+                    for (int i = 0; i < mbs.Length; i++)
+                    {
+                        MonoBehaviour mb = mbs[i];
+                        if (mb == null) continue;
+
+                        if (mb is SpriteRenderer) continue;
+                        if (mb is UnityEngine.UI.Image) continue;
+                        mb.enabled = false;
+                    }
+
+                    // 刚体直接停掉，避免物理再“额外下落段”
+                    Rigidbody2D rb2d = flyObj.GetComponent<Rigidbody2D>();
+                    if (rb2d != null)
+                    {
+                        rb2d.velocity = Vector2.zero;
+                        rb2d.angularVelocity = 0f;
+                        rb2d.gravityScale = 0f;
+                        rb2d.isKinematic = true;
+                    }
+
+                    // sprite 同步到渲染组件（即使 prefab 里已有旧 sprite，也覆盖）
+                    SpriteRenderer sr = flyObj.GetComponentInChildren<SpriteRenderer>(true);
+                    if (sr != null)
+                    {
+                        sr.sprite = dishSprite;
+                        if (dishIcon != null)
+                        {
+                            sr.sortingLayerID = dishIcon.sortingLayerID;
+                            sr.sortingOrder = dishIcon.sortingOrder;
+                            sr.color = dishIcon.color;
+                        }
+                    }
+                    UnityEngine.UI.Image img = flyObj.GetComponentInChildren<UnityEngine.UI.Image>(true);
+                    if (img != null)
+                        img.sprite = dishSprite;
+
+                    // 激活后才显示
+                    inactiveRoot.SetActive(true);
+                }
+            }
+
+            if (flyObj == null)
+            {
+                // prefab 没填时退化为临时 SpriteRenderer（纯视觉）
+                flyObj = new GameObject("DishFlyOnSellTemp");
+                flyObj.transform.position = startPos;
+                flyObj.transform.localScale = (dishIcon != null ? dishIcon.transform.localScale : Vector3.one)
+                    * Mathf.Max(0.0001f, dishFlyOnSellBaseScaleMultiplier);
+
+                SpriteRenderer sr = flyObj.AddComponent<SpriteRenderer>();
+                sr.sprite = dishSprite;
+                if (dishIcon != null)
+                {
+                    sr.sortingLayerID = dishIcon.sortingLayerID;
+                    sr.sortingOrder = dishIcon.sortingOrder;
+                    sr.color = dishIcon.color;
+                }
+            }
+
+            flyObj.transform.position = startPos;
+
+            // 不要强行用 dishIcon 的 localScale 覆盖 prefab 尺寸；
+            // 使用 prefab 自身初始缩放作为基准，避免“物体变得很小”。
+            Vector3 baseScale = flyObj.transform.localScale * Mathf.Max(0.0001f, dishFlyOnSellBaseScaleMultiplier);
+            flyObj.transform.localScale = baseScale;
+
+            float moveDuration = Mathf.Max(0.01f, dishFlyOnSellMoveDuration);
+            float elapsed = 0f;
+            while (elapsed < moveDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / moveDuration);
+                float eased = t * t * (3f - 2f * t); // SmoothStep
+                flyObj.transform.position = Vector3.LerpUnclamped(startPos, endPos, eased);
+                yield return null;
+            }
+
+            flyObj.transform.position = endPos;
+
+            // scale 上波动
+            Vector3 peakScale = baseScale * Mathf.Max(1f, dishFlyOnSellScaleUp);
+            float pulseDuration = Mathf.Max(0.01f, dishFlyOnSellScalePulseDuration);
+            float half = pulseDuration * 0.5f;
+
+            float pulseElapsed = 0f;
+            while (pulseElapsed < half)
+            {
+                pulseElapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(pulseElapsed / half);
+                flyObj.transform.localScale = Vector3.LerpUnclamped(baseScale, peakScale, t);
+                yield return null;
+            }
+
+            pulseElapsed = 0f;
+            while (pulseElapsed < half)
+            {
+                pulseElapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(pulseElapsed / half);
+                flyObj.transform.localScale = Vector3.LerpUnclamped(peakScale, baseScale, t);
+                yield return null;
+            }
+
+            flyObj.transform.localScale = baseScale;
+
+            // 用你指定的 Transform 作为金币起点：只移动位置，不额外创建临时 root
+            Transform moneyStart = flyObj.transform;
+            if (sellMoneyStartRoot != null)
+            {
+                sellMoneyStartRoot.position = flyObj.transform.position;
+                moneyStart = sellMoneyStartRoot;
+            }
+
+            // 等金币生成完成再销毁飞出物
+            yield return StartCoroutine(SpawnMoneySmoothlyForSell(goldAmount, moneyStart, moneyBox));
+        }
+        finally
+        {
+            if (flyObj != null)
+                Destroy(flyObj);
+            if (inactiveRoot != null)
+                Destroy(inactiveRoot);
         }
     }
 

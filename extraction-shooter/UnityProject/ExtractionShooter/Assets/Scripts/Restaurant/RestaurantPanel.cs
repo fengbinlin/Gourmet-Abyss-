@@ -71,10 +71,19 @@ public class RestaurantPanel : MonoBehaviour
     [SerializeField] private RectTransform queueIngredientFlyUIRoot;
     [SerializeField] private Camera queueIngredientFlyUICamera;
     [SerializeField] private float queueIngredientFlyDuration = 0.32f;
+    [Tooltip("两段式轨迹：先相对起点沿正上方抬升的距离（anchored Y+）；0 则用下方 Arc 作为默认抬升量")]
+    [SerializeField] private float queueIngredientFlyLiftHeight;
+    [Tooltip("总时长中用于「先向上」阶段的占比，其余为飞向队列槽")]
+    [SerializeField] [Range(0.08f, 0.75f)] private float queueIngredientFlyLiftPhaseRatio = 0.38f;
     [SerializeField] private float queueIngredientFlyArcHeight = 46f;
     [SerializeField] private float queueIngredientSpawnInterval = 0.03f;
     [SerializeField] private float queueIngredientLandingDuration = 0.14f;
     [SerializeField] private float queueIngredientLandingScaleUp = 1.18f;
+    [Tooltip("飞行路径随机横向/纵向浮动最大幅度（anchored 像素）；0 关闭")]
+    [SerializeField] private float queueIngredientFlyWobbleAmplitude = 14f;
+    [Tooltip("扰动主频率随机范围（Hz 量级，越大抖动越密）")]
+    [SerializeField] private float queueIngredientFlyWobbleFreqMin = 2.2f;
+    [SerializeField] private float queueIngredientFlyWobbleFreqMax = 5.8f;
     [Header("菜碟配置")]
     public List<Plate> platesList = new List<Plate>(); //餐厅有的菜碟
     [Header("菜碟配置（全部候选）")]
@@ -450,10 +459,12 @@ public class RestaurantPanel : MonoBehaviour
         int idx = FindSuitableCookQueueSlotIndex(recipe);
         if (idx < 0) yield break;
 
-        yield return StartCoroutine(PlayIngredientFlyToQueueCoroutine(flySources, idx));
-
+        // 关键：在生成食材飞出表现（即开始飞行）之前就先扣除背包数量，
+        // 这样“数量减少”的时刻与飞出物生成的时刻一致，而不是落点/飞行动画结束后才减少。
         if (!ConsumeIngredientsForRecipe(recipe))
             yield break;
+
+        yield return StartCoroutine(PlayIngredientFlyToQueueCoroutine(flySources, idx));
 
         idx = FindSuitableCookQueueSlotIndex(recipe);
         if (idx < 0)
@@ -578,6 +589,16 @@ public class RestaurantPanel : MonoBehaviour
         if (ingredientController != null)
             ingredientController.enabled = false;
 
+        // 若飞行预制体带刚体，则禁用重力/动力学，避免到达 slot 后再被 Rigidbody “多掉一段”
+        Rigidbody2D rb2d = flyObj.GetComponent<Rigidbody2D>();
+        if (rb2d != null)
+        {
+            rb2d.velocity = Vector2.zero;
+            rb2d.angularVelocity = 0f;
+            rb2d.gravityScale = 0f;
+            rb2d.isKinematic = true;
+        }
+
         if (source.icon != null)
         {
             Image img = flyObj.GetComponentInChildren<Image>(true);
@@ -589,7 +610,19 @@ public class RestaurantPanel : MonoBehaviour
         RectTransform flyRect = flyObj.GetComponent<RectTransform>();
         bool isUIFly = flyRect != null && queueIngredientFlyUIRoot != null;
         float duration = Mathf.Max(0.01f, queueIngredientFlyDuration);
-        float arc = queueIngredientFlyArcHeight;
+        float liftUi = queueIngredientFlyLiftHeight > 0f ? queueIngredientFlyLiftHeight : queueIngredientFlyArcHeight;
+        float liftPhase = Mathf.Clamp(queueIngredientFlyLiftPhaseRatio, 0.08f, 0.75f);
+        float wobbleAmpUi = Mathf.Max(0f, queueIngredientFlyWobbleAmplitude);
+        float wobbleAmpWorld = wobbleAmpUi * 0.01f;
+        float fMin = Mathf.Min(queueIngredientFlyWobbleFreqMin, queueIngredientFlyWobbleFreqMax);
+        float fMax = Mathf.Max(queueIngredientFlyWobbleFreqMin, queueIngredientFlyWobbleFreqMax);
+        float wFreq1 = UnityEngine.Random.Range(fMin, fMax);
+        float wFreq2 = UnityEngine.Random.Range(fMin, fMax);
+        float wPh1 = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float wPh2 = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float wAng = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        Vector2 wU = new Vector2(Mathf.Cos(wAng), Mathf.Sin(wAng));
+        Vector2 wV = new Vector2(-wU.y, wU.x);
 
         if (isUIFly)
         {
@@ -602,9 +635,8 @@ public class RestaurantPanel : MonoBehaviour
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                Vector2 p = Vector2.Lerp(startPos, endPos, t);
-                p.y += 4f * t * (1f - t) * arc;
-                flyRect.anchoredPosition = p;
+                Vector2 basePos = EvaluateAnchoredUpThenToTarget(startPos, endPos, liftUi, liftPhase, t);
+                flyRect.anchoredPosition = ApplyAnchoredFlightWobble(basePos, t, wobbleAmpUi, wFreq1, wFreq2, wPh1, wPh2, wU, wV);
                 yield return null;
             }
             flyRect.anchoredPosition = endPos;
@@ -612,15 +644,18 @@ public class RestaurantPanel : MonoBehaviour
         else
         {
             Vector3 startPos = source.fromWorldPos;
+            float liftWorld = liftUi * 0.01f;
+            float wAng3 = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+            Vector3 wU3 = new Vector3(Mathf.Cos(wAng3), 0f, Mathf.Sin(wAng3));
+            Vector3 wV3 = Vector3.Cross(Vector3.up, wU3).normalized;
             float elapsed = 0f;
             flyObj.transform.position = startPos;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                Vector3 p = Vector3.Lerp(startPos, targetWorldPos, t);
-                p.y += 4f * t * (1f - t) * (arc * 0.01f);
-                flyObj.transform.position = p;
+                Vector3 basePos = EvaluateWorldUpThenToTarget(startPos, targetWorldPos, liftWorld, liftPhase, t);
+                flyObj.transform.position = ApplyWorldFlightWobble(basePos, t, wobbleAmpWorld, wFreq1, wFreq2, wPh1, wPh2, wU3, wV3, 0.28f);
                 yield return null;
             }
             flyObj.transform.position = targetWorldPos;
@@ -665,6 +700,76 @@ public class RestaurantPanel : MonoBehaviour
         Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(root, screenPos, cam, out Vector2 localPos);
         return localPos;
+    }
+
+    /// <summary>先沿 UI anchored 正上方抬升，再飞向终点（两段缓动，折线感明显）。</summary>
+    private static Vector2 EvaluateAnchoredUpThenToTarget(Vector2 start, Vector2 end, float liftUp, float liftPhaseRatio, float t01)
+    {
+        t01 = Mathf.Clamp01(t01);
+        liftPhaseRatio = Mathf.Clamp(liftPhaseRatio, 0.05f, 0.95f);
+        Vector2 apex = start + new Vector2(0f, liftUp);
+        if (t01 <= liftPhaseRatio)
+        {
+            float u = liftPhaseRatio > 1e-5f ? t01 / liftPhaseRatio : 1f;
+            u = Mathf.Clamp01(u);
+            float e = 1f - Mathf.Pow(1f - u, 3f);
+            return Vector2.LerpUnclamped(start, apex, e);
+        }
+
+        float v = (t01 - liftPhaseRatio) / (1f - liftPhaseRatio);
+        v = Mathf.Clamp01(v);
+        float e2 = v * v * (3f - 2f * v);
+        return Vector2.LerpUnclamped(apex, end, e2);
+    }
+
+    /// <summary>在基准路径上叠加随机频相位的正弦扰动；包络使起终点为 0，落点仍准确。</summary>
+    private static Vector2 ApplyAnchoredFlightWobble(
+        Vector2 basePos, float t01, float amplitude,
+        float freq1, float freq2, float phase1, float phase2,
+        Vector2 uAxis, Vector2 vAxis)
+    {
+        if (amplitude <= 1e-4f) return basePos;
+        float env = Mathf.Sin(Mathf.PI * Mathf.Clamp01(t01));
+        float w = amplitude * env;
+        float s1 = Mathf.Sin(t01 * freq1 * Mathf.PI * 2f + phase1);
+        float s2 = Mathf.Sin(t01 * freq2 * Mathf.PI * 2f + phase2);
+        return basePos + uAxis * (s1 * w) + vAxis * (s2 * w * 0.78f);
+    }
+
+    /// <summary>世界空间：水平面内椭圆扰动 + 少量竖直分量，动感更明显。</summary>
+    private static Vector3 ApplyWorldFlightWobble(
+        Vector3 basePos, float t01, float amplitude,
+        float freq1, float freq2, float phase1, float phase2,
+        Vector3 uAxis, Vector3 vAxis, float verticalMix)
+    {
+        if (amplitude <= 1e-6f) return basePos;
+        float env = Mathf.Sin(Mathf.PI * Mathf.Clamp01(t01));
+        float w = amplitude * env;
+        float s1 = Mathf.Sin(t01 * freq1 * Mathf.PI * 2f + phase1);
+        float s2 = Mathf.Sin(t01 * freq2 * Mathf.PI * 2f + phase2);
+        float sY = Mathf.Sin(t01 * (freq1 * 1.31f + freq2 * 0.27f) * Mathf.PI * 2f + (phase1 + phase2) * 0.5f);
+        Vector3 horiz = uAxis * s1 + vAxis * (s2 * 0.78f);
+        return basePos + horiz * w + Vector3.up * (sY * w * verticalMix);
+    }
+
+    /// <summary>世界坐标：先沿 Vector3.up 抬升，再飞向终点。</summary>
+    private static Vector3 EvaluateWorldUpThenToTarget(Vector3 start, Vector3 end, float liftUp, float liftPhaseRatio, float t01)
+    {
+        t01 = Mathf.Clamp01(t01);
+        liftPhaseRatio = Mathf.Clamp(liftPhaseRatio, 0.05f, 0.95f);
+        Vector3 apex = start + Vector3.up * liftUp;
+        if (t01 <= liftPhaseRatio)
+        {
+            float u = liftPhaseRatio > 1e-5f ? t01 / liftPhaseRatio : 1f;
+            u = Mathf.Clamp01(u);
+            float e = 1f - Mathf.Pow(1f - u, 3f);
+            return Vector3.LerpUnclamped(start, apex, e);
+        }
+
+        float v = (t01 - liftPhaseRatio) / (1f - liftPhaseRatio);
+        v = Mathf.Clamp01(v);
+        float e2 = v * v * (3f - 2f * v);
+        return Vector3.LerpUnclamped(apex, end, e2);
     }
 
     /// <summary>餐厅仅一口锅：使用 <see cref="potsList"/> 中第一个锅位（下标 0）。</summary>

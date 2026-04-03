@@ -64,7 +64,17 @@ public class Pot : MonoBehaviour
     public float cookedDishFlyDuration = 0.35f;
     public AnimationCurve cookedDishFlyCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     public float cookedDishFlyZOffset = 0f;    // 在世界坐标基础上的Z偏移（用于层级微调）
-    public float cookedDishFlyArcHeight = 0.6f; // 抛物线最高抬升高度（Y+）
+    [Tooltip("两段式轨迹：先从起点沿世界坐标正上方抬升的高度；0 则用 Arc 作为默认")]
+    public float cookedDishFlyLiftHeight;
+    [Tooltip("总时长中用于「先向上」阶段的占比")]
+    [Range(0.08f, 0.75f)] public float cookedDishFlyLiftPhaseRatio = 0.4f;
+    public float cookedDishFlyArcHeight = 0.6f; // 未填 Lift 时的默认抬升量（世界单位 Y+）
+    [Tooltip("飞行路径随机扰动最大幅度（世界单位）；0 关闭")]
+    public float cookedDishFlyWobbleAmplitude = 0.09f;
+    public float cookedDishFlyWobbleFreqMin = 2f;
+    public float cookedDishFlyWobbleFreqMax = 5.5f;
+    [Tooltip("竖直方向扰动相对水平的混合，0 仅水平飘动")]
+    [Range(0f, 1f)] public float cookedDishFlyWobbleVerticalMix = 0.28f;
     public float cookedDishLandingEffectDuration = 0.15f;
     public float cookedDishLandingScaleUp = 1.2f;
 
@@ -473,6 +483,16 @@ public class Pot : MonoBehaviour
             img.sprite = dishIcon;
         }
 
+        // 若出菜飞行预制体带刚体，则禁用重力/动力学，避免到达碟子后再被 Rigidbody 继续往下拉
+        Rigidbody2D rb2d = flyObj.GetComponent<Rigidbody2D>();
+        if (rb2d != null)
+        {
+            rb2d.velocity = Vector2.zero;
+            rb2d.angularVelocity = 0f;
+            rb2d.gravityScale = 0f;
+            rb2d.isKinematic = true;
+        }
+
         // 使用锅/碟自身的世界坐标Z，不再强制覆盖成预制体Z
         Vector3 startPos = startWorldPos;
         Vector3 endPos = targetPosition;
@@ -482,19 +502,31 @@ public class Pot : MonoBehaviour
         flyObj.transform.position = startPos;
 
         float duration = Mathf.Max(0.01f, cookedDishFlyDuration);
+        float liftUp = cookedDishFlyLiftHeight > 0f ? cookedDishFlyLiftHeight : cookedDishFlyArcHeight;
+        float liftPhase = Mathf.Clamp(cookedDishFlyLiftPhaseRatio, 0.08f, 0.75f);
+        float wobbleAmp = Mathf.Max(0f, cookedDishFlyWobbleAmplitude);
+        float fMin = Mathf.Min(cookedDishFlyWobbleFreqMin, cookedDishFlyWobbleFreqMax);
+        float fMax = Mathf.Max(cookedDishFlyWobbleFreqMin, cookedDishFlyWobbleFreqMax);
+        float wFreq1 = UnityEngine.Random.Range(fMin, fMax);
+        float wFreq2 = UnityEngine.Random.Range(fMin, fMax);
+        float wPh1 = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float wPh2 = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float wAng = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        Vector3 wU = new Vector3(Mathf.Cos(wAng), 0f, Mathf.Sin(wAng));
+        Vector3 wV = Vector3.Cross(Vector3.up, wU).normalized;
+        float vMix = Mathf.Clamp01(cookedDishFlyWobbleVerticalMix);
         float elapsed = 0f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            float curveT = cookedDishFlyCurve.Evaluate(t);
-            Vector3 basePos = Vector3.Lerp(startPos, endPos, curveT);
-
-            // 抛物线：4t(1-t) 在 t=0.5 时达到1，叠加到Y轴正方向
-            float arc = 4f * t * (1f - t) * cookedDishFlyArcHeight;
-            basePos.y += arc;
-            flyObj.transform.position = basePos;
+            float curveT = cookedDishFlyCurve != null && cookedDishFlyCurve.length > 0
+                ? cookedDishFlyCurve.Evaluate(t)
+                : t;
+            Vector3 p = EvaluateWorldUpThenToTarget(startPos, endPos, liftUp, liftPhase, curveT);
+            // 扰动按真实时间 t，避免 AnimationCurve 改变路径时把抖动频率拉歪
+            flyObj.transform.position = ApplyWorldFlightWobble(p, t, wobbleAmp, wFreq1, wFreq2, wPh1, wPh2, wU, wV, vMix);
             yield return null;
         }
 
@@ -526,6 +558,41 @@ public class Pot : MonoBehaviour
 
         flyObj.transform.localScale = originalScale;
         Destroy(flyObj);
+    }
+
+    /// <summary>先沿世界正上方抬升，再飞向终点（两段缓动）；用于替代单一抛物线。</summary>
+    private static Vector3 EvaluateWorldUpThenToTarget(Vector3 start, Vector3 end, float liftUp, float liftPhaseRatio, float t01)
+    {
+        t01 = Mathf.Clamp01(t01);
+        liftPhaseRatio = Mathf.Clamp(liftPhaseRatio, 0.05f, 0.95f);
+        Vector3 apex = start + Vector3.up * liftUp;
+        if (t01 <= liftPhaseRatio)
+        {
+            float u = liftPhaseRatio > 1e-5f ? t01 / liftPhaseRatio : 1f;
+            u = Mathf.Clamp01(u);
+            float e = 1f - Mathf.Pow(1f - u, 3f);
+            return Vector3.LerpUnclamped(start, apex, e);
+        }
+
+        float v = (t01 - liftPhaseRatio) / (1f - liftPhaseRatio);
+        v = Mathf.Clamp01(v);
+        float e2 = v * v * (3f - 2f * v);
+        return Vector3.LerpUnclamped(apex, end, e2);
+    }
+
+    private static Vector3 ApplyWorldFlightWobble(
+        Vector3 basePos, float t01, float amplitude,
+        float freq1, float freq2, float phase1, float phase2,
+        Vector3 uAxis, Vector3 vAxis, float verticalMix)
+    {
+        if (amplitude <= 1e-6f) return basePos;
+        float env = Mathf.Sin(Mathf.PI * Mathf.Clamp01(t01));
+        float w = amplitude * env;
+        float s1 = Mathf.Sin(t01 * freq1 * Mathf.PI * 2f + phase1);
+        float s2 = Mathf.Sin(t01 * freq2 * Mathf.PI * 2f + phase2);
+        float sY = Mathf.Sin(t01 * (freq1 * 1.31f + freq2 * 0.27f) * Mathf.PI * 2f + (phase1 + phase2) * 0.5f);
+        Vector3 horiz = uAxis * s1 + vAxis * (s2 * 0.78f);
+        return basePos + horiz * w + Vector3.up * (sY * w * verticalMix);
     }
 
     // 优先使用可视组件中心点，避免 transform 锚点与模型显示位置不一致
