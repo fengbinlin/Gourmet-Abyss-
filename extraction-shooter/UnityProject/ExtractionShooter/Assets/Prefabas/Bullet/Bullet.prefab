@@ -9983,6 +9983,8 @@ MonoBehaviour:
   maxFalloffDistance: 50
   criticalHitEffext: {fileID: 1416136211686774, guid: a7b54be45720ff047a3a5b6e9b483d50,
     type: 3}
+  dealHungerDamageToPlayer: 0
+  playerHungerDamageOverride: 0
   debugMode: 0
   enableKillSplit: 0
   killSplitCount: 0

@@ -125,7 +125,7 @@ public class CustomerManager : MonoBehaviour
 
         if (customerPrefabs.Count == 0)
         {
-            Debug.LogWarning("没有配置顾客预制体！");
+            //Debug.LogWarning("没有配置顾客预制体！");
             return;
         }
 
