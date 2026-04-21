@@ -68,8 +68,6 @@ public class PlantMotion : MonoBehaviour
             return;
         }
         
-        // 随机化初始大小
-        targetMesh.transform.localScale *= Random.Range(0.8f, 1.2f);
         originalRotation = targetMesh.transform.localRotation;
         originalPosition = targetMesh.transform.localPosition;
         originalScale = targetMesh.transform.localScale;
