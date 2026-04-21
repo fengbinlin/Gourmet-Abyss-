@@ -7575,75 +7575,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 199183172}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &202044944
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 202044946}
-  - component: {fileID: 202044945}
-  m_Layer: 0
-  m_Name: MonsterSpawner (2)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &202044945
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 202044944}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  statsId: 2
-  spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
-      type: 3}
-    spawnProbability: 0.636
-    maxCount: 4
-    currentCount: 0
-    waitTimeAfterDecrease: 2
-    rapidSpawnInterval: 1
-    warmUpCount: 9
-    warmUpCountRate: 1
-    enableWarmUp: 1
-    randomSize: 0
-    minSizeScale: 0
-    maxSizeScale: 0
-    randomRotation: 0
-    timeSinceLastDecrease: 0
-    isInRapidSpawnMode: 0
-    lastRecordedCount: 0
-  globalWarmUp: 1
-  warmUpInterval: 0.1
-  showDebug: 1
-  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
-  isActive: 1
-  spawnRadius: 4.7
---- !u!4 &202044946
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 202044944}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 47.4, y: 1.17, z: 3.3}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &207364125
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -15625,7 +15556,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 12.8
 --- !u!4 &384717157
 Transform:
   m_ObjectHideFlags: 0
@@ -15635,7 +15566,7 @@ Transform:
   m_GameObject: {fileID: 384717155}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 33.24, y: 1.17, z: -27.55}
+  m_LocalPosition: {x: 51.81, y: 1.17, z: -20.75}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -36670,75 +36601,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 827419381}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &830106599
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 830106601}
-  - component: {fileID: 830106600}
-  m_Layer: 0
-  m_Name: MonsterSpawner (1)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &830106600
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 830106599}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  statsId: 2
-  spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
-      type: 3}
-    spawnProbability: 0.636
-    maxCount: 4
-    currentCount: 0
-    waitTimeAfterDecrease: 2
-    rapidSpawnInterval: 1
-    warmUpCount: 9
-    warmUpCountRate: 1
-    enableWarmUp: 1
-    randomSize: 0
-    minSizeScale: 0
-    maxSizeScale: 0
-    randomRotation: 0
-    timeSinceLastDecrease: 0
-    isInRapidSpawnMode: 0
-    lastRecordedCount: 0
-  globalWarmUp: 1
-  warmUpInterval: 0.1
-  showDebug: 1
-  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
-  isActive: 1
-  spawnRadius: 4.7
---- !u!4 &830106601
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 830106599}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 24.3, y: 1.17, z: -22.8}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &830409995
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -38032,7 +37894,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _GradientTex:
-        m_Texture: {fileID: 1472114169}
+        m_Texture: {fileID: 1164412753}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -38055,7 +37917,7 @@ Material:
     - _Contrast: 1.88
     - _Distortion: 0
     - _NoiseIntensity: 0
-    - _Pixelization: 426
+    - _Pixelization: 320
     - _Rotation: 0
     - _RotationMultiplier: 0
     - _Seed: 0
@@ -44552,7 +44414,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 10.12
 --- !u!4 &919159533
 Transform:
   m_ObjectHideFlags: 0
@@ -44562,7 +44424,7 @@ Transform:
   m_GameObject: {fileID: 919159531}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 55, y: 1.17, z: 13.7}
+  m_LocalPosition: {x: 53.5, y: 1.17, z: 8.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -52170,7 +52032,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 9.81
 --- !u!4 &1079551236
 Transform:
   m_ObjectHideFlags: 0
@@ -52180,7 +52042,7 @@ Transform:
   m_GameObject: {fileID: 1079551234}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 58.31, y: 1.17, z: -14.63}
+  m_LocalPosition: {x: 53.8, y: 1.17, z: 8.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -60678,6 +60540,54 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1164183662}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &1164412753
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 2
+  m_Width: 256
+  m_Height: 1
+  m_CompleteImageSize: 2044
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 9
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 0
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 1
+    m_WrapV: 1
+    m_WrapW: 1
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 2044
+  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1001 &1165640878
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -68823,7 +68733,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 11.48
 --- !u!4 &1368384975
 Transform:
   m_ObjectHideFlags: 0
@@ -68833,7 +68743,7 @@ Transform:
   m_GameObject: {fileID: 1368384973}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 54.52, y: 1.17, z: 0.040000916}
+  m_LocalPosition: {x: 52.8, y: 1.17, z: -10.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -72113,54 +72023,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1470298472}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!28 &1472114169
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 2
-  m_Width: 256
-  m_Height: 1
-  m_CompleteImageSize: 2044
-  m_MipsStripped: 0
-  m_TextureFormat: 4
-  m_MipCount: 9
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 0
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 1
-    m_WrapV: 1
-    m_WrapW: 1
-  m_LightmapFormat: 0
-  m_ColorSpace: 1
-  m_PlatformBlob: 
-  image data: 2044
-  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &1472144489
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -78539,75 +78401,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1612608545}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1612771086
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1612771088}
-  - component: {fileID: 1612771087}
-  m_Layer: 0
-  m_Name: MonsterSpawner (5)
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1612771087
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1612771086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5496efa8cd899d45b44d99ac942b87f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  statsId: 2
-  spawnConfigs:
-  - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
-      type: 3}
-    spawnProbability: 0.636
-    maxCount: 4
-    currentCount: 0
-    waitTimeAfterDecrease: 2
-    rapidSpawnInterval: 1
-    warmUpCount: 9
-    warmUpCountRate: 1
-    enableWarmUp: 1
-    randomSize: 0
-    minSizeScale: 0
-    maxSizeScale: 0
-    randomRotation: 0
-    timeSinceLastDecrease: 0
-    isInRapidSpawnMode: 0
-    lastRecordedCount: 0
-  globalWarmUp: 1
-  warmUpInterval: 0.1
-  showDebug: 1
-  debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
-  isActive: 1
-  spawnRadius: 4.7
---- !u!4 &1612771088
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1612771086}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 62.12, y: 1.17, z: 10.440001}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1613150965
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -81263,7 +81056,7 @@ MonoBehaviour:
   - monsterPrefab: {fileID: 8759403367147227741, guid: 2a44765a10185db4299fc189b320b0dd,
       type: 3}
     spawnProbability: 0.636
-    maxCount: 4
+    maxCount: 2
     currentCount: 0
     waitTimeAfterDecrease: 2
     rapidSpawnInterval: 1
@@ -81282,7 +81075,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 0, g: 1, b: 0, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 10.74
 --- !u!4 &1686809907
 Transform:
   m_ObjectHideFlags: 0
@@ -81292,7 +81085,7 @@ Transform:
   m_GameObject: {fileID: 1686809905}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 17.18, y: 1.17, z: -19.54}
+  m_LocalPosition: {x: 28.76, y: 1.17, z: -23.64}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -89768,7 +89561,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 10.9
 --- !u!4 &1792430036
 Transform:
   m_ObjectHideFlags: 0
@@ -89778,7 +89571,7 @@ Transform:
   m_GameObject: {fileID: 1792430034}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 52.26, y: 1.17, z: -24.24}
+  m_LocalPosition: {x: 48.76, y: 1.17, z: -22.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -97895,7 +97688,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.4509434, b: 0.89336663, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 9.48
 --- !u!4 &1875540312
 Transform:
   m_ObjectHideFlags: 0
@@ -97905,7 +97698,7 @@ Transform:
   m_GameObject: {fileID: 1875540310}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12.66, y: 1.17, z: -6.43}
+  m_LocalPosition: {x: 12.25, y: 1.17, z: -16.96}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -107695,7 +107488,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 11.77
 --- !u!4 &1973058843
 Transform:
   m_ObjectHideFlags: 0
@@ -107705,7 +107498,7 @@ Transform:
   m_GameObject: {fileID: 1973058841}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.73, y: 1.17, z: -15.31}
+  m_LocalPosition: {x: 13.22, y: 1.17, z: -22.47}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -108994,7 +108787,7 @@ MonoBehaviour:
   showDebug: 1
   debugThemeColor: {r: 1, g: 0.9137501, b: 0.103773475, a: 1}
   isActive: 1
-  spawnRadius: 4.7
+  spawnRadius: 9.99
 --- !u!4 &2004731070
 Transform:
   m_ObjectHideFlags: 0
@@ -109004,7 +108797,7 @@ Transform:
   m_GameObject: {fileID: 2004731068}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 48.4, y: 1.17, z: -10.8}
+  m_LocalPosition: {x: 53.2, y: 1.17, z: 8.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -115358,9 +115151,6 @@ SceneRoots:
   - {fileID: 1697926282}
   - {fileID: 1022295391}
   - {fileID: 1686809907}
-  - {fileID: 830106601}
-  - {fileID: 202044946}
-  - {fileID: 1612771088}
   - {fileID: 1792430036}
   - {fileID: 1875540312}
   - {fileID: 1079551236}
