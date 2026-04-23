@@ -90,6 +90,39 @@ public class GlobalMessageUI : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    private void OnDisable()
+    {
+        // 切场/过渡时可能会禁用某些 UI 根节点，导致协程被中断而残留消息面板卡在屏幕上。
+        // 这里做一次硬清理，避免“消息不消失”。
+        ClearAllMessages();
+    }
+
+    /// <summary>
+    /// 强制清空所有消息（队列 + 当前正在播放的消息面板），用于切场/过渡时避免残留。
+    /// </summary>
+    public void ClearAllMessages()
+    {
+        queue.Clear();
+        isPlaying = false;
+        StopAllCoroutines();
+
+        if (messageParent == null) return;
+
+        // 销毁所有已生成的消息面板
+        for (int i = messageParent.childCount - 1; i >= 0; i--)
+        {
+            Transform child = messageParent.GetChild(i);
+            if (child != null)
+                Destroy(child.gameObject);
+        }
+    }
+
+    /// <summary>静态入口：切场时可直接调用。</summary>
+    public static void Clear()
+    {
+        Instance?.ClearAllMessages();
+    }
+
     /// <summary>
     /// 其他脚本调用入口。示例：GlobalMessageUI.Show("获得金币+10", 1.2f);
     /// </summary>

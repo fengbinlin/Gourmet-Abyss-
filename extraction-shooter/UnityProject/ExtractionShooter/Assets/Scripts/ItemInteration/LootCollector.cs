@@ -155,6 +155,7 @@ public class LootCollector : MonoBehaviour
     {
         resourceType = type;
         resourceAmount = amount;
+        isPlantResource = isPlant;
     }
 
     private IEnumerator InitiateCollection()
@@ -388,6 +389,43 @@ public class LootCollector : MonoBehaviour
 
     private void Collect()
     {
+        // 植物类/南瓜类收集物：直接写入数值管理器，不进背包
+        // 约定：当 plantDirectToGameVal 开启时，勾选 isPlantResource 的物体会直入；同时南瓜（LootPumkin）强制按植物类处理，避免 prefab/生成逻辑漏传 isPlant 导致进背包。
+        bool shouldDirectToGameVal = plantDirectToGameVal && (isPlantResource || resourceType == ResourceType.LootPumkin);
+        if (shouldDirectToGameVal)
+        {
+            // 播放收集特效
+            if (collectEffectPrefab != null)
+            {
+                Instantiate(collectEffectPrefab, transform.position, Quaternion.identity);
+            }
+
+            // 播放收集音效
+            if (collectSound != null)
+            {
+                AudioSource.PlayClipAtPoint(collectSound, transform.position);
+            }
+
+            // 触发玩家反馈
+            TriggerPlayerFeedback();
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayAudio("2");
+            }
+
+            if (GameValManager.Instance != null)
+            {
+                GameValManager.Instance.AddResource(resourceType, resourceAmount);
+                Debug.Log($"已收集并直接加入数值管理器: {resourceAmount} 个 {resourceType}");
+                Destroy(gameObject);
+                return;
+            }
+
+            Debug.LogWarning($"GameValManager.Instance 为空，无法直入资源：{resourceAmount} 个 {resourceType}；将按背包逻辑回退");
+            // 若数值管理器未初始化，回退到原背包逻辑（不 return）
+        }
+
         // 统一走战斗背包：收集前都要检查背包空间
         bool hasSpaceNow = CheckInventorySpace();
         isInventoryFull = !hasSpaceNow;

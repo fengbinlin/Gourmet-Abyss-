@@ -113,6 +113,9 @@ public class LevelManager : MonoBehaviour
     private IEnumerator EnterLevelProcess(string levelName)
     {
         isTransitioning = true;
+        
+        // 切场前清理全局消息，避免消息面板残留卡住
+        GlobalMessageUI.Clear();
 
         // 1. 触发UI动画
         if (transitionUIAnimator != null)
@@ -225,6 +228,9 @@ public class LevelManager : MonoBehaviour
 
         BattleValManager.Instance?.StopConsuming();
         isTransitioning = true;
+        
+        // 切场前清理全局消息，避免消息面板残留卡住
+        GlobalMessageUI.Clear();
 
         // 1. 触发UI动画
         if (transitionUIAnimator != null)
@@ -325,6 +331,9 @@ public class LevelManager : MonoBehaviour
 
         BattleValManager.Instance?.StopConsuming();
         isTransitioning = true;
+        
+        // 切场前清理全局消息，避免消息面板残留卡住
+        GlobalMessageUI.Clear();
 
         // 1. 触发UI动画
         if (transitionUIAnimator != null)
@@ -409,6 +418,9 @@ public class LevelManager : MonoBehaviour
     private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
     {
         isTransitioning = true;
+        
+        // 切场前清理全局消息，避免消息面板残留卡住
+        GlobalMessageUI.Clear();
 
         // 1. 触发UI动画
         if (transitionUIAnimator != null)

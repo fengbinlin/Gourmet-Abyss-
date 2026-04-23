@@ -114,7 +114,19 @@ public class BattleValManager : MonoBehaviour
 
     public void enbaleSecondWeapon()
     {
-        subweaponUI.SetActive(true);
+        if (subweaponUI == null) return;
+
+        // 副武器 UI 只在战斗关卡显示；地面/家里即使激活了副武器，也保持隐藏
+        bool isInBattle = PlayerStateManager.instance != null &&
+                          PlayerStateManager.instance.currentState == PlayerState.Battle;
+        if (!isInBattle)
+        {
+            if (subweaponUI.activeSelf) subweaponUI.SetActive(false);
+            return;
+        }
+
+        // 战斗中是否显示，由 UIManager 的战斗 UI 规则统一控制；这里仅确保不被地面误激活
+        if (!subweaponUI.activeSelf) subweaponUI.SetActive(true);
     }
     private void Update()
     {
