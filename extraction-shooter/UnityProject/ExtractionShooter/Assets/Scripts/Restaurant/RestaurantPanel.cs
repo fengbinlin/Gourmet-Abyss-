@@ -89,7 +89,7 @@ public class RestaurantPanel : MonoBehaviour
     [Header("菜碟配置（全部候选）")]
     public List<Plate> allPlates = new List<Plate>();
     [Header("烹饪排队槽（UI，顺序即队列下标 0=队首）")]
-    [Tooltip("仅下标 0（第一个槽）的菜会下锅；锅空闲后仍从当前队首 0 取菜；队首空则整列左移递补。")]
+    [Tooltip("队首（下标 0）优先下锅；有空闲且类型匹配的锅会从 potsList 中取锅并行烹饪；队首空则整列左移递补。")]
     public List<DishQueueSlot> allDishQueueSlots = new List<DishQueueSlot>();
     [Tooltip("单槽最大叠堆份数；若已存在 WeaponStatsManager 则优先使用其 slotCapacity")]
     [SerializeField] private int cookQueueMaxPerSlotFallback = 20;
@@ -772,26 +772,40 @@ public class RestaurantPanel : MonoBehaviour
         return Vector3.LerpUnclamped(apex, end, e2);
     }
 
-    /// <summary>餐厅仅一口锅：使用 <see cref="potsList"/> 中第一个锅位（下标 0）。</summary>
+    /// <summary>在 <see cref="potsList"/> 中查找第一个空闲且锅型匹配的菜谱可用锅。</summary>
     public Pot FindAvailablePotForRecipe(List<potType> acceptablePotTypes)
     {
-        if (acceptablePotTypes == null || potsList == null || potsList.Count == 0) return null;
-        Pot pot = potsList[0];
-        if (pot != null && pot.IsAvailable() && acceptablePotTypes.Contains(pot.potType))
-            return pot;
+        if (acceptablePotTypes == null || acceptablePotTypes.Count == 0) return null;
+        if (potsList == null || potsList.Count == 0) return null;
+
+        for (int i = 0; i < potsList.Count; i++)
+        {
+            Pot pot = potsList[i];
+            if (pot == null || !pot.isActiveAndEnabled) continue;
+            if (!pot.IsAvailable()) continue;
+            if (acceptablePotTypes.Contains(pot.potType))
+                return pot;
+        }
+
         return null;
     }
 
     /// <summary>
-    /// 将队首排队菜派给唯一空闲锅。只从 <see cref="_cookQueueData"/> 下标 0 取一份；每轮最多开始 1 次烹饪。
+    /// 将队首排队菜尽可能派给所有空闲锅。每次从 <see cref="_cookQueueData"/> 下标 0 取 1 份，直到无队首菜或无可用锅。
     /// </summary>
     private void TryDispatchQueueToPots()
     {
         if (!isActiveAndEnabled || potsList == null || potsList.Count == 0) return;
-        TryDispatchOneCookFromQueueFront();
+
+        int maxDispatch = Mathf.Max(potsList.Count, GetActiveCookQueueSlotCount());
+        for (int i = 0; i < maxDispatch; i++)
+        {
+            if (!TryDispatchOneCookFromQueueFront())
+                break;
+        }
     }
 
-    /// <summary>仅从排队槽第 1 格（下标 0）取 1 份菜；唯一锅空闲且接受该菜谱时开始烹饪。</summary>
+    /// <summary>从排队槽下标 0 取 1 份菜；<see cref="potsList"/> 中任一空闲且接受该菜谱的锅开始烹饪。</summary>
     private bool TryDispatchOneCookFromQueueFront()
     {
         EnsureCookQueueDataSize();

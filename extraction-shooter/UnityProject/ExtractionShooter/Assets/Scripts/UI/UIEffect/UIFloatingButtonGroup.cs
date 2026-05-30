@@ -245,6 +245,9 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
         if (selectedIndex >= 0 && selectedIndex < items.Count && items[selectedIndex] != null)
         {
+            if (linkRestaurantToShopUI && selectedIndex == restaurantButtonIndex)
+                return;
+
             Transform camTarget = items[selectedIndex].GetCameraTarget();
             if (camTarget != null)
             {
@@ -413,10 +416,6 @@ public class UIFloatingButtonGroup : MonoBehaviour
         if (isRestaurant)
         {
             ShopInteraction.Instance.ShowShopUI();
-        }
-        else
-        {
-            ShopInteraction.Instance.HideShopUI();
         }
     }
 

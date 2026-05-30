@@ -349,15 +349,8 @@ public class UIFloatingButtonItem : MonoBehaviour
 
     public void ShowRestaurantUI()
     {
-        if (ShopInteraction.Instance.isUIShowing)
-        {
-            ShopInteraction.Instance.HideShopUI();
-        }
-        else
-        {
+        if (ShopInteraction.Instance != null)
             ShopInteraction.Instance.ShowShopUI();
-        }
-
     }
 
 }

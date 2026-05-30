@@ -15,15 +15,23 @@ public class CookManager : MonoBehaviour
         cookManager = this;
     }
 
-    // 获取一个空闲锅，如果要支持厨师Buff就可调用这个函数
+    /// <summary>获取 <see cref="RestaurantPanel.potsList"/> 中第一个空闲锅。</summary>
     public Pot GetAvailableCookingPot()
     {
         if (RestaurantPanel.instance == null) return null;
         foreach (Pot pot in RestaurantPanel.instance.potsList)
         {
-            if (pot != null && pot.IsAvailable()) return pot;
+            if (pot != null && pot.isActiveAndEnabled && pot.IsAvailable())
+                return pot;
         }
         return null;
+    }
+
+    /// <summary>按菜谱可接受锅型，从 potsList 中取第一个空闲锅。</summary>
+    public Pot GetAvailableCookingPotForRecipe(List<potType> acceptablePotTypes)
+    {
+        if (RestaurantPanel.instance == null) return null;
+        return RestaurantPanel.instance.FindAvailablePotForRecipe(acceptablePotTypes);
     }
 
     // 雇佣指定顾客为厨师

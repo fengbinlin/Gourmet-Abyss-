@@ -931,6 +931,19 @@ public class TopDownController : MonoBehaviour
         return isMoving;
     }
 
+    /// <summary>启用/禁用玩家移动与转向；禁用时立即清零速度与输入。</summary>
+    public void SetPlayerMovementEnabled(bool enabled)
+    {
+        canPlayerMove = enabled;
+        if (enabled) return;
+
+        moveInput = Vector3.zero;
+        if (rb != null)
+            rb.velocity = Vector3.zero;
+        isMoving = false;
+        StopFootstepParticles();
+    }
+
     #endregion
 
     #region --- 原有的移动、旋转、状态管理逻辑（保持不变）---
@@ -1215,11 +1228,17 @@ public class TopDownController : MonoBehaviour
 
             moveInput = (camForward.normalized * v + camRight.normalized * h).normalized;
         }
+        else
+        {
+            moveInput = Vector3.zero;
+        }
 
     }
 
     private void Move()
     {
+        if (!canPlayerMove) return;
+
         float finalMoveSpeed = moveSpeed * (1f + currentSpeedBonus);
         rb.MovePosition(rb.position + moveInput * finalMoveSpeed * Time.fixedDeltaTime);
     }

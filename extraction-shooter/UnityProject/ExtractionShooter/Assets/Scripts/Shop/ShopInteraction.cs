@@ -34,11 +34,6 @@ public class ShopInteraction : MonoBehaviour
     [SerializeField] private AudioClip transferSound;
     [SerializeField] private AudioClip errorSound;
 
-    [Header("打开商店 UI 时相机（对准餐厅第一口锅）")]
-    [SerializeField] private float shopUiOrthoSize = 5.5f;
-    [Tooltip("打开商店 UI 时，相机 Y 轴额外向下偏移（世界坐标，Y_focus = 锅位Y - 偏移）。正值会让相机更低。")]
-    [SerializeField] private float shopCameraYDownOffset = 0.35f;
-
     [Header("进入餐厅范围：首锅缩放提示")]
     [SerializeField] private float firstPotEnterPulsePeak = 1.14f;
     [SerializeField] private float firstPotEnterPulseUp = 0.14f;
@@ -68,8 +63,6 @@ public class ShopInteraction : MonoBehaviour
     private Tween currentUItween;
     public bool isUIShowing = false;
     private Vector3 originalUIScale;
-    private Coroutine _shopCameraUiCoroutine;
-    private const string ShopCameraUiKey = "shop_interaction_ui";
     /// <summary>父级 RectTransform 不要用 scale=0：子 ScrollRect 在 0→非0 后 normalizedPosition 会错乱。用极小非零代替。</summary>
     private const float MinShopUiScaleFactor = 0.001f;
 
@@ -112,24 +105,11 @@ public class ShopInteraction : MonoBehaviour
     private void Start()
     {
         UpdateShopUIState();
+        ShowShopUI();
     }
 
     private void Update()
     {
-        if (playerInRange)
-        {
-            if (Input.GetKeyDown(interactKey)){
-                if (!isUIShowing)
-                {
-                    ShowShopUI();
-                }
-                else
-                {
-                    HideShopUI();
-                }
-                
-            }
-        }
         // if (playerInRange && playerTransform != null)
         // {
         //     float distance = Vector3.Distance(transform.position, playerTransform.position);
@@ -175,8 +155,6 @@ public class ShopInteraction : MonoBehaviour
             // // 离开范围：将餐厅按钮设为未激活（仅当当前正选中餐厅时才取消，避免误清除其它按钮选中）
             // if (UIFloatingButtonGroup.Instance != null)
             //     UIFloatingButtonGroup.Instance.DeselectIfSelected(1);
-            // // 兜底隐藏（如果餐厅按钮未选中但 UI 仍开着）
-            HideShopUI();
         }
     }
 
@@ -197,9 +175,6 @@ public class ShopInteraction : MonoBehaviour
         playerColliderIdsInTrigger.Clear();
 
         TryCancelFirstPotAttentionPulse();
-
-        // 离开范围：无条件隐藏 UI（由按钮/切换其它按钮时也会隐藏）
-        HideShopUI();
 
         if (interactionText != null)
             interactionText.text = "";
@@ -231,13 +206,6 @@ public class ShopInteraction : MonoBehaviour
         if (isUIShowing) return;
         isUIShowing = true;
 
-        if (_shopCameraUiCoroutine != null)
-        {
-            StopCoroutine(_shopCameraUiCoroutine);
-            _shopCameraUiCoroutine = null;
-        }
-        _shopCameraUiCoroutine = StartCoroutine(CoPushShopCameraUiNextFrame());
-
         shopUICanvas.SetActive(true);
 
         if (currentUItween != null && currentUItween.IsActive())
@@ -257,54 +225,7 @@ public class ShopInteraction : MonoBehaviour
 
     public void HideShopUI()
     {
-        if (shopUICanvas == null || shopUIRectTransform == null || shopCanvasGroup == null) return;
-        if (!isUIShowing && !shopUICanvas.activeSelf) return;
-        isUIShowing = false;
-
-        if (_shopCameraUiCoroutine != null)
-        {
-            StopCoroutine(_shopCameraUiCoroutine);
-            _shopCameraUiCoroutine = null;
-        }
-        ClearShopCameraUiRequests();
-
-        if (currentUItween != null && currentUItween.IsActive())
-            currentUItween.Kill();
-
-        Vector3 initialHideScale = originalUIScale * hideScaleMultiplier;
-        Vector3 currentScale = shopUIRectTransform.localScale;
-        Sequence hideSequence = DOTween.Sequence();
-        hideSequence.Append(shopUIRectTransform.DOScale(initialHideScale, hideAnimationDuration * 0.2f).From(currentScale).SetEase(Ease.InBack));
-        hideSequence.Join(shopCanvasGroup.DOFade(0.8f, hideAnimationDuration * 0.2f));
-        hideSequence.Append(shopUIRectTransform.DOScale(GetMinShopUiScale(), hideAnimationDuration * 0.8f).SetEase(Ease.InBack));
-        hideSequence.Join(shopCanvasGroup.DOFade(0f, hideAnimationDuration * 0.6f));
-        hideSequence.OnComplete(() => { shopUICanvas.SetActive(false); });
-        currentUItween = hideSequence;
-    }
-
-    private IEnumerator CoPushShopCameraUiNextFrame()
-    {
-        yield return null;
-        PushShopCameraUiFocus();
-        _shopCameraUiCoroutine = null;
-    }
-
-    private void PushShopCameraUiFocus()
-    {
-        RestaurantPanel panel = RestaurantPanel.instance;
-        if (panel == null || panel.potsList == null || panel.potsList.Count == 0 || panel.potsList[0] == null)
-            return;
-        Vector3 w = panel.potsList[0].transform.position;
-        CameraFollow.PushXFocusRequest(ShopCameraUiKey, w.x);
-        CameraFollow.PushYFocusRequest(ShopCameraUiKey, w.y - shopCameraYDownOffset);
-        CameraFollow.PushOrthoSizeRequest(ShopCameraUiKey, Mathf.Max(0.5f, shopUiOrthoSize));
-    }
-
-    private void ClearShopCameraUiRequests()
-    {
-        CameraFollow.PopOrthoSizeRequest(ShopCameraUiKey);
-        CameraFollow.PopXFocusRequest(ShopCameraUiKey);
-        CameraFollow.PopYFocusRequest(ShopCameraUiKey);
+        // 餐厅 UI 常驻显示，保留空实现以兼容旧调用点。
     }
 
     private int pendingItemCount = 0; // 追踪正在飞行中的物品数量
@@ -473,18 +394,11 @@ public class ShopInteraction : MonoBehaviour
             }
             else
             {
-                if (!playerInRange)
+                if (playerInRange && shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
                 {
-                    HideShopUI();
-                }
-                else
-                {
-                    if (shopUICanvas != null && shopUICanvas.activeSelf && shopUIRectTransform != null)
-                    {
-                        Vector3 emptyScale = originalUIScale * 0.8f;
-                        Sequence emptySequence = DOTween.Sequence();
-                        emptySequence.Append(shopUIRectTransform.DOScale(emptyScale, 0.3f).SetEase(Ease.OutBack));
-                    }
+                    Vector3 emptyScale = originalUIScale * 0.8f;
+                    Sequence emptySequence = DOTween.Sequence();
+                    emptySequence.Append(shopUIRectTransform.DOScale(emptyScale, 0.3f).SetEase(Ease.OutBack));
                 }
                 OnShopEmpty?.Invoke();
             }
@@ -560,8 +474,5 @@ public class ShopInteraction : MonoBehaviour
             shopManager.OnShopStateChanged.RemoveListener(HandleShopStateChanged);
         if (currentUItween != null && currentUItween.IsActive())
             currentUItween.Kill();
-        if (_shopCameraUiCoroutine != null)
-            StopCoroutine(_shopCameraUiCoroutine);
-        ClearShopCameraUiRequests();
     }
 }
