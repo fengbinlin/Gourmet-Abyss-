@@ -79,7 +79,7 @@ MonoBehaviour:
   expressionTextureProperty: _MainTex
   bubble: {fileID: 541571661688498990}
   bubbleText: {fileID: 3351807728765054066}
-  enableBirdGroundDrop: 1
+  enableBirdGroundDrop: 0
   moveYWalkingOffset: 0.35
   idleDropSpeed: 2.5
   moveHeightRiseSpeedMultiplier: 1
@@ -91,6 +91,8 @@ MonoBehaviour:
   useScaleFlipForFacing: 1
   coinSpawnPoint: {fileID: 3457756955816428289}
   maxVisualCoins: 12
+  moneyProjectileFlightDuration: 2
+  moneyProjectileMaxHeight: 5
   playerModelList:
   - {fileID: 6935358417001416595}
   - {fileID: 296544687996547356}
@@ -153,7 +155,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &2542388798898556183
 Transform:
   m_ObjectHideFlags: 0
@@ -1222,6 +1224,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5195174219400788249}
     m_Modifications:
+    - target: {fileID: 1191922086282850, guid: 97f78fbd76d448748a90697b134dd3aa, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1937514380537036, guid: 97f78fbd76d448748a90697b134dd3aa, type: 3}
       propertyPath: m_Name
       value: Cute_Bird_01

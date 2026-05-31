@@ -125,7 +125,7 @@ public class RestaurantPanel : MonoBehaviour
             cookingProgressImage.gameObject.SetActive(v > 0f);
     }
 
-    /// <summary>首碟自动售卖进度：0-1；由 Plate.AutoSellRoutine 调用。</summary>
+    /// <summary>顾客就餐进度：0-1；由 CustomerNPC 就餐协程调用（可选 UI）。</summary>
     public void SetPlateSellProgress(float t)
     {
         if (plateSellProgressImage == null) return;
@@ -1586,10 +1586,6 @@ public class RestaurantPanel : MonoBehaviour
         {
             Plate p = platesList[i];
             if (p == null) continue;
-            if (p.IsRestaurantPrimarySellPlate())
-                p.StopConsumeOnly();
-            else
-                p.CancelConsume();
             p.ClearDishDataFieldsOnly();
         }
 
@@ -1604,11 +1600,21 @@ public class RestaurantPanel : MonoBehaviour
         for (int i = 0; i < platesList.Count; i++)
         {
             if (platesList[i] != null)
-            {
                 platesList[i].RefreshDisplay();
-                platesList[i].EnsureAutoSellRunning();
-            }
         }
+    }
+
+    /// <summary>查找第一只仍有食物的碟子（按 platesList 顺序）。</summary>
+    public Plate FindFirstPlateWithFood()
+    {
+        if (platesList == null) return null;
+        for (int i = 0; i < platesList.Count; i++)
+        {
+            Plate plate = platesList[i];
+            if (plate != null && !plate.IsPlateEmpty())
+                return plate;
+        }
+        return null;
     }
 
     /// <summary>

@@ -2843,7 +2843,7 @@ Transform:
   m_GameObject: {fileID: 57091981}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -30.15, y: -1.28, z: 2.0784569}
+  m_LocalPosition: {x: -13.8, y: -5, z: 2.0784569}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13887,6 +13887,7 @@ GameObject:
   m_Component:
   - component: {fileID: 215736333}
   - component: {fileID: 215736334}
+  - component: {fileID: 215736335}
   m_Layer: 0
   m_Name: C
   m_TagString: Untagged
@@ -13961,6 +13962,21 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &215736335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 215736332}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 053223e8b7f376948b80955e21c28795, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sitPoint: {fileID: 0}
+  coinSpawnPoint: {fileID: 0}
+  defaultCoinSpawnOffset: {x: 0.6, y: 0, z: 0}
 --- !u!4 &217469880 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 425662, guid: 816250fd953b9e74186924b4c4541a55,
@@ -18119,6 +18135,7 @@ GameObject:
   m_Component:
   - component: {fileID: 316852453}
   - component: {fileID: 316852454}
+  - component: {fileID: 316852455}
   m_Layer: 0
   m_Name: C
   m_TagString: Untagged
@@ -18193,6 +18210,21 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &316852455
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 316852452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 053223e8b7f376948b80955e21c28795, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sitPoint: {fileID: 0}
+  coinSpawnPoint: {fileID: 0}
+  defaultCoinSpawnOffset: {x: 0.6, y: 0, z: 0}
 --- !u!1001 &318741907
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -30396,6 +30428,7 @@ GameObject:
   m_Component:
   - component: {fileID: 582234667}
   - component: {fileID: 582234668}
+  - component: {fileID: 582234669}
   m_Layer: 0
   m_Name: C
   m_TagString: Untagged
@@ -30470,6 +30503,21 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &582234669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 582234666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 053223e8b7f376948b80955e21c28795, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sitPoint: {fileID: 0}
+  coinSpawnPoint: {fileID: 0}
+  defaultCoinSpawnOffset: {x: 0.6, y: 0, z: 0}
 --- !u!4 &582294273 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4878814061148674, guid: 1f30db64f59f10f4a9b59eb9dbf2c4bf,
@@ -47645,7 +47693,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _GradientTex:
-        m_Texture: {fileID: 1058324634}
+        m_Texture: {fileID: 1251575988}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -52426,6 +52474,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 975570845}
+  - component: {fileID: 975570846}
   m_Layer: 0
   m_Name: RestaurantNew
   m_TagString: Untagged
@@ -52441,8 +52490,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 975570844}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 320.06, y: 89.44, z: -54.532417}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -5.1400146, y: -2.159996, z: -32.292416}
   m_LocalScale: {x: 0.29109642, y: 0.29109642, z: 0.29109642}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -52457,8 +52506,21 @@ Transform:
   - {fileID: 943966923}
   - {fileID: 178104553}
   - {fileID: 420286746}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1313028046}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &975570846
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 975570844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9572e96e44e23054582ecb7896293cb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  logSeatCountOnStart: 0
 --- !u!1 &978780419
 GameObject:
   m_ObjectHideFlags: 0
@@ -54275,20 +54337,29 @@ MonoBehaviour:
   exitPoints:
   - {fileID: 1538431235}
   queueFrontPoint: {fileID: 1791748445}
-  restaurantInsidePoint: {fileID: 0}
+  restaurantCoinPrefab: {fileID: 8658045518726690877, guid: d18f59bb6caaee741938463fc95521d6,
+    type: 3}
+  dishFlyToCustomerPrefab: {fileID: 4621863791894457336, guid: 10dc4bac282a3664992c52b896307262,
+    type: 3}
+  dishFlyToCustomerDuration: 0.35
   plates:
   - {fileID: 1662213633}
   - {fileID: 265029725}
   - {fileID: 1639100906}
-  customerPrefabs: []
-  maxCustomersInside: 1
+  customerPrefabs:
+  - {fileID: 942867603612931616, guid: 069a68981c781bc4c99b61526c75347f, type: 3}
+  - {fileID: 942867603612931616, guid: 4a613402596d53649a0846fbac79bf20, type: 3}
+  - {fileID: 942867603612931616, guid: 5a1f7fe31270b9a4cb04d57d84411cae, type: 3}
+  - {fileID: 7260374355330160121, guid: 769df267ce560874792063280e44a16e, type: 3}
+  - {fileID: 2400827565171121692, guid: a63d4ce2b28c8354e8a87fdb33bfd94f, type: 3}
+  maxCustomersInside: 8
   queueSpacing: -2
   restaurantCustomerCountText: {fileID: 0}
   enableAutoSpawn: 1
   minSpawnInterval: 0.5
   maxSpawnInterval: 1
   maxTotalCustomers: 20
-  isCustomerChat: 1
+  isCustomerChat: 0
   projectileLauncher: {fileID: 581512508}
   moneyBoxTransform: {fileID: 1037787628}
   currentInteractingNPC: {fileID: 0}
@@ -55742,54 +55813,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f1189485583b7264c9431b3f40274c45, type: 3}
---- !u!28 &1058324634
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 2
-  m_Width: 256
-  m_Height: 1
-  m_CompleteImageSize: 2044
-  m_MipsStripped: 0
-  m_TextureFormat: 4
-  m_MipCount: 9
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 0
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 1
-    m_WrapV: 1
-    m_WrapW: 1
-  m_LightmapFormat: 0
-  m_ColorSpace: 1
-  m_PlatformBlob: 
-  image data: 2044
-  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &1059674160
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -59559,6 +59582,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1145077993}
   - component: {fileID: 1145077994}
+  - component: {fileID: 1145077995}
   m_Layer: 0
   m_Name: C
   m_TagString: Untagged
@@ -59633,6 +59657,21 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1145077995
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1145077992}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 053223e8b7f376948b80955e21c28795, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sitPoint: {fileID: 0}
+  coinSpawnPoint: {fileID: 0}
+  defaultCoinSpawnOffset: {x: 0.6, y: 0, z: 0}
 --- !u!1001 &1145229439
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -63329,6 +63368,54 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1251429993}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &1251575988
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 2
+  m_Width: 256
+  m_Height: 1
+  m_CompleteImageSize: 2044
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 9
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 0
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 1
+    m_WrapV: 1
+    m_WrapW: 1
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 2044
+  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!4 &1253627014 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 441416, guid: 427b1970556ec6749802d332bf51f0cb,
@@ -75778,7 +75865,7 @@ Transform:
   m_GameObject: {fileID: 1538431234}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 24.33, y: -1.28, z: 2.0784569}
+  m_LocalPosition: {x: -5.83, y: -7.87, z: 2.0784569}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -107125,7 +107212,7 @@ PrefabInstance:
     - target: {fileID: 497374602258072631, guid: 32f6d0d4816e6cf428306dc11b9c420f,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.0137
+      value: 0.0594
       objectReference: {fileID: 0}
     - target: {fileID: 497374602258072631, guid: 32f6d0d4816e6cf428306dc11b9c420f,
         type: 3}
@@ -107135,7 +107222,7 @@ PrefabInstance:
     - target: {fileID: 497374602258072631, guid: 32f6d0d4816e6cf428306dc11b9c420f,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.0088
+      value: -0.0629
       objectReference: {fileID: 0}
     - target: {fileID: 671911955484963337, guid: 32f6d0d4816e6cf428306dc11b9c420f,
         type: 3}
@@ -108858,6 +108945,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1018211385}
+    - targetCorrespondingSourceObject: {fileID: 4522951408423643427, guid: 32f6d0d4816e6cf428306dc11b9c420f,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 975570845}
     - targetCorrespondingSourceObject: {fileID: 2065084295403158846, guid: 32f6d0d4816e6cf428306dc11b9c420f,
         type: 3}
       insertIndex: 3
@@ -109267,7 +109358,7 @@ PrefabInstance:
     - target: {fileID: 8450746885783390736, guid: dbabbd23e9ecaa949bde877ced5dced7,
         type: 3}
       propertyPath: restaurantCustomerPrefabCount
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8450746885783390736, guid: dbabbd23e9ecaa949bde877ced5dced7,
         type: 3}
@@ -110254,5 +110345,4 @@ SceneRoots:
   - {fileID: 8897603272031749082}
   - {fileID: 1354941902}
   - {fileID: 151125987}
-  - {fileID: 975570845}
   - {fileID: 457309701}

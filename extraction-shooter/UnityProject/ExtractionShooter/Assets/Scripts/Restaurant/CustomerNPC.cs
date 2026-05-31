@@ -81,8 +81,11 @@ public class CustomerNPC : MonoBehaviour
     public GameObject bubble;         // 气泡对象
     public Text bubbleText;           // 气泡文本组件
     private Vector3 targetPosition;
-    private Plate targetPlate;
+    private RestaurantSeat currentSeat;
+    private Plate servedPlate;
     private bool isConsuming = false;
+    private bool _hasHandledSeatArrival;
+    private Transform _exitTargetTransform;
     private CustomerManager manager;
 
     [Header("鸟类高度（移动抬起、Idle落地）")]
@@ -90,21 +93,19 @@ public class CustomerNPC : MonoBehaviour
     [SerializeField] private float moveYWalkingOffset = 0.35f; // 移动时相对地面的抬起高度（可调）
     [SerializeField] private float idleDropSpeed = 2.5f;         // idle 时落回地面的速度
     [SerializeField] private float moveHeightRiseSpeedMultiplier = 1f; // 移动时逼近目标抬起高度的速度
-    [SerializeField] private float reachXZThreshold = 0.1f;
+    [SerializeField] private float reachPlanarThreshold = 0.1f;
     [SerializeField] private float leavingDestroyYThreshold = 0.05f;
 
-    // 出生时的“地面基准高度”（之后不再随目标点Y变化）
-    private bool baseGroundYInitialized = false;
-    private float baseGroundY = 0f;
-    private float spawnZOffset = 0f;
+    // 2D（XY 平面）：排队时的 Y 轴错开量
+    private float spawnLaneOffset = 0f;
 
-    [Header("生成随机偏移（Y/Z）")]
+    [Header("生成随机偏移（2D：Y 轴错开；Z 仅排序）")]
     [SerializeField] private bool enableSpawnRandomOffset = true;
     [SerializeField] private float spawnRandomYRange = 0.08f;
-    [SerializeField] private float spawnRandomZRange = 0.08f;
+    [SerializeField] private float spawnRandomLaneRange = 0.08f;
 
     // 供 Manager 的配对聊天逻辑做“临时暂停/恢复”用
-    public Vector3 CurrentTargetPosition => targetPosition;
+    public Vector3 CurrentTargetPosition => GetLiveTargetPosition();
 
     [Header("2D朝向（仅左/右）")]
     [SerializeField] private bool useScaleFlipForFacing = true;
@@ -171,25 +172,12 @@ public class CustomerNPC : MonoBehaviour
         InitCustomerInfoView();
         RefreshFavouriteDishIcons();
 
-        // 生成时增加轻微随机偏移（只影响 Y/Z，不改 X），避免所有鸟都完全重合
+        // 生成时增加轻微随机偏移，避免完全重合（2D：XY 平面）
         if (enableSpawnRandomOffset)
         {
             Vector3 p = transform.position;
             p.y += Random.Range(-spawnRandomYRange, spawnRandomYRange);
-            spawnZOffset = Random.Range(-spawnRandomZRange, spawnRandomZRange);
-            p.z += spawnZOffset;
-            transform.position = p;
-        }
-
-        // 以出生地的高度为基准，后续不再改变
-        baseGroundY = transform.position.y;
-        baseGroundYInitialized = true;
-
-        // 生成瞬间抬到飞行高度（不需要慢慢抬起）
-        if (enableBirdGroundDrop)
-        {
-            Vector3 p = transform.position;
-            p.y = baseGroundY + moveYWalkingOffset;
+            spawnLaneOffset = Random.Range(-spawnRandomLaneRange, spawnRandomLaneRange);
             transform.position = p;
         }
 
@@ -322,13 +310,7 @@ public class CustomerNPC : MonoBehaviour
             // 如果正在离开且到达目标，销毁自己
             if (state == CustomerState.Leaving)
             {
-                float xzDist = Vector2.Distance(
-                    new Vector2(transform.position.x, transform.position.z),
-                    new Vector2(targetPosition.x, targetPosition.z)
-                );
-                bool xzReached = xzDist < reachXZThreshold;
-                // 离开点不需要降落：到达（XZ）即可销毁
-                if (xzReached)
+                if (GetPlanarDistance(transform.position, GetLiveTargetPosition()) < reachPlanarThreshold)
                 {
                     manager?.RemoveCustomer(this);
                     Destroy(gameObject);
@@ -336,11 +318,8 @@ public class CustomerNPC : MonoBehaviour
             }
         }
 
-        float currentXZDist = Vector2.Distance(
-            new Vector2(transform.position.x, transform.position.z),
-            new Vector2(targetPosition.x, targetPosition.z)
-        );
-        bool isMovingNow = allowMoveNow && currentXZDist >= reachXZThreshold;
+        float currentPlanarDist = GetPlanarDistance(transform.position, GetLiveTargetPosition());
+        bool isMovingNow = allowMoveNow && currentPlanarDist >= reachPlanarThreshold;
         animator.SetBool("isRunning", isMovingNow);
 
         // 排队时统一面朝右边
@@ -349,18 +328,12 @@ public class CustomerNPC : MonoBehaviour
             FaceByX(1f);
         }
 
-        // 即使“暂停移动”（例如玩家交互/配对聊天停住），也要让鸟在 idle 时落回目标地面高度
-        if (enableBirdGroundDrop && state != CustomerState.Leaving && data != null && !data.isCook && !isConsuming && !isGuesting && !isMovingNow)
-        {
-            float groundY = baseGroundYInitialized ? baseGroundY : targetPosition.y;
-            transform.position = new Vector3(
-                transform.position.x,
-                Mathf.MoveTowards(transform.position.y, groundY, idleDropSpeed * Time.deltaTime),
-                transform.position.z
-            );
-        }
-
         UpdateBubblePosition();
+    }
+
+    private static float GetPlanarDistance(Vector3 a, Vector3 b)
+    {
+        return Vector2.Distance(new Vector2(a.x, a.y), new Vector2(b.x, b.y));
     }
 
     private void FaceByDirection(Vector3 worldDirection)
@@ -410,11 +383,7 @@ public class CustomerNPC : MonoBehaviour
         // 离开点附近不再触发聊天，避免“聊天结束瞬间到点就销毁”的突兀观感
         if (state == CustomerState.Leaving)
         {
-            float xzDist = Vector2.Distance(
-                new Vector2(transform.position.x, transform.position.z),
-                new Vector2(targetPosition.x, targetPosition.z)
-            );
-            if (xzDist < 0.8f) return false;
+            if (GetPlanarDistance(transform.position, targetPosition) < 0.8f) return false;
         }
 
         return state == CustomerState.Leaving;
@@ -671,82 +640,119 @@ public class CustomerNPC : MonoBehaviour
         bubbleHideCoroutine = null;
     }
 
-    public void SetTarget(Vector3 pos)
+    public void SetTarget(Vector3 pos, bool applySpawnLaneOffset = true)
     {
-        // Z 使用“目标点 + 出生偏移”，这样既能保持错开，又不会破坏队列沿Z方向的间隔
-        pos.z += spawnZOffset;
-        targetPosition = pos;
+        targetPosition = ToPlanarTarget(pos, applySpawnLaneOffset);
     }
 
-    /// <summary>进入餐厅用餐区（不绑定餐碟；收入来自首碟自动售卖）。</summary>
-    public void EnterRestaurantAmbience(Vector3 insidePosition)
+    /// <summary>根据当前状态实时解析移动目标（座位 / 排队位 / 离开点会每帧跟随 Transform）。</summary>
+    public Vector3 GetLiveTargetPosition()
     {
-        targetPlate = null;
-        state = CustomerState.InsideRestaurant;
-        SetExpression(CustomerExpression.Serious);
-        SetTarget(new Vector3(insidePosition.x, insidePosition.y, transform.position.z));
-        ShowBubble(GetRandomThought(data.InsideRestaurantQueueingWords.ToArray()));
+        if (state == CustomerState.InsideRestaurant && currentSeat != null && !_hasHandledSeatArrival)
+            return ToPlanarTarget(currentSeat.GetSitWorldPosition(), applySpawnLaneOffset: false);
+
+        if ((state == CustomerState.WalkingToQueue || state == CustomerState.Queueing)
+            && manager != null
+            && manager.TryGetQueueWorldPosition(this, out Vector3 queuePos))
+            return ToPlanarTarget(queuePos, applySpawnLaneOffset: true);
+
+        if (state == CustomerState.Leaving && _exitTargetTransform != null)
+            return ToPlanarTarget(_exitTargetTransform.position, applySpawnLaneOffset: false);
+
+        return targetPosition;
     }
 
-    public void GoToPlate(Plate plate)
+    private Vector3 ToPlanarTarget(Vector3 pos, bool applySpawnLaneOffset)
     {
-        if (plate == null)
+        if (applySpawnLaneOffset)
+            pos.y += spawnLaneOffset;
+        return new Vector3(pos.x, pos.y, transform.position.z);
+    }
+
+    private void RefreshMoveTarget()
+    {
+        targetPosition = GetLiveTargetPosition();
+    }
+
+    /// <summary>队首顾客进入餐厅：走向已预留的空座位。</summary>
+    public void GoToSeat(RestaurantSeat seat)
+    {
+        if (seat == null)
         {
-            //没找到有食物的碟子
-            targetPlate = null;
-            state = CustomerState.Leaving;
-            SetExpression(CustomerExpression.Crying);
-            Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
-            if (exit != null)
-            {
-                SetTarget(exit.position);
-            }
+            LeaveRestaurantNoPlates();
             return;
         }
 
-        targetPlate = plate;
+        currentSeat = seat;
+        servedPlate = null;
+        _hasHandledSeatArrival = false;
         state = CustomerState.InsideRestaurant;
         SetExpression(CustomerExpression.Serious);
-        SetTarget(new Vector3(plate.transform.position.x, plate.transform.position.y, transform.position.z));
-
         ShowBubble(GetRandomThought(data.InsideRestaurantQueueingWords.ToArray()));
+    }
+
+    [System.Obsolete("已改为座位就餐流程，请使用 GoToSeat")]
+    public void EnterRestaurantAmbience(Vector3 insidePosition)
+    {
+        if (SeatManager.Instance != null && SeatManager.Instance.HasAvailableSeat)
+        {
+            RestaurantSeat seat = SeatManager.Instance.TryReserveSeat(this);
+            if (seat != null)
+            {
+                GoToSeat(seat);
+                return;
+            }
+        }
+        LeaveRestaurantNoPlates();
+    }
+
+    [System.Obsolete("已改为座位就餐流程，请使用 GoToSeat")]
+    public void GoToPlate(Plate plate)
+    {
+        GoToSeat(null);
     }
 
     public void LeaveRestaurant()
     {
-        targetPlate = null;
+        ReleaseCurrentSeat();
+        servedPlate = null;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.Touched);
         Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
         if (exit != null)
         {
-            SetTarget(exit.position);
+            _exitTargetTransform = exit;
+            SetTarget(exit.position, applySpawnLaneOffset: false);
         }
         //Debug.Log("D5555");
         ShowBubble(GetRandomThought(data.LeavingRestaurantWords.ToArray()));
     }
     public void LeaveRestaurantNoPlates()
     {
-        targetPlate = null;
+        ReleaseCurrentSeat();
+        servedPlate = null;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.Speechless);
         Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
         if (exit != null)
         {
-            SetTarget(exit.position);
+            _exitTargetTransform = exit;
+            SetTarget(exit.position, applySpawnLaneOffset: false);
         }
         //Debug.Log("D5555");
         ShowBubble(GetRandomThought(data.noPlateFoodWords.ToArray()));
     }
     public void donotWantToEat()
     {
-        targetPlate = null;
+        ReleaseCurrentSeat();
+        servedPlate = null;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.BadTaste);
         Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
         if (exit != null)
         {
-            SetTarget(exit.position);
+            _exitTargetTransform = exit;
+            SetTarget(exit.position, applySpawnLaneOffset: false);
         }
 
         //ShowBubble("吃饱回家咯~");
@@ -755,75 +761,36 @@ public class CustomerNPC : MonoBehaviour
 
     private void MoveToTarget()
     {
-        float groundY = baseGroundYInitialized ? baseGroundY : targetPosition.y;
+        RefreshMoveTarget();
 
-        float xzDist = Vector2.Distance(
-            new Vector2(transform.position.x, transform.position.z),
-            new Vector2(targetPosition.x, targetPosition.z)
-        );
-        bool xzReached = xzDist < reachXZThreshold;
-
+        float planarDist = GetPlanarDistance(transform.position, targetPosition);
+        bool reached = planarDist < reachPlanarThreshold;
         float moveSpeed = GetFinalMoveSpeed();
+        float keepZ = transform.position.z;
 
-        if (!xzReached)
+        if (!reached)
         {
-            // 移动阶段：只推动 X/Z，Y 再抬到“地面 + 抬起量”
-            Vector3 horizTarget = new Vector3(targetPosition.x, transform.position.y, targetPosition.z);
-            transform.position = Vector3.MoveTowards(transform.position, horizTarget, moveSpeed * Time.deltaTime);
+            Vector3 planarTarget = new Vector3(targetPosition.x, targetPosition.y, keepZ);
+            transform.position = Vector3.MoveTowards(transform.position, planarTarget, moveSpeed * Time.deltaTime);
 
-            if (enableBirdGroundDrop)
-            {
-                float desiredY = groundY + moveYWalkingOffset;
-                float yStep = moveSpeed * moveHeightRiseSpeedMultiplier * Time.deltaTime;
-                transform.position = new Vector3(
-                    transform.position.x,
-                    Mathf.MoveTowards(transform.position.y, desiredY, yStep),
-                    transform.position.z
-                );
-            }
-
-            Vector3 directionToTarget = targetPosition - transform.position;
-            directionToTarget.y = 0f;
+            Vector3 directionToTarget = planarTarget - transform.position;
+            directionToTarget.z = 0f;
             FaceByDirection(directionToTarget);
         }
         else
         {
-            // Idle阶段：X/Z 停住；Leaving 不落地，其它状态才落回地面
-            if (enableBirdGroundDrop && state != CustomerState.Leaving)
-            {
-                transform.position = new Vector3(
-                    transform.position.x,
-                    Mathf.MoveTowards(transform.position.y, groundY, idleDropSpeed * Time.deltaTime),
-                    transform.position.z
-                );
-            }
-
             if (state == CustomerState.Queueing)
             {
-                // 排队时统一面朝右边
                 FaceByX(1f);
                 return;
             }
 
-            // 离开到点时不需要在 MoveToTarget() 里做其它动作（由 Update() 负责销毁）
             if (state == CustomerState.Leaving)
-            {
                 return;
-            }
         }
 
-        if (xzReached && state != CustomerState.Queueing)
-        {
-            // 为“到点消费/跳动”提供稳定基准：Y 对齐地面。
-            if (state == CustomerState.InsideRestaurant)
-            {
-                Vector3 p = transform.position;
-                p.y = groundY;
-                transform.position = p;
-            }
-
+        if (reached && state != CustomerState.Queueing)
             OnReachTarget();
-        }
     }
 
     private float GetFinalMoveSpeed()
@@ -837,140 +804,131 @@ public class CustomerNPC : MonoBehaviour
         return data.moveSpeed * multiplier;
     }
 
+    private void ReleaseCurrentSeat()
+    {
+        if (currentSeat == null)
+            return;
+
+        if (SeatManager.Instance != null)
+            SeatManager.Instance.ReleaseSeat(currentSeat);
+        else
+            currentSeat.Release();
+
+        currentSeat = null;
+    }
+
     private void OnReachTarget()
     {
-        if (state == CustomerState.InsideRestaurant && targetPlate != null)
-        {
-            // 让“到点消费/跳动”的初始Y稳定在地面，避免鸟落地尚未完成就开始跳动。
-            Vector3 p = transform.position;
-            p.y = baseGroundYInitialized ? baseGroundY : targetPosition.y;
-            transform.position = p;
-            StartCoroutine(ConsumeDishCoroutine());
-        }
-        else if (state == CustomerState.InsideRestaurant && targetPlate == null)
-        {
-            if (restaurantAmbienceRoutine != null)
-                return;
-            Vector3 p = transform.position;
-            p.y = baseGroundYInitialized ? baseGroundY : targetPosition.y;
-            transform.position = p;
-            restaurantAmbienceRoutine = StartCoroutine(RestaurantAmbienceOnlyCoroutine());
-        }
+        if (state != CustomerState.InsideRestaurant || currentSeat == null || _hasHandledSeatArrival)
+            return;
+
+        _hasHandledSeatArrival = true;
+        Vector3 sitPos = currentSeat.GetSitWorldPosition();
+        transform.position = new Vector3(sitPos.x, sitPos.y, transform.position.z);
+        StartCoroutine(SeatDiningRoutine());
     }
 
-    private IEnumerator RestaurantAmbienceOnlyCoroutine()
+    private IEnumerator SeatDiningRoutine()
     {
-        isConsuming = true;
-        if (data != null && data.InsideRestaurantConsumingWords != null && data.InsideRestaurantConsumingWords.Count > 0)
+        if (currentSeat == null)
         {
-            string thought = GetRandomThought(data.InsideRestaurantConsumingWords.ToArray());
-            if (!string.IsNullOrEmpty(thought))
-                ShowBubble(thought);
-        }
-        float wait = Random.Range(4f, 8f);
-        float elapsed = 0f;
-        while (elapsed < wait)
-        {
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-        isConsuming = false;
-        restaurantAmbienceRoutine = null;
-        LeaveRestaurant();
-    }
-
-    private IEnumerator ConsumeDishCoroutine()
-    {
-        if (targetPlate == null || targetPlate.currentDish == null || targetPlate.currentDish.IsEmpty())
-        {
-            //Debug.Log("D11111");
-            SetExpression(CustomerExpression.Speechless);
             LeaveRestaurant();
             yield break;
+        }
+
+        RestaurantPanel panel = RestaurantPanel.instance;
+        servedPlate = panel != null ? panel.FindFirstPlateWithFood() : null;
+
+        if (servedPlate == null || servedPlate.currentDish == null || servedPlate.currentDish.IsEmpty())
+        {
+            SetExpression(CustomerExpression.Speechless);
+            ShowBubble(GetChatText(data?.noPlateFoodWords, "没有菜了……"));
+            ReleaseCurrentSeat();
+            LeaveRestaurantNoPlates();
+            yield break;
+        }
+
+        DishRecipe recipe = servedPlate.currentDish.recipe;
+        Sprite dishSprite = recipe != null ? recipe.dishIcon : null;
+        Vector3 platePos = servedPlate.GetDishFlyTargetWorldPosition();
+        Vector3 eatPos = currentSeat.GetSitWorldPosition();
+
+        if (CustomerManager.instance != null && dishSprite != null)
+        {
+            yield return CustomerManager.instance.PlayDishFlyToCustomerCoroutine(
+                dishSprite, platePos, eatPos);
         }
 
         isConsuming = true;
         ShowBubble(GetChatText(data?.ConsumeStartWords, "开动了！"));
         SetExpression(CustomerExpression.Serious);
-        float consumeTime = targetPlate.consumeTime;
+
+        float baseEat = recipe != null ? recipe.sellTime : servedPlate.consumeTime;
+        float eatMult = 1f;
+        if (WeaponStatsManager.Instance != null)
+            eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.sellTimeMultiplier);
+        float waitSeconds = Mathf.Max(0.01f, baseEat / eatMult);
 
         float elapsed = 0f;
-        while (elapsed < consumeTime)
+        while (elapsed < waitSeconds)
         {
-            if (targetPlate.currentDish == null || targetPlate.currentDish.IsEmpty())
+            if (servedPlate == null || servedPlate.IsPlateEmpty())
             {
                 isConsuming = false;
-                //Debug.Log("D22222");
                 SetExpression(CustomerExpression.Speechless);
+                ReleaseCurrentSeat();
                 LeaveRestaurant();
                 yield break;
             }
 
             elapsed += Time.deltaTime;
+            if (RestaurantPanel.instance != null)
+                RestaurantPanel.instance.SetPlateSellProgress(elapsed / waitSeconds);
             yield return null;
         }
 
-        float cost = 0;
-        if (targetPlate.currentDish != null)
+        if (RestaurantPanel.instance != null)
+            RestaurantPanel.instance.SetPlateSellProgress(0f);
+
+        int goldAmount = 0;
+        bool isFavourite = recipe != null && data != null && data.favouriteFood != null
+            && data.favouriteFood.Contains(recipe.dishID);
+
+        if (servedPlate != null)
+            servedPlate.TryConsumeOneServing(out goldAmount);
+
+        if (isFavourite)
         {
-            cost = targetPlate.currentDish.recipe.baseDishPrice;
-        }
-
-
-
-        StartCoroutine(FinishConsumeInteractionCoroutine(cost));
-    }
-    private IEnumerator FinishConsumeInteractionCoroutine(float cost)
-    {
-        // 1️⃣ 面向餐碟（2D：只左/右）
-        if (targetPlate != null)
-            FaceToward(targetPlate.transform.position);
-
-        // 2️⃣ 顾客跳一下表示满意
-        Vector3 originalPos = transform.position;
-        float jumpHeight = 1.2f;
-        float jumpDuration = 0.6f;
-        float jumpElapsed = 0f;
-        if (data.favouriteFood.Contains(targetPlate.currentDish.recipe.dishID) && targetPlate.currentDish.currentAmount >= 2)
-        {
-            ShowCustomBubble(GetChatText(data?.FavouriteDishWords, "这是我的最爱！"), jumpDuration * 2 + 1f); // 气泡显示时间要长一些
+            ShowCustomBubble(GetChatText(data?.FavouriteDishWords, "这是我的最爱！"), 1.5f);
             SetExpression(CustomerExpression.HeartEyes);
             AddAffection(5f);
-            // 跳两次
-            for (int i = 0; i < 2; i++)
-            {
-                jumpElapsed = 0f; // 重置时间
-                while (jumpElapsed < jumpDuration / 2)
-                {
-                    float progress = jumpElapsed / (jumpDuration / 2);
-                    float yOffset = Mathf.Sin(progress * Mathf.PI) * jumpHeight;
-                    transform.position = new Vector3(originalPos.x, originalPos.y + yOffset, originalPos.z);
-                    jumpElapsed += Time.deltaTime;
-                    yield return null;
-                }
-                transform.position = originalPos;
-
-                // 每次跳跃后爆金币
-                int goldAmount = Mathf.RoundToInt(cost);
-                Transform moneyBox = CustomerManager.instance.moneyBoxTransform;
-                if (moneyBox != null)
-                {
-                    StartCoroutine(SpawnMoneySmoothly(goldAmount, coinSpawnPoint, moneyBox));
-                }
-
-                // 如果不是最后一次跳跃，等待一下
-                if (i < 1)
-                {
-                    yield return new WaitForSeconds(0.5f);
-                }
-                targetPlate.StartConsume();
-            }
+            yield return StartCoroutine(PlaySatisfactionJump(2));
         }
         else
         {
-            // 非最爱菜品，只跳一次
-            ShowCustomBubble(GetChatText(data?.NormalDishWords, "太好吃了！"), jumpDuration);
+            ShowCustomBubble(GetChatText(data?.NormalDishWords, "太好吃了！"), 1.2f);
             SetExpression(CustomerExpression.Touched);
+            yield return StartCoroutine(PlaySatisfactionJump(1));
+        }
+
+        if (goldAmount > 0 && CustomerManager.instance != null)
+            CustomerManager.instance.SpawnCoinPickupAt(currentSeat, goldAmount);
+
+        isConsuming = false;
+        servedPlate = null;
+        ReleaseCurrentSeat();
+        LeaveRestaurant();
+    }
+
+    private IEnumerator PlaySatisfactionJump(int times)
+    {
+        Vector3 originalPos = transform.position;
+        float jumpHeight = 1.2f;
+        float jumpDuration = 0.6f;
+
+        for (int i = 0; i < times; i++)
+        {
+            float jumpElapsed = 0f;
             while (jumpElapsed < jumpDuration)
             {
                 float progress = jumpElapsed / jumpDuration;
@@ -981,55 +939,8 @@ public class CustomerNPC : MonoBehaviour
             }
             transform.position = originalPos;
 
-            // 爆金币
-            int goldAmount = Mathf.RoundToInt(cost);
-            Transform moneyBox = CustomerManager.instance.moneyBoxTransform;
-            if (moneyBox != null)
-            {
-                StartCoroutine(SpawnMoneySmoothly(goldAmount, coinSpawnPoint, moneyBox));
-            }
-            targetPlate.StartConsume();
-        }
-        yield return new WaitForSeconds(0.5f);
-
-
-        // 3️⃣ 爆金币逻辑 —— 菜价换金币特效
-
-
-
-
-        // 4️⃣ 顾客完成吃饭，准备离开
-        isConsuming = false;
-        LeaveRestaurant();
-    }
-    private IEnumerator SpawnMoneySmoothly(int totalAmount, Transform start, Transform target)
-    {
-        if (totalAmount <= 0) yield break;
-
-        ProjectileLauncher launcher = CustomerManager.instance.projectileLauncher;
-        if (launcher == null || target == null) yield break;
-
-        // 表现上最多生成 maxVisualCoins 个金币，金额按份分配，总和仍为 totalAmount
-        int numProjectiles = Mathf.Min(totalAmount, Mathf.Max(1, maxVisualCoins));
-        int baseAmount = totalAmount / numProjectiles;
-        int remainder = totalAmount % numProjectiles;
-
-        float spawnInterval = 0.05f;
-
-        for (int i = 0; i < numProjectiles; i++)
-        {
-            int amountForThis = baseAmount + (i < remainder ? 1 : 0);
-            int capture = amountForThis; // 闭包捕获
-            launcher.SpawnProjectile(
-                start,
-                target,
-                ResourceType.Money,
-                capture,
-                () => { MoneyChest.Instance.AddMoney(capture); },
-                moneyProjectileFlightDuration,
-                moneyProjectileMaxHeight
-            );
-            yield return new WaitForSeconds(spawnInterval);
+            if (i < times - 1)
+                yield return new WaitForSeconds(0.35f);
         }
     }
     public void SetState(CustomerState newState)
@@ -1069,6 +980,7 @@ public class CustomerNPC : MonoBehaviour
 
     void OnDestroy()
     {
+        ReleaseCurrentSeat();
         manager?.RemoveCustomer(this);
         ClearFavouriteDishIcons();
         CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
@@ -1313,6 +1225,7 @@ public class CustomerNPC : MonoBehaviour
         restaurantAmbienceRoutine = null;
         isInteractingWithPlayer = false;
         isConsuming = false;
+        ReleaseCurrentSeat();
         state = CustomerState.Spawning;
 
         // 转职后不再需要顾客交互UI

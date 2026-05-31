@@ -358,20 +358,25 @@ public class PlayerInteractionController : MonoBehaviour
 
             foreach (var hit in hits)
             {
-                CustomerNPC npc = null;
-                if (hit.collider != null)
+                if (hit.collider == null) continue;
+
+                RestaurantCoinPickup coin = hit.collider.GetComponent<RestaurantCoinPickup>();
+                if (coin == null) coin = hit.collider.GetComponentInParent<RestaurantCoinPickup>();
+                if (coin != null)
                 {
-                    // 兼容：点击命中的是子物体Collider时，从父节点查找CustomerNPC
-                    npc = hit.collider.GetComponent<CustomerNPC>();
-                    if (npc == null) npc = hit.collider.GetComponentInParent<CustomerNPC>();
-                    if (npc == null && hit.collider.attachedRigidbody != null)
-                    {
-                        npc = hit.collider.attachedRigidbody.GetComponent<CustomerNPC>();
-                        if (npc == null) npc = hit.collider.attachedRigidbody.GetComponentInParent<CustomerNPC>();
-                    }
+                    coin.OnClicked();
+                    break;
                 }
 
-                if (debugNpcClickRaycast && hit.collider != null)
+                CustomerNPC npc = hit.collider.GetComponent<CustomerNPC>();
+                if (npc == null) npc = hit.collider.GetComponentInParent<CustomerNPC>();
+                if (npc == null && hit.collider.attachedRigidbody != null)
+                {
+                    npc = hit.collider.attachedRigidbody.GetComponent<CustomerNPC>();
+                    if (npc == null) npc = hit.collider.attachedRigidbody.GetComponentInParent<CustomerNPC>();
+                }
+
+                if (debugNpcClickRaycast)
                 {
                     Debug.Log($"[NPC Click] hit={hit.collider.name}, layer={LayerMask.LayerToName(hit.collider.gameObject.layer)}, npc={(npc != null ? npc.name : "null")}");
                 }

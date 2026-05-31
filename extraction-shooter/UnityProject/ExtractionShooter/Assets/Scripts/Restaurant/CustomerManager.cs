@@ -15,14 +15,20 @@ public class CustomerManager : MonoBehaviour
     [Header("餐厅入口队首位置")]
     public Transform queueFrontPoint;
 
-    [Header("餐厅内落点（顾客进入用餐区，不绑定餐碟）")]
-    public Transform restaurantInsidePoint;
+    [Header("座位与金币")]
+    [Tooltip("顾客就餐完成后在座位旁生成的可点击金币预制体（需挂 RestaurantCoinPickup）")]
+    public GameObject restaurantCoinPrefab;
+    [Tooltip("碟子飞向顾客时的临时精灵预制体（可选）")]
+    public GameObject dishFlyToCustomerPrefab;
+    public float dishFlyToCustomerDuration = 0.35f;
 
     [Header("餐厅菜碟列表")]
     public List<Plate> plates;
 
     [Header("顾客预制体列表")]  // 改为列表存储多种NPC预制体
     public List<GameObject> customerPrefabs;
+    [Tooltip("勾选时：可用种类数受 WeaponStatsManager.restaurantCustomerPrefabCount 限制（技能树解锁）。不勾选：使用列表中全部预制体。")]
+    [SerializeField] private bool limitPrefabPoolByWeaponStats = false;
     // 用于记录当前场景中已存在的NPC类型
     private HashSet<string> activeNPCTypes = new HashSet<string>();
 
@@ -57,12 +63,33 @@ public class CustomerManager : MonoBehaviour
     {
         StartCoroutine(WaitAndBindCustomerStats());
         UpdateCustomerCountDisplay();
+        ValidateSpawnConfiguration(logOnStart: true);
 
         // 设置第一次自动生成时间
         if (enableAutoSpawn)
         {
             nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
         }
+    }
+
+    private void ValidateSpawnConfiguration(bool logOnStart = false)
+    {
+        if (spawnPoints == null || spawnPoints.Count == 0)
+        {
+            if (logOnStart)
+                Debug.LogWarning("[CustomerManager] 未配置 spawnPoints，无法生成顾客。");
+            return;
+        }
+
+        if (customerPrefabs == null || customerPrefabs.Count == 0)
+        {
+            if (logOnStart)
+                Debug.LogWarning("[CustomerManager] customerPrefabs 为空！请在 Inspector 中拖入顾客预制体（Assets/Prefabas/Customer/）。");
+            return;
+        }
+
+        if (queueFrontPoint == null && logOnStart)
+            Debug.LogWarning("[CustomerManager] 未配置 queueFrontPoint，排队逻辑将无法正常工作。");
     }
 
     private void OnEnable()
@@ -117,15 +144,15 @@ public class CustomerManager : MonoBehaviour
     // 生成顾客
     public void SpawnCustomer()
     {
-        if (spawnPoints.Count == 0)
+        if (spawnPoints == null || spawnPoints.Count == 0)
         {
-            Debug.LogWarning("没有配置生成点！");
+            Debug.LogWarning("[CustomerManager] 没有配置生成点（spawnPoints）！");
             return;
         }
 
-        if (customerPrefabs.Count == 0)
+        if (customerPrefabs == null || customerPrefabs.Count == 0)
         {
-            //Debug.LogWarning("没有配置顾客预制体！");
+            Debug.LogWarning("[CustomerManager] 没有配置顾客预制体（customerPrefabs）！");
             return;
         }
 
@@ -144,11 +171,20 @@ public class CustomerManager : MonoBehaviour
             }
         }
 
-        // 1️⃣ 筛选可生成的预制体：只使用前N个，并跳过已经是厨师的类型
+        // 1️⃣ 筛选可生成的预制体：可选受 WeaponStats 解锁数量限制，并跳过已是厨师的类型
         int allowedPrefabCount = customerPrefabs.Count;
-        if (WeaponStatsManager.Instance != null)
+        if (limitPrefabPoolByWeaponStats && WeaponStatsManager.Instance != null)
         {
-            allowedPrefabCount = Mathf.Clamp(WeaponStatsManager.Instance.restaurantCustomerPrefabCount, 1, customerPrefabs.Count);
+            allowedPrefabCount = Mathf.Clamp(
+                WeaponStatsManager.Instance.restaurantCustomerPrefabCount,
+                0,
+                customerPrefabs.Count);
+        }
+
+        if (allowedPrefabCount <= 0)
+        {
+            Debug.LogWarning("[CustomerManager] 可用顾客预制体数量为 0（检查 limitPrefabPoolByWeaponStats / restaurantCustomerPrefabCount）。");
+            return;
         }
 
         List<GameObject> availablePrefabs = new List<GameObject>();
@@ -160,23 +196,19 @@ public class CustomerManager : MonoBehaviour
             CustomerNPC prefabNPC = prefab.GetComponent<CustomerNPC>();
             if (prefabNPC == null || prefabNPC.data == null) continue;
 
-            // 👇 跳过已经被转成厨师的顾客类型
             if (prefabNPC.data.isCook)
-            {
-                //Debug.Log($"跳过厨师类型顾客: {prefabNPC.data.customerName}");
                 continue;
-            }
 
             string npcType = prefabNPC.data.id.ToString();
             if (!activeNPCTypes.Contains(npcType))
-            {
                 availablePrefabs.Add(prefab);
-            }
         }
 
         if (availablePrefabs.Count == 0)
         {
-            //Debug.Log("没有可生成的顾客类型（可能都转成厨师了）。");
+            Debug.LogWarning(
+                "[CustomerManager] 没有可生成的顾客：同类型已在场（每种 id 同时仅 1 个），或前 "
+                + allowedPrefabCount + " 个预制体均不可用。若只刷得出第一个，请检查 WeaponStatsManager.restaurantCustomerPrefabCount 是否被设为 1。");
             return;
         }
 
@@ -232,6 +264,13 @@ public class CustomerManager : MonoBehaviour
     // 所有顾客都先排队进入餐厅
     private void HandleEntrance(CustomerNPC npc)
     {
+        if (queueFrontPoint == null)
+        {
+            Debug.LogError("[CustomerManager] queueFrontPoint 未配置，顾客无法排队。");
+            npc.LeaveRestaurant();
+            return;
+        }
+
         // 所有人一律先排队
         npc.state = CustomerState.WalkingToQueue;
         walkingToQueue.Add(npc);
@@ -244,8 +283,12 @@ public class CustomerManager : MonoBehaviour
 
     private Vector3 GetRestaurantAmbiencePosition()
     {
-        if (restaurantInsidePoint != null)
-            return restaurantInsidePoint.position;
+        if (SeatManager.Instance != null)
+        {
+            IReadOnlyList<RestaurantSeat> seats = SeatManager.Instance.GetAllSeats();
+            if (seats != null && seats.Count > 0 && seats[0] != null)
+                return seats[0].GetSitWorldPosition();
+        }
         if (queueFrontPoint != null)
             return queueFrontPoint.position + queueFrontPoint.forward * 2f;
         return transform != null ? transform.position : Vector3.zero;
@@ -258,13 +301,39 @@ public class CustomerManager : MonoBehaviour
         return GetQueuePosition(index);
     }
 
-    // 获取指定队列位置
-    private Vector3 GetQueuePosition(int index)
+    // 获取指定队列位置（实时读取 queueFrontPoint 世界坐标）
+    public Vector3 GetQueuePosition(int index)
     {
+        if (queueFrontPoint == null)
+            return transform != null ? transform.position : Vector3.zero;
         return queueFrontPoint.position + queueFrontPoint.right * (index * queueSpacing) + queueFrontPoint.right * 0.2f;
     }
 
-    // 更新所有走向队列的顾客的目标点
+    /// <summary>按顾客当前排队下标返回实时排队世界坐标。</summary>
+    public bool TryGetQueueWorldPosition(CustomerNPC npc, out Vector3 worldPos)
+    {
+        worldPos = default;
+        if (npc == null || queueFrontPoint == null)
+            return false;
+
+        int index = customersQueue.IndexOf(npc);
+        if (index >= 0)
+        {
+            worldPos = GetQueuePosition(index);
+            return true;
+        }
+
+        index = walkingToQueue.IndexOf(npc);
+        if (index >= 0)
+        {
+            worldPos = GetQueuePosition(customersQueue.Count + index);
+            return true;
+        }
+
+        return false;
+    }
+
+    // 更新所有走向队列的顾客的目标点（兼容旧逻辑；实际移动时 CustomerNPC 会每帧 RefreshMoveTarget）
     private void UpdateQueueTargets()
     {
         // 更新所有正在走向队列的顾客的目标（为每个walking分配不同的队列位置，保持间隔）
@@ -292,11 +361,11 @@ public class CustomerManager : MonoBehaviour
             CustomerNPC npc = walkingToQueue[i];
             if (npc == null) continue;
 
-            // 检查是否到达“分配给自己的队列位置”
-            Vector3 assigned = npc.CurrentTargetPosition;
+            // 检查是否到达“分配给自己的队列位置”（实时坐标）
+            Vector3 assigned = npc.GetLiveTargetPosition();
             float distanceToAssigned = Vector2.Distance(
-                new Vector2(npc.transform.position.x, npc.transform.position.z),
-                new Vector2(assigned.x, assigned.z)
+                new Vector2(npc.transform.position.x, npc.transform.position.y),
+                new Vector2(assigned.x, assigned.y)
             );
 
             if (distanceToAssigned < 0.3f)
@@ -325,43 +394,134 @@ public class CustomerManager : MonoBehaviour
         }
     }
 
-    // 处理队列推进（队首进入餐厅）
+    // 处理队列推进（队首进入餐厅并占座）
     private void HandleQueueAdvancement()
     {
-        if (GetInsideCustomerCount() >= maxCustomersInside) return;
-
-        while (customersQueue.Count > 0 && GetInsideCustomerCount() < maxCustomersInside)
+        if (SeatManager.Instance == null)
         {
-            // 队首进入餐厅
+            if (customersQueue.Count > 0 && Time.frameCount % 120 == 0)
+                Debug.LogWarning("[CustomerManager] SeatManager 未找到，队首顾客无法入座。请在场景中挂 SeatManager。");
+            return;
+        }
+
+        if (SeatManager.Instance.TotalSeatCount == 0)
+        {
+            if (customersQueue.Count > 0 && Time.frameCount % 120 == 0)
+                Debug.LogWarning("[CustomerManager] 没有注册任何座位，队首顾客只能在排队点等待。请给座位物体挂 RestaurantSeat。");
+            return;
+        }
+
+        if (!SeatManager.Instance.HasAvailableSeat)
+            return;
+
+        while (customersQueue.Count > 0 && SeatManager.Instance.HasAvailableSeat)
+        {
             CustomerNPC firstInQueue = customersQueue[0];
             customersQueue.RemoveAt(0);
-
-            // 更新队列剩余成员的目标位置
             UpdateQueueMemberPositions();
 
-            // 售卖由首碟菜谱倒计时自动完成，顾客进入餐厅仅作氛围/动画
-            firstInQueue.EnterRestaurantAmbience(GetRestaurantAmbiencePosition());
-            break; // 一次只进一个人
+            RestaurantSeat seat = SeatManager.Instance.TryReserveSeat(firstInQueue);
+            if (seat == null)
+                break;
+
+            firstInQueue.GoToSeat(seat);
+            break;
         }
     }
 
     private int GetInsideCustomerCount()
     {
+        if (SeatManager.Instance != null)
+            return SeatManager.Instance.OccupiedSeatCount;
+
         int count = 0;
         foreach (var c in activeCustomers)
         {
             if (c != null && c.state == CustomerState.InsideRestaurant)
-            {
                 count++;
-            }
         }
         return count;
+    }
+
+    /// <summary>在座位旁生成可点击金币。</summary>
+    public void SpawnCoinPickupAt(RestaurantSeat seat, int goldAmount)
+    {
+        if (seat == null || goldAmount <= 0)
+            return;
+
+        if (restaurantCoinPrefab == null)
+        {
+            Debug.LogWarning("[CustomerManager] 未配置 restaurantCoinPrefab，无法生成金币。");
+            return;
+        }
+
+        Vector3 pos = seat.GetCoinSpawnWorldPosition();
+        GameObject coinGo = Instantiate(restaurantCoinPrefab, pos, Quaternion.identity, transform);
+        RestaurantCoinPickup pickup = coinGo.GetComponent<RestaurantCoinPickup>();
+        if (pickup == null)
+            pickup = coinGo.AddComponent<RestaurantCoinPickup>();
+        pickup.Initialize(goldAmount);
+    }
+
+    /// <summary>菜肴从碟子飞向顾客就坐位置。</summary>
+    public IEnumerator PlayDishFlyToCustomerCoroutine(Sprite dishIcon, Vector3 startWorldPos, Vector3 endWorldPos)
+    {
+        if (dishIcon == null)
+            yield break;
+
+        GameObject flyObj;
+        if (dishFlyToCustomerPrefab != null)
+        {
+            flyObj = Instantiate(dishFlyToCustomerPrefab, startWorldPos, Quaternion.identity);
+        }
+        else
+        {
+            flyObj = new GameObject("DishFlyToCustomer");
+            flyObj.transform.position = startWorldPos;
+            SpriteRenderer sr = flyObj.AddComponent<SpriteRenderer>();
+            sr.sprite = dishIcon;
+        }
+
+        SpriteRenderer flySr = flyObj.GetComponentInChildren<SpriteRenderer>(true);
+        if (flySr != null)
+            flySr.sprite = dishIcon;
+        UnityEngine.UI.Image flyImg = flyObj.GetComponentInChildren<UnityEngine.UI.Image>(true);
+        if (flyImg != null)
+            flyImg.sprite = dishIcon;
+
+        float duration = Mathf.Max(0.01f, dishFlyToCustomerDuration);
+        float elapsed = 0f;
+        Vector3 start = startWorldPos;
+        Vector3 end = endWorldPos + Vector3.up * 0.15f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t * (3f - 2f * t);
+            flyObj.transform.position = Vector3.LerpUnclamped(start, end, eased);
+            yield return null;
+        }
+
+        flyObj.transform.position = end;
+        Destroy(flyObj);
     }
 
     // 清理离开的顾客
     public void RemoveCustomer(CustomerNPC customer)
     {
         if (customer == null) return;
+
+        if (SeatManager.Instance != null)
+        {
+            IReadOnlyList<RestaurantSeat> seats = SeatManager.Instance.GetAllSeats();
+            for (int i = 0; i < seats.Count; i++)
+            {
+                RestaurantSeat seat = seats[i];
+                if (seat != null && seat.Occupant == customer)
+                    SeatManager.Instance.ReleaseSeat(seat);
+            }
+        }
 
         // 从类型记录中移除
         if (!string.IsNullOrEmpty(customer.data.id.ToString()))
@@ -417,7 +577,9 @@ public class CustomerManager : MonoBehaviour
         if (restaurantCustomerCountText == null) return;
 
         int insideCount = GetInsideCustomerCount();
-        restaurantCustomerCountText.text = $"餐厅人数: {insideCount}/{maxCustomersInside}";
+        int seatTotal = SeatManager.Instance != null ? SeatManager.Instance.TotalSeatCount : maxCustomersInside;
+        if (seatTotal <= 0) seatTotal = maxCustomersInside;
+        restaurantCustomerCountText.text = $"餐厅人数: {insideCount}/{seatTotal}";
     }
 
     // 获取随机生成点（用于生成顾客）
@@ -443,8 +605,8 @@ public class CustomerManager : MonoBehaviour
 
             // 可以再尝试几次避免和某些特定点重复
             while (Vector2.Distance(
-                       new Vector2(exitPoint.position.x, exitPoint.position.z),
-                       new Vector2(NPCPos.x, NPCPos.z)
+                       new Vector2(exitPoint.position.x, exitPoint.position.y),
+                       new Vector2(NPCPos.x, NPCPos.y)
                    ) < 0.5f)
             {
                 exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
@@ -539,8 +701,8 @@ public class CustomerManager : MonoBehaviour
 
                 // 距离判定
                 float dist = Vector2.Distance(
-                    new Vector2(npc.transform.position.x, npc.transform.position.z),
-                    new Vector2(other.transform.position.x, other.transform.position.z)
+                    new Vector2(npc.transform.position.x, npc.transform.position.y),
+                    new Vector2(other.transform.position.x, other.transform.position.y)
                 );
                 if (dist <= likeChatDistance)
                 {
