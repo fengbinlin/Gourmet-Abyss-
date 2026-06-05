@@ -15,6 +15,9 @@ public enum PotLidState
 
 public class Pot : MonoBehaviour
 {
+    private FacilityUnlockable _facilityUnlock;
+
+    public bool IsFacilityUnlocked => _facilityUnlock == null || _facilityUnlock.IsUnlocked;
 
     // 新增字段以追踪当前厨师
     private CustomerNPC assignedCook;
@@ -81,6 +84,11 @@ public class Pot : MonoBehaviour
     private Vector3 _defaultLocalScaleForAttentionPulse;
     private Sequence _attentionPulseSequence;
     private Sequence _cookDonePulseSequence;
+
+    void Awake()
+    {
+        _facilityUnlock = GetComponent<FacilityUnlockable>();
+    }
 
     void Start()
     {
@@ -207,6 +215,12 @@ public class Pot : MonoBehaviour
     // 开始烹饪
     public bool StartCooking(DishRecipe recipe)
     {
+        if (!IsFacilityUnlocked)
+        {
+            Debug.LogWarning($"锅 {potType} 尚未解锁，无法烹饪。");
+            return false;
+        }
+
         if (potState == potState.Used)
         {
             Debug.LogWarning("锅正在使用中，无法开始新的烹饪！");
@@ -679,6 +693,8 @@ public class Pot : MonoBehaviour
     // 检查是否空闲
     public bool IsAvailable()
     {
+        if (!IsFacilityUnlocked)
+            return false;
         return potState == potState.unUsed;
     }
 

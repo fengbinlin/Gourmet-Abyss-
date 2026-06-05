@@ -21,6 +21,15 @@ public enum CustomerState
     Leaving           // 离开餐厅
 }
 
+/// <summary>入场后取菜 → 端上桌 → 就餐的子阶段。</summary>
+public enum CustomerDiningPhase
+{
+    None,
+    WalkingToPlate,   // 走向碟子
+    WalkingToSeat,    // 端着菜走向座位
+    Eating            // 就坐用餐
+}
+
 public enum CustomerExpression
 {
     Mischievous = 0, // 调皮
@@ -83,8 +92,18 @@ public class CustomerNPC : MonoBehaviour
     private Vector3 targetPosition;
     private RestaurantSeat currentSeat;
     private Plate servedPlate;
+    private DishRecipe _carriedRecipe;
+    private int _carriedGoldAmount;
+    private GameObject _carriedDishVisual;
     private bool isConsuming = false;
+    private CustomerDiningPhase _diningPhase = CustomerDiningPhase.None;
+    private bool _hasHandledPlateArrival;
     private bool _hasHandledSeatArrival;
+
+    [Header("端菜展示")]
+    [Tooltip("端菜时菜品预制体的挂点（为空则挂在顾客根节点）")]
+    [SerializeField] private Transform carriedDishHoldPoint;
+    [SerializeField] private Vector3 carriedDishLocalOffset = new Vector3(0.4f, 0.5f, 0f);
     private Transform _exitTargetTransform;
     private CustomerManager manager;
 
@@ -303,7 +322,11 @@ public class CustomerNPC : MonoBehaviour
     {
         // 配对聊天的“预站位阶段”允许继续移动到目标点
         bool allowMoveNow = !isInteractingWithPlayer || isPairChatPositioning;
-        if (!data.isCook && !isConsuming && allowMoveNow && !isGuesting) // 🔸 如果正在互动则暂停
+        bool isPickingUpAtPlate = state == CustomerState.InsideRestaurant
+            && _diningPhase == CustomerDiningPhase.WalkingToPlate
+            && _hasHandledPlateArrival;
+        bool canWalk = !data.isCook && !isConsuming && !isPickingUpAtPlate && allowMoveNow && !isGuesting;
+        if (canWalk) // 🔸 如果正在互动则暂停
         {
             MoveToTarget();
 
@@ -319,7 +342,7 @@ public class CustomerNPC : MonoBehaviour
         }
 
         float currentPlanarDist = GetPlanarDistance(transform.position, GetLiveTargetPosition());
-        bool isMovingNow = allowMoveNow && currentPlanarDist >= reachPlanarThreshold;
+        bool isMovingNow = canWalk && currentPlanarDist >= reachPlanarThreshold;
         animator.SetBool("isRunning", isMovingNow);
 
         // 排队时统一面朝右边
@@ -648,8 +671,22 @@ public class CustomerNPC : MonoBehaviour
     /// <summary>根据当前状态实时解析移动目标（座位 / 排队位 / 离开点会每帧跟随 Transform）。</summary>
     public Vector3 GetLiveTargetPosition()
     {
-        if (state == CustomerState.InsideRestaurant && currentSeat != null && !_hasHandledSeatArrival)
-            return ToPlanarTarget(currentSeat.GetSitWorldPosition(), applySpawnLaneOffset: false);
+        if (state == CustomerState.InsideRestaurant)
+        {
+            if (_diningPhase == CustomerDiningPhase.WalkingToPlate
+                && servedPlate != null
+                && !_hasHandledPlateArrival)
+            {
+                return ToPlanarTarget(servedPlate.GetDishFlyTargetWorldPosition(), applySpawnLaneOffset: false);
+            }
+
+            if (_diningPhase == CustomerDiningPhase.WalkingToSeat
+                && currentSeat != null
+                && !_hasHandledSeatArrival)
+            {
+                return ToPlanarTarget(currentSeat.GetSitWorldPosition(), applySpawnLaneOffset: false);
+            }
+        }
 
         if ((state == CustomerState.WalkingToQueue || state == CustomerState.Queueing)
             && manager != null
@@ -684,7 +721,17 @@ public class CustomerNPC : MonoBehaviour
         }
 
         currentSeat = seat;
-        servedPlate = null;
+
+        RestaurantPanel panel = RestaurantPanel.instance;
+        servedPlate = panel != null ? panel.FindFirstPlateWithFood() : null;
+        if (servedPlate == null || servedPlate.IsPlateEmpty())
+        {
+            ReleaseCurrentSeat();
+            LeaveRestaurantNoPlates();
+            return;
+        }
+        _diningPhase = CustomerDiningPhase.WalkingToPlate;
+        _hasHandledPlateArrival = false;
         _hasHandledSeatArrival = false;
         state = CustomerState.InsideRestaurant;
         SetExpression(CustomerExpression.Serious);
@@ -715,7 +762,8 @@ public class CustomerNPC : MonoBehaviour
     public void LeaveRestaurant()
     {
         ReleaseCurrentSeat();
-        servedPlate = null;
+        ClearCarriedDishState();
+        _diningPhase = CustomerDiningPhase.None;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.Touched);
         Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
@@ -730,22 +778,25 @@ public class CustomerNPC : MonoBehaviour
     public void LeaveRestaurantNoPlates()
     {
         ReleaseCurrentSeat();
-        servedPlate = null;
+        ClearCarriedDishState();
+        _diningPhase = CustomerDiningPhase.None;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.Speechless);
-        Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
+        Transform exit = CustomerManager.instance != null
+            ? CustomerManager.instance.GetAlternateExitPoint(transform.position)
+            : null;
         if (exit != null)
         {
             _exitTargetTransform = exit;
             SetTarget(exit.position, applySpawnLaneOffset: false);
         }
-        //Debug.Log("D5555");
         ShowBubble(GetRandomThought(data.noPlateFoodWords.ToArray()));
     }
     public void donotWantToEat()
     {
         ReleaseCurrentSeat();
-        servedPlate = null;
+        ClearCarriedDishState();
+        _diningPhase = CustomerDiningPhase.None;
         state = CustomerState.Leaving;
         SetExpression(CustomerExpression.BadTaste);
         Transform exit = CustomerManager.instance.GetRandomExitPoint(transform.position);
@@ -819,27 +870,33 @@ public class CustomerNPC : MonoBehaviour
 
     private void OnReachTarget()
     {
-        if (state != CustomerState.InsideRestaurant || currentSeat == null || _hasHandledSeatArrival)
+        if (state != CustomerState.InsideRestaurant)
             return;
 
-        _hasHandledSeatArrival = true;
-        Vector3 sitPos = currentSeat.GetSitWorldPosition();
-        transform.position = new Vector3(sitPos.x, sitPos.y, transform.position.z);
-        StartCoroutine(SeatDiningRoutine());
-    }
-
-    private IEnumerator SeatDiningRoutine()
-    {
-        if (currentSeat == null)
+        if (_diningPhase == CustomerDiningPhase.WalkingToPlate
+            && servedPlate != null
+            && !_hasHandledPlateArrival)
         {
-            LeaveRestaurant();
-            yield break;
+            _hasHandledPlateArrival = true;
+            StartCoroutine(PlatePickupThenGoToSeatRoutine());
+            return;
         }
 
-        RestaurantPanel panel = RestaurantPanel.instance;
-        servedPlate = panel != null ? panel.FindFirstPlateWithFood() : null;
+        if (_diningPhase == CustomerDiningPhase.WalkingToSeat
+            && currentSeat != null
+            && !_hasHandledSeatArrival)
+        {
+            _hasHandledSeatArrival = true;
+            Vector3 sitPos = currentSeat.GetSitWorldPosition();
+            transform.position = new Vector3(sitPos.x, sitPos.y, transform.position.z);
+            StartCoroutine(SeatEatingRoutine());
+        }
+    }
 
-        if (servedPlate == null || servedPlate.currentDish == null || servedPlate.currentDish.IsEmpty())
+    /// <summary>到达碟子后取菜，再走向座位。</summary>
+    private IEnumerator PlatePickupThenGoToSeatRoutine()
+    {
+        if (servedPlate == null || servedPlate.IsPlateEmpty() || currentSeat == null)
         {
             SetExpression(CustomerExpression.Speechless);
             ShowBubble(GetChatText(data?.noPlateFoodWords, "没有菜了……"));
@@ -848,54 +905,67 @@ public class CustomerNPC : MonoBehaviour
             yield break;
         }
 
-        DishRecipe recipe = servedPlate.currentDish.recipe;
-        Sprite dishSprite = recipe != null ? recipe.dishIcon : null;
-        Vector3 platePos = servedPlate.GetDishFlyTargetWorldPosition();
-        Vector3 eatPos = currentSeat.GetSitWorldPosition();
+        ShowBubble(GetChatText(data?.InsideRestaurantQueueingWords, "端菜上桌~"));
+        yield return new WaitForSeconds(0.35f);
 
-        if (CustomerManager.instance != null && dishSprite != null)
+        if (servedPlate == null || servedPlate.IsPlateEmpty())
         {
-            yield return CustomerManager.instance.PlayDishFlyToCustomerCoroutine(
-                dishSprite, platePos, eatPos);
+            SetExpression(CustomerExpression.Speechless);
+            ReleaseCurrentSeat();
+            LeaveRestaurantNoPlates();
+            yield break;
         }
 
+        _carriedRecipe = servedPlate.currentDish != null ? servedPlate.currentDish.recipe : null;
+        _carriedGoldAmount = 0;
+        if (!servedPlate.TryConsumeOneServing(out _carriedGoldAmount) || _carriedRecipe == null)
+        {
+            SetExpression(CustomerExpression.Speechless);
+            ReleaseCurrentSeat();
+            LeaveRestaurantNoPlates();
+            yield break;
+        }
+
+        SpawnCarriedDishVisual(_carriedRecipe);
+        _diningPhase = CustomerDiningPhase.WalkingToSeat;
+    }
+
+    private IEnumerator SeatEatingRoutine()
+    {
+        if (currentSeat == null)
+        {
+            LeaveRestaurant();
+            yield break;
+        }
+
+        if (_carriedRecipe == null)
+        {
+            SetExpression(CustomerExpression.Speechless);
+            ShowBubble(GetChatText(data?.noPlateFoodWords, "没有菜了……"));
+            ReleaseCurrentSeat();
+            LeaveRestaurantNoPlates();
+            yield break;
+        }
+
+        DishRecipe recipe = _carriedRecipe;
+        _diningPhase = CustomerDiningPhase.Eating;
         isConsuming = true;
         ShowBubble(GetChatText(data?.ConsumeStartWords, "开动了！"));
         SetExpression(CustomerExpression.Serious);
 
-        float baseEat = recipe != null ? recipe.sellTime : servedPlate.consumeTime;
+        float baseEat = recipe != null ? recipe.sellTime : (servedPlate != null ? servedPlate.consumeTime : 2f);
         float eatMult = 1f;
         if (WeaponStatsManager.Instance != null)
             eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.sellTimeMultiplier);
         float waitSeconds = Mathf.Max(0.01f, baseEat / eatMult);
 
-        float elapsed = 0f;
-        while (elapsed < waitSeconds)
-        {
-            if (servedPlate == null || servedPlate.IsPlateEmpty())
-            {
-                isConsuming = false;
-                SetExpression(CustomerExpression.Speechless);
-                ReleaseCurrentSeat();
-                LeaveRestaurant();
-                yield break;
-            }
+        yield return new WaitForSeconds(waitSeconds);
 
-            elapsed += Time.deltaTime;
-            if (RestaurantPanel.instance != null)
-                RestaurantPanel.instance.SetPlateSellProgress(elapsed / waitSeconds);
-            yield return null;
-        }
+        ClearCarriedDishVisual();
 
-        if (RestaurantPanel.instance != null)
-            RestaurantPanel.instance.SetPlateSellProgress(0f);
-
-        int goldAmount = 0;
+        int goldAmount = _carriedGoldAmount;
         bool isFavourite = recipe != null && data != null && data.favouriteFood != null
             && data.favouriteFood.Contains(recipe.dishID);
-
-        if (servedPlate != null)
-            servedPlate.TryConsumeOneServing(out goldAmount);
 
         if (isFavourite)
         {
@@ -915,9 +985,51 @@ public class CustomerNPC : MonoBehaviour
             CustomerManager.instance.SpawnCoinPickupAt(currentSeat, goldAmount);
 
         isConsuming = false;
-        servedPlate = null;
+        ClearCarriedDishState();
+        _diningPhase = CustomerDiningPhase.None;
         ReleaseCurrentSeat();
         LeaveRestaurant();
+    }
+
+    private void SpawnCarriedDishVisual(DishRecipe recipe)
+    {
+        ClearCarriedDishVisual();
+        if (recipe == null || CustomerManager.instance == null)
+            return;
+
+        GameObject prefab = CustomerManager.instance.carriedDishPrefab != null
+            ? CustomerManager.instance.carriedDishPrefab
+            : CustomerManager.instance.dishFlyToCustomerPrefab;
+        if (prefab == null)
+            return;
+
+        Transform parent = carriedDishHoldPoint != null ? carriedDishHoldPoint : transform;
+        _carriedDishVisual = Instantiate(prefab, parent);
+        _carriedDishVisual.transform.localPosition = carriedDishLocalOffset;
+        _carriedDishVisual.transform.localRotation = Quaternion.identity;
+
+        SpriteRenderer sr = _carriedDishVisual.GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null && recipe.dishIcon != null)
+            sr.sprite = recipe.dishIcon;
+
+        Image img = _carriedDishVisual.GetComponentInChildren<Image>(true);
+        if (img != null && recipe.dishIcon != null)
+            img.sprite = recipe.dishIcon;
+    }
+
+    private void ClearCarriedDishVisual()
+    {
+        if (_carriedDishVisual != null)
+            Destroy(_carriedDishVisual);
+        _carriedDishVisual = null;
+    }
+
+    private void ClearCarriedDishState()
+    {
+        ClearCarriedDishVisual();
+        servedPlate = null;
+        _carriedRecipe = null;
+        _carriedGoldAmount = 0;
     }
 
     private IEnumerator PlaySatisfactionJump(int times)
@@ -980,6 +1092,7 @@ public class CustomerNPC : MonoBehaviour
 
     void OnDestroy()
     {
+        ClearCarriedDishVisual();
         ReleaseCurrentSeat();
         manager?.RemoveCustomer(this);
         ClearFavouriteDishIcons();
@@ -1225,6 +1338,8 @@ public class CustomerNPC : MonoBehaviour
         restaurantAmbienceRoutine = null;
         isInteractingWithPlayer = false;
         isConsuming = false;
+        _diningPhase = CustomerDiningPhase.None;
+        ClearCarriedDishState();
         ReleaseCurrentSeat();
         state = CustomerState.Spawning;
 

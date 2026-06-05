@@ -50,7 +50,7 @@ public class Plate : MonoBehaviour
 {
     [Header("菜碟配置")]
     public int maxCapacity = 5;
-    [Tooltip("顾客就餐时长参考（秒）；实际以菜谱 sellTime 为准")]
+    [Tooltip("顾客就坐用餐时长兜底（秒）；优先使用菜谱 sellTime")]
     public float consumeTime = 2f;
     public plateState currentState = plateState.unUsed;
 
@@ -64,6 +64,15 @@ public class Plate : MonoBehaviour
 
     [Header("烹饪锅引用")]
     public Pot sourcePot;
+
+    private FacilityUnlockable _facilityUnlock;
+
+    public bool IsFacilityUnlocked => _facilityUnlock == null || _facilityUnlock.IsUnlocked;
+
+    private void Awake()
+    {
+        _facilityUnlock = GetComponent<FacilityUnlockable>();
+    }
 
     public bool IsPlateEmpty()
     {
@@ -114,6 +123,8 @@ public class Plate : MonoBehaviour
 
     public bool TryAddDish(DishRecipe recipe, Pot pot = null)
     {
+        if (!IsFacilityUnlocked)
+            return false;
         if (!CanAddDish(recipe))
             return false;
 
@@ -130,10 +141,12 @@ public class Plate : MonoBehaviour
         return true;
     }
 
-    /// <summary>顾客就餐结束后消耗一份；若碟子变空则触发左移补位。</summary>
+    /// <summary>顾客从碟子取走一份（端菜时扣减）；若碟子变空则触发左移补位。</summary>
     public bool TryConsumeOneServing(out int goldEarned)
     {
         goldEarned = 0;
+        if (!IsFacilityUnlocked)
+            return false;
         if (IsPlateEmpty() || currentDish.recipe == null)
             return false;
 
@@ -157,6 +170,8 @@ public class Plate : MonoBehaviour
 
     public bool CanAddDish(DishRecipe recipe)
     {
+        if (!IsFacilityUnlocked)
+            return false;
         if (recipe == null) return false;
 
         if (currentState == plateState.unUsed || currentDish == null || currentDish.currentAmount == 0)

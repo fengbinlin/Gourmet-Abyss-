@@ -1,18 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Table : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+    private FacilityUnlockable _facilityUnlock;
 
-    // Update is called once per frame
-    void Update()
+    public bool IsFacilityUnlocked => _facilityUnlock == null || _facilityUnlock.IsUnlocked;
+
+    private void Awake()
     {
-        
+        _facilityUnlock = GetComponent<FacilityUnlockable>();
     }
 }

@@ -352,8 +352,15 @@ public class PlayerInteractionController : MonoBehaviour
                 return;
             }
 
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit[] hits = Physics.RaycastAll(ray, 10000f);
+            Camera clickCamera = Camera.main;
+            if (clickCamera == null)
+            {
+                if (debugNpcClickRaycast) Debug.LogWarning("[Click] Camera.main 为空，无法射线检测。");
+                return;
+            }
+
+            Ray ray = clickCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 10000f, ~0, QueryTriggerInteraction.Collide);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
             foreach (var hit in hits)
@@ -387,6 +394,9 @@ public class PlayerInteractionController : MonoBehaviour
                     break;
                 }
             }
+
+            if (FacilityUnlockClickTarget.TryHandleScreenClick(Input.mousePosition, clickCamera, debugNpcClickRaycast))
+                return;
         }
         
         // 可交互建筑提示：E 进行 Canvas 显示/隐藏切换（宝箱长按场景不切）

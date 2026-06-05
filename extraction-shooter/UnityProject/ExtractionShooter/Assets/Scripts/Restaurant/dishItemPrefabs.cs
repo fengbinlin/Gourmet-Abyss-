@@ -25,7 +25,7 @@ public class DishRecipe
     public List<DishIngredient> ingredients = new List<DishIngredient>();  // 所需食材
     public List<potType> acceptablePot = new List<potType>(); // 可以接受的锅
     public float cookTime = 10f;            // 烹饪时间（秒）
-    [Tooltip("装盘后每份菜肴自动售卖的间隔（秒，基础值）。实际时间 = sellTime / 商店 sellTimeMultiplier")]
+    [Tooltip("顾客就坐后用餐时长（秒，基础值）。实际时间 = sellTime / WeaponStatsManager.sellTimeMultiplier")]
     public float sellTime = 5f;
     public float baseDishPrice = 1;         // 基本菜价格
     public DishCategory category = DishCategory.MainCourse; // 菜肴分类

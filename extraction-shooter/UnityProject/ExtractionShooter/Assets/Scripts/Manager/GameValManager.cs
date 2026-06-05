@@ -350,6 +350,20 @@ public class GameValManager : MonoBehaviour
     {
         return GetResourceCount(type) >= amount;
     }
+
+    /// <summary>是否够支付设施解锁（金币）。</summary>
+    public bool CanAffordFacilityUnlock(int goldCost)
+    {
+        return HasEnoughResource(ResourceType.Money, Mathf.Max(0, goldCost));
+    }
+
+    /// <summary>支付设施解锁费用；成功则扣除金币。</summary>
+    public bool TryPayFacilityUnlock(int goldCost)
+    {
+        if (goldCost <= 0)
+            return true;
+        return TryConsumeResource(ResourceType.Money, goldCost);
+    }
     
     #endregion
     

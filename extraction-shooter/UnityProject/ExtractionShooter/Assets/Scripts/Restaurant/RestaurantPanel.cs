@@ -24,9 +24,9 @@ public class RestaurantPanel : MonoBehaviour
     public GameObject cookingProgressRoot;
     [Tooltip("显示当前锅的烹饪进度（Filled Image，Fill Amount 0-1）")]
     public Image cookingProgressImage;
-    [Tooltip("售卖进度条的根物体（整体容器），用于显示/隐藏整块UI")]
+    [Tooltip("已废弃：餐厅改为顾客端菜售卖，不再使用碟子自动售卖进度条")]
     public GameObject plateSellProgressRoot;
-    [Tooltip("显示餐厅自动售卖（首碟）的进度（Filled Image，Fill Amount 0-1）")]
+    [Tooltip("已废弃")]
     public Image plateSellProgressImage;
 
     [Header("选中菜单食材指示")]
@@ -125,16 +125,18 @@ public class RestaurantPanel : MonoBehaviour
             cookingProgressImage.gameObject.SetActive(v > 0f);
     }
 
-    /// <summary>顾客就餐进度：0-1；由 CustomerNPC 就餐协程调用（可选 UI）。</summary>
+    /// <summary>已废弃：碟子定时自动售卖已移除，进度条常隐藏。</summary>
     public void SetPlateSellProgress(float t)
     {
-        if (plateSellProgressImage == null) return;
-        float v = Mathf.Clamp01(t);
-        plateSellProgressImage.fillAmount = v;
+        HidePlateSellProgress();
+    }
+
+    private void HidePlateSellProgress()
+    {
         if (plateSellProgressRoot != null)
-            plateSellProgressRoot.SetActive(v > 0f);
-        else
-            plateSellProgressImage.gameObject.SetActive(v > 0f);
+            plateSellProgressRoot.SetActive(false);
+        else if (plateSellProgressImage != null)
+            plateSellProgressImage.gameObject.SetActive(false);
     }
 
     void Awake()
@@ -285,6 +287,12 @@ public class RestaurantPanel : MonoBehaviour
     /// 每次面板显示时刷新：根据 GameValManager 重新生成食材种类与数量、菜肴列表。
     /// </summary>
     
+    /// <summary>设施解锁等外部变更后，刷新锅/碟可用列表。</summary>
+    public void RefreshRestaurantUnits()
+    {
+        SyncRestaurantUnitsFromStats();
+    }
+
     private void SyncRestaurantUnitsFromStats()
     {
         if (WeaponStatsManager.Instance == null)
@@ -1218,17 +1226,15 @@ public class RestaurantPanel : MonoBehaviour
             Pot pot = allPots[i];
             if (pot == null) continue;
 
-            bool shouldActive = i < activeCount;
-            if (pot.gameObject.activeSelf != shouldActive)
-            {
-                pot.gameObject.SetActive(shouldActive);
-            }
+            bool shouldShowInScene = ShouldShowFacilityInScene(pot, i, activeCount);
+            if (pot.gameObject.activeSelf != shouldShowInScene)
+                pot.gameObject.SetActive(shouldShowInScene);
 
-            if (shouldActive)
-            {
+            if (shouldShowInScene && IsFacilityUnlocked(pot))
                 potsList.Add(pot);
-            }
         }
+
+        RefreshAllFacilityUnlockVisuals(allPots);
     }
 
     private void SyncPlatesByCount(int targetCount)
@@ -1241,18 +1247,55 @@ public class RestaurantPanel : MonoBehaviour
             Plate plate = allPlates[i];
             if (plate == null) continue;
 
-            bool shouldActive = i < activeCount;
-            if (plate.gameObject.activeSelf != shouldActive)
-            {
-                plate.gameObject.SetActive(shouldActive);
-            }
+            bool shouldShowInScene = ShouldShowFacilityInScene(plate, i, activeCount);
+            if (plate.gameObject.activeSelf != shouldShowInScene)
+                plate.gameObject.SetActive(shouldShowInScene);
 
-            if (shouldActive)
-            {
+            if (shouldShowInScene && IsFacilityUnlocked(plate))
                 platesList.Add(plate);
-            }
+        }
+
+        RefreshAllFacilityUnlockVisuals(allPlates);
+    }
+
+    /// <summary>
+    /// 槽位内始终显示；槽位外仅未解锁时显示以便点击。
+    /// 已解锁的设施不再因「槽位外 + 已解锁」被整物体关掉。
+    /// </summary>
+    private static bool ShouldShowFacilityInScene(MonoBehaviour facility, int index, int activeSlotCount)
+    {
+        if (facility == null)
+            return false;
+
+        FacilityUnlockable unlock = facility.GetComponent<FacilityUnlockable>();
+
+        if (index < activeSlotCount)
+            return true;
+
+        if (unlock != null && unlock.IsUnlocked)
+            return true;
+
+        return unlock != null && !unlock.IsUnlocked;
+    }
+
+    private static void RefreshAllFacilityUnlockVisuals<T>(List<T> facilities) where T : MonoBehaviour
+    {
+        if (facilities == null) return;
+        for (int i = 0; i < facilities.Count; i++)
+        {
+            if (facilities[i] == null) continue;
+            FacilityUnlockable unlock = facilities[i].GetComponent<FacilityUnlockable>();
+            unlock?.RefreshVisualState();
         }
     }
+
+    private static bool IsFacilityUnlocked(MonoBehaviour facility)
+    {
+        if (facility == null) return false;
+        FacilityUnlockable unlock = facility.GetComponent<FacilityUnlockable>();
+        return unlock == null || unlock.IsUnlocked;
+    }
+
     public void GenerateFoodItems()
     {
         // 先清空旧UI
@@ -1615,6 +1658,12 @@ public class RestaurantPanel : MonoBehaviour
                 return plate;
         }
         return null;
+    }
+
+    /// <summary>当前是否有可售卖的菜肴（用于控制顾客是否排队/入场）。</summary>
+    public bool HasPlateWithFood()
+    {
+        return FindFirstPlateWithFood() != null;
     }
 
     /// <summary>

@@ -10,7 +10,11 @@ public class CustomerManager : MonoBehaviour
     public List<Transform> spawnPoints;
 
     [Header("顾客离开位置")]
-    public List<Transform> exitPoints; // 新增：离开点
+    public List<Transform> exitPoints; // 就餐后离开
+
+    [Header("碟子无菜时离开出口（不排队，从此离开）")]
+    [Tooltip("未配置时回退为 exitPoints 的最后一个，或仅有一个出口时用该出口")]
+    public List<Transform> noFoodExitPoints;
 
     [Header("餐厅入口队首位置")]
     public Transform queueFrontPoint;
@@ -21,6 +25,8 @@ public class CustomerManager : MonoBehaviour
     [Tooltip("碟子飞向顾客时的临时精灵预制体（可选）")]
     public GameObject dishFlyToCustomerPrefab;
     public float dishFlyToCustomerDuration = 0.35f;
+    [Tooltip("顾客从碟子取菜后端在手上走向座位的菜品预制体（未填则尝试 dishFlyToCustomerPrefab）")]
+    public GameObject carriedDishPrefab;
 
     [Header("餐厅菜碟列表")]
     public List<Plate> plates;
@@ -121,7 +127,10 @@ public class CustomerManager : MonoBehaviour
             if (activeCustomers.Count < maxTotalCustomers)
             {
                 SpawnCustomer();
-                // 设置下一次生成时间
+                nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
+            }
+            else
+            {
                 nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
             }
         }
@@ -240,7 +249,7 @@ public class CustomerManager : MonoBehaviour
         {
             npcInstance.ShowCustomBubble(GetCustomerWord(npcInstance, npcInstance.data?.LikePersonEncounterWords, "呀，遇见喜欢的人了～"));
             npcInstance.SetExpression(CustomerExpression.HeartEyes); // 爱心眼
-            HandleEntrance(npcInstance);
+            TryHandleEntrance(npcInstance);
         }
         else
         {
@@ -252,7 +261,7 @@ public class CustomerManager : MonoBehaviour
             else
             {
                 npcInstance.SetExpression(CustomerExpression.Serious); // 认真 / 准备排队
-                HandleEntrance(npcInstance);
+                TryHandleEntrance(npcInstance);
             }
         }
 
@@ -260,7 +269,26 @@ public class CustomerManager : MonoBehaviour
         activeCustomers.Add(npcInstance);
         UpdateCustomerCountDisplay();
     }
-    // 处理顾客到入口
+    /// <summary>碟子上是否有菜（无菜时顾客不排队、不入场）。</summary>
+    public bool HasPlateWithFood()
+    {
+        return RestaurantPanel.instance != null && RestaurantPanel.instance.HasPlateWithFood();
+    }
+
+    // 处理顾客到入口：有菜才排队，无菜直接离开
+    private void TryHandleEntrance(CustomerNPC npc)
+    {
+        if (!HasPlateWithFood())
+        {
+            npc.SetExpression(CustomerExpression.Speechless);
+            npc.ShowCustomBubble(GetCustomerWord(npc, npc.data?.noPlateFoodWords, "没有菜了……"));
+            npc.LeaveRestaurantNoPlates();
+            return;
+        }
+
+        HandleEntrance(npc);
+    }
+
     // 所有顾客都先排队进入餐厅
     private void HandleEntrance(CustomerNPC npc)
     {
@@ -414,7 +442,10 @@ public class CustomerManager : MonoBehaviour
         if (!SeatManager.Instance.HasAvailableSeat)
             return;
 
-        while (customersQueue.Count > 0 && SeatManager.Instance.HasAvailableSeat)
+        if (!HasPlateWithFood())
+            return;
+
+        while (customersQueue.Count > 0 && SeatManager.Instance.HasAvailableSeat && HasPlateWithFood())
         {
             CustomerNPC firstInQueue = customersQueue[0];
             customersQueue.RemoveAt(0);
@@ -593,38 +624,45 @@ public class CustomerManager : MonoBehaviour
         return spawnPoints[Random.Range(0, spawnPoints.Count)];
     }
 
-    // 获取随机离开点（用于顾客离开）
+    // 获取随机离开点（用于顾客正常就餐后离开）
     public Transform GetRandomExitPoint(Vector3 NPCPos)
     {
+        return PickExitFromList(exitPoints, NPCPos, transform);
+    }
 
-        if (exitPoints.Count > 1)
+    /// <summary>碟子无菜等未入场场景：从备用出口离开。</summary>
+    public Transform GetAlternateExitPoint(Vector3 npcPos)
+    {
+        if (noFoodExitPoints != null && noFoodExitPoints.Count > 0)
+            return PickExitFromList(noFoodExitPoints, npcPos, transform);
+
+        if (exitPoints != null && exitPoints.Count > 1)
+            return exitPoints[exitPoints.Count - 1];
+
+        return GetRandomExitPoint(npcPos);
+    }
+
+    private static Transform PickExitFromList(List<Transform> points, Vector3 npcPos, Transform fallback)
+    {
+        if (points == null || points.Count == 0)
+            return fallback;
+
+        Transform exitPoint = points[Random.Range(0, points.Count)];
+        if (points.Count == 1)
+            return exitPoint != null ? exitPoint : fallback;
+
+        int safety = 8;
+        while (safety-- > 0
+               && exitPoint != null
+               && Vector2.Distance(
+                   new Vector2(exitPoint.position.x, exitPoint.position.y),
+                   new Vector2(npcPos.x, npcPos.y)
+               ) < 0.5f)
         {
-            // 如果没有专门配置离开点，但有多于一个生成点，随机选一个不同于出生点的位置
-            // 注意：这个方法不完全准确，但比总是返回相同位置好
-            Transform exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
-
-            // 可以再尝试几次避免和某些特定点重复
-            while (Vector2.Distance(
-                       new Vector2(exitPoint.position.x, exitPoint.position.y),
-                       new Vector2(NPCPos.x, NPCPos.y)
-                   ) < 0.5f)
-            {
-                exitPoint = exitPoints[Random.Range(0, exitPoints.Count)];
-            }
-            //print("设置离开点:"+exitPoint.position+" 自身坐标"+NPCPos);
-
-            return exitPoint;
+            exitPoint = points[Random.Range(0, points.Count)];
         }
-        else
-        {
-            // 只有一个点，那就用它
-            if (exitPoints.Count == 0)
-            {
-                //Debug.LogWarning("没有配置生成点或离开点！");
-                return transform; // 返回Manager自身位置作为备选
-            }
-            return exitPoints[0];
-        }
+
+        return exitPoint != null ? exitPoint : fallback;
     }
 
     private bool HasDislikedPersonAround(CustomerNPC npc)
