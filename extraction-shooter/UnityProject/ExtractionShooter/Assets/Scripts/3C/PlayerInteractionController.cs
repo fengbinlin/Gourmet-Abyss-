@@ -346,9 +346,9 @@ public class PlayerInteractionController : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            if (blockNpcClickWhenPointerOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            if (blockNpcClickWhenPointerOverUI && FacilityUnlockClickTarget.IsScreenPositionBlockedByUI(Input.mousePosition))
             {
-                if (debugNpcClickRaycast) Debug.Log("[NPC Click] Pointer is over UI, skip NPC raycast.");
+                if (debugNpcClickRaycast) Debug.Log("[NPC Click] Pointer is over UI, skip world click.");
                 return;
             }
 

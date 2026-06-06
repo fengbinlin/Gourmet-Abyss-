@@ -110,6 +110,8 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     public int CurrentSelectedIndex => currentSelectedIndex;
 
+    public int RestaurantButtonIndex => restaurantButtonIndex;
+
     private void Awake()
     {
         Instance=this;

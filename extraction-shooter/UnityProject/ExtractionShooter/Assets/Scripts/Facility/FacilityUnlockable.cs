@@ -17,6 +17,8 @@ public class FacilityUnlockable : MonoBehaviour
     [SerializeField] private GameObject content;
 
     [Header("解锁配置")]
+    [Tooltip("可选：统一设施配置资产，优先读取其中的解锁资源")]
+    [SerializeField] private RestaurantFacilityConfig facilityConfig;
     [SerializeField] private int unlockCost = 100;
     [SerializeField] private string facilityDisplayName = "设施";
     [Tooltip("勾选则进入场景时视为已解锁（不写入本地存档）")]
@@ -25,8 +27,10 @@ public class FacilityUnlockable : MonoBehaviour
     private bool _isUnlocked;
 
     public FacilityType Type => facilityType;
-    public int UnlockCost => Mathf.Max(0, unlockCost);
-    public string DisplayName => string.IsNullOrEmpty(facilityDisplayName) ? gameObject.name : facilityDisplayName;
+    public RestaurantFacilityConfig Config => facilityConfig;
+    public int UnlockCost => GetPrimaryUnlockCost();
+    public FacilityResourceCost[] UnlockCosts => GetUnlockCosts();
+    public string DisplayName => GetResolvedDisplayName();
     public bool IsUnlocked => _isUnlocked;
 
     public void RefreshVisualState()
@@ -41,6 +45,7 @@ public class FacilityUnlockable : MonoBehaviour
 
     private void Awake()
     {
+        SyncFacilityTypeFromComponents();
         _isUnlocked = unlockedByDefault;
         ApplyVisualState();
     }
@@ -74,10 +79,18 @@ public class FacilityUnlockable : MonoBehaviour
 
     public bool CanAffordUnlock()
     {
-        if (_isUnlocked || UnlockCost <= 0)
+        if (_isUnlocked)
             return true;
+
+        FacilityResourceCost[] costs = GetUnlockCosts();
+        if (costs == null || costs.Length == 0)
+            return true;
+
+        if (facilityConfig != null)
+            return facilityConfig.CanAffordCosts(costs);
+
         return GameValManager.Instance != null
-               && GameValManager.Instance.CanAffordFacilityUnlock(UnlockCost);
+               && GameValManager.Instance.CanAffordFacilityUnlock(GetPrimaryUnlockCost());
     }
 
     public bool TryUnlockWithGold()
@@ -88,9 +101,14 @@ public class FacilityUnlockable : MonoBehaviour
         if (GameValManager.Instance == null)
             return false;
 
-        if (UnlockCost > 0 && !GameValManager.Instance.TryPayFacilityUnlock(UnlockCost))
+        FacilityResourceCost[] costs = GetUnlockCosts();
+        bool paid = facilityConfig != null
+            ? facilityConfig.TryPayCosts(costs)
+            : GameValManager.Instance.TryPayFacilityUnlock(GetPrimaryUnlockCost());
+
+        if (!paid)
         {
-            GlobalMessageUI.Show("金币不足，无法解锁", 1.2f);
+            GlobalMessageUI.Show("资源不足，无法解锁", 1.2f);
             return false;
         }
 
@@ -172,6 +190,69 @@ public class FacilityUnlockable : MonoBehaviour
         }
     }
 
+    public FacilityResourceCost[] GetUnlockCosts()
+    {
+        if (facilityConfig != null)
+        {
+            FacilityUnlockEntry entry = facilityConfig.GetUnlockEntry(facilityType);
+            if (entry?.unlockCosts != null && entry.unlockCosts.Length > 0)
+                return entry.unlockCosts;
+        }
+
+        return new[] { new FacilityResourceCost { resourceType = ResourceType.Money, amount = Mathf.Max(0, unlockCost) } };
+    }
+
+    private int GetPrimaryUnlockCost()
+    {
+        FacilityResourceCost[] costs = GetUnlockCosts();
+        if (costs == null)
+            return Mathf.Max(0, unlockCost);
+
+        for (int i = 0; i < costs.Length; i++)
+        {
+            if (costs[i] != null && costs[i].resourceType == ResourceType.Money)
+                return Mathf.Max(0, costs[i].amount);
+        }
+
+        return 0;
+    }
+
+    private void SyncFacilityTypeFromComponents()
+    {
+        if (GetComponent<Pot>() != null)
+            facilityType = FacilityType.Pot;
+        else if (GetComponent<Table>() != null)
+            facilityType = FacilityType.Table;
+        else if (GetComponent<Plate>() != null)
+            facilityType = FacilityType.Plate;
+    }
+
+    private string GetResolvedDisplayName()
+    {
+        if (!string.IsNullOrEmpty(facilityDisplayName) && facilityDisplayName != "设施")
+            return facilityDisplayName;
+
+        if (facilityConfig != null)
+        {
+            FacilityUnlockEntry entry = facilityConfig.GetUnlockEntry(facilityType);
+            if (entry != null && !string.IsNullOrEmpty(entry.displayName))
+                return entry.displayName;
+        }
+
+        return GetDefaultDisplayName(facilityType);
+    }
+
+    private static string GetDefaultDisplayName(FacilityType type)
+    {
+        return type switch
+        {
+            FacilityType.Pot => "烹饪锅",
+            FacilityType.Plate => "摆菜碟",
+            FacilityType.Table => "餐桌",
+            _ => "设施"
+        };
+    }
+
     private void NotifyRestaurantListsIfNeeded()
     {
         if (facilityType == FacilityType.Plate || facilityType == FacilityType.Pot)
@@ -184,6 +265,7 @@ public class FacilityUnlockable : MonoBehaviour
 #if UNITY_EDITOR
     private void OnValidate()
     {
+        SyncFacilityTypeFromComponents();
         unlockCost = Mathf.Max(0, unlockCost);
 
         if (unlockClickTarget == gameObject)

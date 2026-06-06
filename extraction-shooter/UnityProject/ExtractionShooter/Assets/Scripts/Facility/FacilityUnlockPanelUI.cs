@@ -3,6 +3,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 设施解锁确认面板（单例）。描述花费、解锁/取消按钮。
+/// 解锁花费优先读取 FacilityUnlockable 关联的 RestaurantFacilityConfig。
 /// </summary>
 public class FacilityUnlockPanelUI : MonoBehaviour
 {
@@ -83,29 +84,42 @@ public class FacilityUnlockPanelUI : MonoBehaviour
         if (_currentTarget == null)
             return;
 
-        int cost = _currentTarget.UnlockCost;
-        int owned = GameValManager.Instance != null
-            ? GameValManager.Instance.GetResourceCount(ResourceType.Money)
-            : 0;
+        FacilityResourceCost[] costs = _currentTarget.UnlockCosts;
         bool canAfford = _currentTarget.CanAffordUnlock();
 
         if (descriptionText != null)
         {
-            string affordHint = canAfford
-                ? "金币足够，可以解锁。"
-                : "金币不足，无法解锁。";
+            string affordHint = canAfford ? "资源足够，可以解锁。" : "资源不足，无法解锁。";
             descriptionText.text =
-                $"是否花费 {cost} 金币解锁「{_currentTarget.DisplayName}」？\n" +
-                $"当前持有：{owned} 金币\n{affordHint}";
+                $"是否花费 {RestaurantFacilityConfig.FormatCosts(costs)} 解锁「{_currentTarget.DisplayName}」？\n" +
+                $"{BuildOwnedResourcesText(costs)}\n{affordHint}";
         }
 
         if (unlockButton != null)
             unlockButton.interactable = canAfford;
     }
 
+    private static string BuildOwnedResourcesText(FacilityResourceCost[] costs)
+    {
+        if (costs == null || costs.Length == 0 || GameValManager.Instance == null)
+            return string.Empty;
+
+        System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+        for (int i = 0; i < costs.Length; i++)
+        {
+            if (costs[i] == null || costs[i].amount <= 0)
+                continue;
+
+            int owned = GameValManager.Instance.GetResourceCount(costs[i].resourceType);
+            parts.Add($"持有 {owned}");
+        }
+
+        return parts.Count > 0 ? string.Join("，", parts) : string.Empty;
+    }
+
     private void OnResourceChanged(ResourceType type, int oldCount, int newCount)
     {
-        if (type != ResourceType.Money || _currentTarget == null)
+        if (_currentTarget == null)
             return;
         if (panelRoot != null && panelRoot.activeSelf)
             RefreshContent();

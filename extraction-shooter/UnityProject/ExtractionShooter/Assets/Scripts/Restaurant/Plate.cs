@@ -69,9 +69,48 @@ public class Plate : MonoBehaviour
 
     public bool IsFacilityUnlocked => _facilityUnlock == null || _facilityUnlock.IsUnlocked;
 
+    private bool _subscribedRestaurantStats;
+
     private void Awake()
     {
         _facilityUnlock = GetComponent<FacilityUnlockable>();
+    }
+
+    private void OnEnable()
+    {
+        TrySubscribeRestaurantStats();
+        UpdateUI();
+    }
+
+    private void OnDisable()
+    {
+        if (WeaponStatsManager.Instance != null && _subscribedRestaurantStats)
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= HandleRestaurantStatsChanged;
+        _subscribedRestaurantStats = false;
+    }
+
+    private void TrySubscribeRestaurantStats()
+    {
+        if (_subscribedRestaurantStats || WeaponStatsManager.Instance == null)
+            return;
+
+        WeaponStatsManager.Instance.OnRestaurantStatsChanged += HandleRestaurantStatsChanged;
+        _subscribedRestaurantStats = true;
+    }
+
+    private void HandleRestaurantStatsChanged()
+    {
+        UpdateUI();
+    }
+
+    public int EffectiveMaxCapacity
+    {
+        get
+        {
+            if (WeaponStatsManager.Instance != null)
+                return Mathf.Max(1, WeaponStatsManager.Instance.restaurantPlateCapacity);
+            return Mathf.Max(1, maxCapacity);
+        }
     }
 
     public bool IsPlateEmpty()
@@ -180,7 +219,7 @@ public class Plate : MonoBehaviour
         if (currentState == plateState.isUsed &&
             currentDish != null &&
             RestaurantPanel.RecipesMatch(currentDish.recipe, recipe) &&
-            currentDish.currentAmount < maxCapacity)
+            currentDish.currentAmount < EffectiveMaxCapacity)
             return true;
 
         return false;
@@ -188,10 +227,11 @@ public class Plate : MonoBehaviour
 
     public int GetRemainingCapacity()
     {
+        int capacity = EffectiveMaxCapacity;
         if (currentState == plateState.unUsed || currentDish == null)
-            return maxCapacity;
+            return capacity;
 
-        return maxCapacity - currentDish.currentAmount;
+        return capacity - currentDish.currentAmount;
     }
 
     public string GetCurrentDishName()
@@ -207,7 +247,7 @@ public class Plate : MonoBehaviour
                 dishNameText.text = currentDish.recipe.dishName;
 
             if (amountText != null)
-                amountText.text = $"{currentDish.currentAmount}/{maxCapacity}";
+                amountText.text = $"{currentDish.currentAmount}/{EffectiveMaxCapacity}";
 
             if (dishIcon != null && currentDish.recipe.dishIcon != null)
             {
@@ -221,7 +261,7 @@ public class Plate : MonoBehaviour
                 dishNameText.text = "空碟";
 
             if (amountText != null)
-                amountText.text = $"0/{maxCapacity}";
+                amountText.text = $"0/{EffectiveMaxCapacity}";
 
             if (dishIcon != null)
                 dishIcon.gameObject.SetActive(false);

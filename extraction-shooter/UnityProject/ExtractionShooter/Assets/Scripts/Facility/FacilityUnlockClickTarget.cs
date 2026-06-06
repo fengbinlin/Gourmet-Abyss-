@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 /// <summary>
 /// 挂在 UnlockClick 子物体上（与 Collider 同级）。
@@ -30,6 +32,8 @@ public class FacilityUnlockClickTarget : MonoBehaviour
 
     public void OnClicked()
     {
+        if (IsScreenPositionBlockedByUI(Input.mousePosition))
+            return;
         TryHandleClick();
     }
 
@@ -53,6 +57,13 @@ public class FacilityUnlockClickTarget : MonoBehaviour
     /// <summary>从屏幕坐标检测 3D/2D 碰撞体上的解锁点击区。</summary>
     public static bool TryHandleScreenClick(Vector2 screenPosition, Camera camera, bool logDebug = false)
     {
+        if (IsScreenPositionBlockedByUI(screenPosition))
+        {
+            if (logDebug)
+                Debug.Log("[FacilityUnlockClickTarget] 点击被 UI 挡住，跳过设施解锁。");
+            return false;
+        }
+
         if (camera == null)
             camera = Camera.main;
         if (camera == null)
@@ -122,7 +133,38 @@ public class FacilityUnlockClickTarget : MonoBehaviour
 
     private static bool IsPointerOverUI()
     {
-        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        return IsScreenPositionBlockedByUI(Input.mousePosition);
+    }
+
+    /// <summary>屏幕坐标是否点在可拦截射线的 UI 上（Overlay / World Space 均适用）。</summary>
+    public static bool IsScreenPositionBlockedByUI(Vector2 screenPosition)
+    {
+        if (EventSystem.current == null)
+            return false;
+
+        if (EventSystem.current.IsPointerOverGameObject(-1))
+            return true;
+
+        PointerEventData pointerData = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition
+        };
+
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(pointerData, results);
+
+        for (int i = 0; i < results.Count; i++)
+        {
+            GameObject hitObject = results[i].gameObject;
+            if (hitObject == null)
+                continue;
+
+            Graphic graphic = hitObject.GetComponent<Graphic>();
+            if (graphic != null && graphic.enabled && graphic.raycastTarget)
+                return true;
+        }
+
+        return false;
     }
 
     private void Reset()

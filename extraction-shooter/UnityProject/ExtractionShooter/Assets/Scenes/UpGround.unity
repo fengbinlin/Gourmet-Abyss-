@@ -1833,6 +1833,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 36114998}
+  - component: {fileID: 36114999}
   m_Layer: 5
   m_Name: KitchenUpgrade
   m_TagString: Untagged
@@ -1867,6 +1868,25 @@ RectTransform:
   m_AnchoredPosition: {x: -449.00003, y: 200}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &36114999
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 36114997}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 855a2708667e8b34f8ec023fd85c321c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  facilityType: 0
+  title: {fileID: 1900926612}
+  curLevel: {fileID: 1210955931}
+  targetLevel: {fileID: 1177379170}
+  information: {fileID: 1791179615}
+  buttonUpgrade: {fileID: 78731253}
+  needUpgrade: {fileID: 866168641}
 --- !u!1 &36851317
 GameObject:
   m_ObjectHideFlags: 0
@@ -3797,9 +3817,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f945d03754f49458730ba59fdc7554, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  facilityType: 0
+  facilityType: 1
   unlockClickTarget: {fileID: 468792210}
   content: {fileID: 273725261}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 0
@@ -15722,6 +15743,7 @@ MonoBehaviour:
   facilityType: 2
   unlockClickTarget: {fileID: 603859647}
   content: {fileID: 639253679}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 100
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 1
@@ -16988,6 +17010,7 @@ MonoBehaviour:
   facilityType: 0
   unlockClickTarget: {fileID: 175046463}
   content: {fileID: 591285427}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u684C\u5B50"
   unlockedByDefault: 0
@@ -18125,6 +18148,7 @@ Transform:
   - {fileID: 1873403976}
   - {fileID: 1118551878}
   - {fileID: 118200621}
+  - {fileID: 1720905744}
   m_Father: {fileID: 74554887}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &274235583
@@ -26528,6 +26552,7 @@ Transform:
   - {fileID: 652071488}
   - {fileID: 1540661616}
   - {fileID: 846904622}
+  - {fileID: 992311397}
   m_Father: {fileID: 2041217200}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &422732581
@@ -28484,6 +28509,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 472842877}
+  - component: {fileID: 472842878}
   m_Layer: 5
   m_Name: PlacerUpgrade
   m_TagString: Untagged
@@ -28518,6 +28544,25 @@ RectTransform:
   m_AnchoredPosition: {x: -449.00003, y: 100}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &472842878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 472842876}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 855a2708667e8b34f8ec023fd85c321c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  facilityType: 1
+  title: {fileID: 32136719}
+  curLevel: {fileID: 930966760}
+  targetLevel: {fileID: 1979754321}
+  information: {fileID: 1811858634}
+  buttonUpgrade: {fileID: 1123056018}
+  needUpgrade: {fileID: 312800326}
 --- !u!4 &473556210 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5611053521541411265, guid: 6988f5c3740de0f4d8b029e8762a4f90,
@@ -52850,7 +52895,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _GradientTex:
-        m_Texture: {fileID: 1027734496}
+        m_Texture: {fileID: 1833546009}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -55053,12 +55098,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 899327824}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 9.616058, y: 4.930046, z: 54.512417}
-  m_LocalScale: {x: 9.9662, y: 9.9662, z: 9.9662}
+  m_LocalRotation: {x: -0, y: 0.7071068, z: 0.7071068, w: 0}
+  m_LocalPosition: {x: -0.00015785685, y: 0.1515431, z: -0.001413961}
+  m_LocalScale: {x: 0.023847139, y: 0.023847148, z: 0.023847148}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 975570845}
+  m_Father: {fileID: 1225876746}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &900508475
 GameObject:
@@ -58217,9 +58262,6 @@ Transform:
   - {fileID: 414853348}
   - {fileID: 2075297814}
   - {fileID: 1745802538}
-  - {fileID: 899327826}
-  - {fileID: 1720905744}
-  - {fileID: 992311397}
   - {fileID: 227830448}
   - {fileID: 1353227224}
   - {fileID: 247912007}
@@ -59360,12 +59402,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 992311396}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 22.116058, y: -2.3099518, z: 54.512417}
-  m_LocalScale: {x: 9.9662, y: 9.9662, z: 9.9662}
+  m_LocalRotation: {x: -0, y: 0.7071068, z: 0.7071068, w: 0}
+  m_LocalPosition: {x: -0.00039376403, y: 0.1515431, z: -0.0027088898}
+  m_LocalScale: {x: 0.023847139, y: 0.023847148, z: 0.023847148}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 975570845}
+  m_Father: {fileID: 422316434}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &992311398
 SpriteRenderer:
@@ -60840,54 +60882,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1026726532}
   m_PrefabAsset: {fileID: 0}
---- !u!28 &1027734496
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 2
-  m_Width: 256
-  m_Height: 1
-  m_CompleteImageSize: 2044
-  m_MipsStripped: 0
-  m_TextureFormat: 4
-  m_MipCount: 9
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 0
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 1
-    m_WrapV: 1
-    m_WrapW: 1
-  m_LightmapFormat: 0
-  m_ColorSpace: 1
-  m_PlatformBlob: 
-  image data: 2044
-  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &1029158954
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -66189,6 +66183,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1137686974}
+  - component: {fileID: 1137686975}
   m_Layer: 5
   m_Name: TableUpgrade
   m_TagString: Untagged
@@ -66223,6 +66218,25 @@ RectTransform:
   m_AnchoredPosition: {x: -449.00003, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1137686975
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1137686973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 855a2708667e8b34f8ec023fd85c321c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  facilityType: 2
+  title: {fileID: 279958818}
+  curLevel: {fileID: 767369863}
+  targetLevel: {fileID: 1076537131}
+  information: {fileID: 1016985047}
+  buttonUpgrade: {fileID: 1296308176}
+  needUpgrade: {fileID: 277317230}
 --- !u!1001 &1138288214
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -70608,6 +70622,7 @@ Transform:
   - {fileID: 8357816701866546187}
   - {fileID: 6946556103010829534}
   - {fileID: 7363392372609093591}
+  - {fileID: 899327826}
   m_Father: {fileID: 2097470280442907019}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1225946047 stripped
@@ -73944,6 +73959,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1305679840}
+  - component: {fileID: 1305679841}
   m_Layer: 5
   m_Name: DeliverUpgrade
   m_TagString: Untagged
@@ -73978,6 +73994,25 @@ RectTransform:
   m_AnchoredPosition: {x: -449.00003, y: -100}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1305679841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1305679839}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 855a2708667e8b34f8ec023fd85c321c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  facilityType: 3
+  title: {fileID: 1282969966}
+  curLevel: {fileID: 777532038}
+  targetLevel: {fileID: 602023161}
+  information: {fileID: 381873435}
+  buttonUpgrade: {fileID: 2048845116}
+  needUpgrade: {fileID: 597570889}
 --- !u!1001 &1305925275
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -76016,9 +76051,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f945d03754f49458730ba59fdc7554, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  facilityType: 0
+  facilityType: 1
   unlockClickTarget: {fileID: 0}
   content: {fileID: 0}
+  facilityConfig: {fileID: 0}
   unlockCost: 100
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 0
@@ -76526,6 +76562,7 @@ MonoBehaviour:
   facilityType: 2
   unlockClickTarget: {fileID: 1534113785}
   content: {fileID: 274235583}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u684C\u5B50"
   unlockedByDefault: 0
@@ -93274,12 +93311,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1720905742}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 16.09607, y: 1.1100464, z: 54.512417}
-  m_LocalScale: {x: 9.9662, y: 9.9662, z: 9.9662}
+  m_LocalRotation: {x: -0, y: 0.7071068, z: 0.7071068, w: 0}
+  m_LocalPosition: {x: -0.0006208089, y: 0.1515431, z: -0.0010193273}
+  m_LocalScale: {x: 0.023847139, y: 0.023847148, z: 0.023847148}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 975570845}
+  m_Father: {fileID: 273725262}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1726907737
 GameObject:
@@ -102552,6 +102589,54 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!28 &1833546009
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 2
+  m_Width: 256
+  m_Height: 1
+  m_CompleteImageSize: 2044
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 9
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 0
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 1
+    m_WrapV: 1
+    m_WrapW: 1
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 2044
+  _typelessdata: 000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff000000ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &1833748530
 GameObject:
   m_ObjectHideFlags: 0
@@ -113468,9 +113553,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f945d03754f49458730ba59fdc7554, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  facilityType: 0
+  facilityType: 1
   unlockClickTarget: {fileID: 862269710}
   content: {fileID: 422316433}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 0
@@ -114947,6 +115033,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2074299218}
   - component: {fileID: 2074299219}
+  - component: {fileID: 2074299221}
+  - component: {fileID: 2074299220}
   m_Layer: 5
   m_Name: RestaurantUI
   m_TagString: Untagged
@@ -114994,6 +115082,39 @@ MonoBehaviour:
   descriptionText: {fileID: 831179941}
   unlockButton: {fileID: 1129273913}
   cancelButton: {fileID: 276006490}
+--- !u!114 &2074299220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2074299217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e732c06d7ad3044e902f8550522ccbe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
+--- !u!114 &2074299221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2074299217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9381a0ad3fff6294e91eb3bb15493e81, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  panelRoot: {fileID: 1195726868}
+  startHidden: 1
+  toggleButton: {fileID: 481112165}
+  upgradeItems:
+  - {fileID: 36114999}
+  - {fileID: 472842878}
+  - {fileID: 1137686975}
+  - {fileID: 1305679841}
 --- !u!1 &2075297813
 GameObject:
   m_ObjectHideFlags: 0
@@ -118806,9 +118927,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f945d03754f49458730ba59fdc7554, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  facilityType: 0
+  facilityType: 2
   unlockClickTarget: {fileID: 0}
   content: {fileID: 0}
+  facilityConfig: {fileID: 0}
   unlockCost: 100
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 0
@@ -120819,6 +120941,7 @@ MonoBehaviour:
   facilityType: 0
   unlockClickTarget: {fileID: 805826506}
   content: {fileID: 1524213739}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u789F\u5B50"
   unlockedByDefault: 0
@@ -121160,9 +121283,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f945d03754f49458730ba59fdc7554, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  facilityType: 0
+  facilityType: 1
   unlockClickTarget: {fileID: 456189690}
   content: {fileID: 1225876745}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u8BBE\u65BD"
   unlockedByDefault: 1
@@ -121409,6 +121533,7 @@ MonoBehaviour:
   facilityType: 0
   unlockClickTarget: {fileID: 1410071748}
   content: {fileID: 1113631645}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u789F\u5B50"
   unlockedByDefault: 1
@@ -127145,6 +127270,7 @@ MonoBehaviour:
   facilityType: 0
   unlockClickTarget: {fileID: 956987675}
   content: {fileID: 1336426507}
+  facilityConfig: {fileID: 11400000, guid: 76f4067a5dd3c914786cf5aa4d76d18e, type: 2}
   unlockCost: 2
   facilityDisplayName: "\u789F\u5B50"
   unlockedByDefault: 0

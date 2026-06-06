@@ -113,10 +113,16 @@ public class WeaponStatsManager : MonoBehaviour
     [Header("餐厅数值")]
     public int restaurantPotCount = 3;
     public int restaurantPlateCount = 3;
+    [Tooltip("激活的餐桌数量（与 RestaurantTableManager.allTables 下标对应）")]
+    public int restaurantTableCount = 3;
     [Tooltip("烹饪排队槽位数量（与 RestaurantPanel.allDishQueueSlots 下标对应）")]
     public int restaurantDishQueueSlotCount = 4;
     [Tooltip("烹饪时间倍率：最终时间 = 原时间 * cookingTimeMultiplier")]
     public float cookingTimeMultiplier = 1f;
+    [Tooltip("每个摆菜碟的总容量（同类碟子统一）")]
+    public int restaurantPlateCapacity = 5;
+    [Tooltip("顾客就餐速度倍率：实际用餐时间 = 基础时间 / restaurantDiningSpeedMultiplier")]
+    public float restaurantDiningSpeedMultiplier = 1f;
     [Tooltip("售卖价格加成比例：最终价格 = 原价格 * (1 + restaurantSellBonusRate)")]
     public float restaurantSellBonusRate = 0f;
 
@@ -201,8 +207,11 @@ public class WeaponStatsManager : MonoBehaviour
         // 让 Inspector 里直接改值也能实时同步到餐厅
         restaurantPotCount = Mathf.Max(1, restaurantPotCount);
         restaurantPlateCount = Mathf.Max(1, restaurantPlateCount);
+        restaurantTableCount = Mathf.Max(1, restaurantTableCount);
         restaurantDishQueueSlotCount = Mathf.Max(1, restaurantDishQueueSlotCount);
         cookingTimeMultiplier = Mathf.Max(0.01f, cookingTimeMultiplier);
+        restaurantPlateCapacity = Mathf.Max(1, restaurantPlateCapacity);
+        restaurantDiningSpeedMultiplier = Mathf.Max(0.01f, restaurantDiningSpeedMultiplier);
         restaurantSellBonusRate = Mathf.Max(0f, restaurantSellBonusRate);
         restaurantCustomerPrefabCount = Mathf.Max(0, restaurantCustomerPrefabCount);
         restaurantMaxCustomersInside = Mathf.Max(1, restaurantMaxCustomersInside);
@@ -322,6 +331,12 @@ public class WeaponStatsManager : MonoBehaviour
         OnRestaurantStatsChanged?.Invoke();
     }
 
+    public void SetRestaurantTableCount(int count)
+    {
+        restaurantTableCount = Mathf.Max(1, count);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
     public void SetRestaurantDishQueueSlotCount(int count)
     {
         restaurantDishQueueSlotCount = Mathf.Max(1, count);
@@ -331,6 +346,18 @@ public class WeaponStatsManager : MonoBehaviour
     public void SetCookingTimeMultiplier(float multiplier)
     {
         cookingTimeMultiplier = Mathf.Max(0.01f, multiplier);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantPlateCapacity(int capacity)
+    {
+        restaurantPlateCapacity = Mathf.Max(1, capacity);
+        OnRestaurantStatsChanged?.Invoke();
+    }
+
+    public void SetRestaurantDiningSpeedMultiplier(float multiplier)
+    {
+        restaurantDiningSpeedMultiplier = Mathf.Max(0.01f, multiplier);
         OnRestaurantStatsChanged?.Invoke();
     }
 

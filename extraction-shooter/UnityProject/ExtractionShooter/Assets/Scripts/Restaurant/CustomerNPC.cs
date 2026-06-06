@@ -956,7 +956,7 @@ public class CustomerNPC : MonoBehaviour
         float baseEat = recipe != null ? recipe.sellTime : (servedPlate != null ? servedPlate.consumeTime : 2f);
         float eatMult = 1f;
         if (WeaponStatsManager.Instance != null)
-            eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.sellTimeMultiplier);
+            eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.restaurantDiningSpeedMultiplier);
         float waitSeconds = Mathf.Max(0.01f, baseEat / eatMult);
 
         yield return new WaitForSeconds(waitSeconds);

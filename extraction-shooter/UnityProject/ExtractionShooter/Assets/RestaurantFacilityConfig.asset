@@ -1,0 +1,130 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f2f0f313e871964ab646d04f46ade8f, type: 3}
+  m_Name: RestaurantFacilityConfig
+  m_EditorClassIdentifier: 
+  unlockEntries:
+  - facilityType: 1
+    displayName: "\u70F9\u996A\u9505"
+    unlockCosts:
+    - resourceType: 0
+      amount: 100
+  - facilityType: 0
+    displayName: "\u6446\u83DC\u789F"
+    unlockCosts:
+    - resourceType: 0
+      amount: 100
+  - facilityType: 2
+    displayName: "\u9910\u684C"
+    unlockCosts:
+    - resourceType: 0
+      amount: 100
+  upgradeTracks:
+  - upgradeType: 0
+    displayName: "\u53A8\u623F"
+    levels:
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 0
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 150
+      cookingTimeMultiplier: 0.9
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 350
+      cookingTimeMultiplier: 0.8
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 700
+      cookingTimeMultiplier: 0.72
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 1200
+      cookingTimeMultiplier: 0.65
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+  - upgradeType: 1
+    displayName: "\u6446\u83DC\u53F0"
+    levels:
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 0
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 120
+      cookingTimeMultiplier: 1
+      plateCapacity: 7
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 280
+      cookingTimeMultiplier: 1
+      plateCapacity: 9
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 550
+      cookingTimeMultiplier: 1
+      plateCapacity: 12
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 900
+      cookingTimeMultiplier: 1
+      plateCapacity: 15
+      diningSpeedMultiplier: 1
+  - upgradeType: 2
+    displayName: "\u9910\u684C"
+    levels:
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 0
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 200
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1.15
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 450
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1.3
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 800
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1.5
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 1300
+      cookingTimeMultiplier: 1
+      plateCapacity: 5
+      diningSpeedMultiplier: 1.75
