@@ -28,103 +28,100 @@ MonoBehaviour:
     unlockCosts:
     - resourceType: 0
       amount: 100
-  upgradeTracks:
-  - upgradeType: 0
+  kitchenUpgrade:
     displayName: "\u53A8\u623F"
     levels:
     - upgradeCosts:
       - resourceType: 0
         amount: 0
       cookingTimeMultiplier: 1
-      plateCapacity: 5
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 150
       cookingTimeMultiplier: 0.9
-      plateCapacity: 5
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 350
       cookingTimeMultiplier: 0.8
-      plateCapacity: 5
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 700
       cookingTimeMultiplier: 0.72
-      plateCapacity: 5
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 1200
       cookingTimeMultiplier: 0.65
-      plateCapacity: 5
-      diningSpeedMultiplier: 1
-  - upgradeType: 1
+  servingCounterUpgrade:
     displayName: "\u6446\u83DC\u53F0"
     levels:
     - upgradeCosts:
       - resourceType: 0
         amount: 0
-      cookingTimeMultiplier: 1
       plateCapacity: 5
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 120
-      cookingTimeMultiplier: 1
       plateCapacity: 7
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 280
-      cookingTimeMultiplier: 1
       plateCapacity: 9
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 550
-      cookingTimeMultiplier: 1
       plateCapacity: 12
-      diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 900
-      cookingTimeMultiplier: 1
       plateCapacity: 15
-      diningSpeedMultiplier: 1
-  - upgradeType: 2
+  tableUpgrade:
     displayName: "\u9910\u684C"
     levels:
     - upgradeCosts:
       - resourceType: 0
         amount: 0
-      cookingTimeMultiplier: 1
-      plateCapacity: 5
       diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
         amount: 200
-      cookingTimeMultiplier: 1
-      plateCapacity: 5
       diningSpeedMultiplier: 1.15
     - upgradeCosts:
       - resourceType: 0
         amount: 450
-      cookingTimeMultiplier: 1
-      plateCapacity: 5
       diningSpeedMultiplier: 1.3
     - upgradeCosts:
       - resourceType: 0
         amount: 800
-      cookingTimeMultiplier: 1
-      plateCapacity: 5
       diningSpeedMultiplier: 1.5
     - upgradeCosts:
       - resourceType: 0
         amount: 1300
-      cookingTimeMultiplier: 1
-      plateCapacity: 5
       diningSpeedMultiplier: 1.75
+  takeawayUpgrade:
+    displayName: "\u5916\u5356"
+    levels:
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 0
+      sellBonusRate: 0
+      maxTotalCustomers: 20
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 180
+      sellBonusRate: 0.05
+      maxTotalCustomers: 25
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 400
+      sellBonusRate: 0.1
+      maxTotalCustomers: 30
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 750
+      sellBonusRate: 0.15
+      maxTotalCustomers: 35
+    - upgradeCosts:
+      - resourceType: 0
+        amount: 1200
+      sellBonusRate: 0.2
+      maxTotalCustomers: 40

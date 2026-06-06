@@ -198,6 +198,41 @@ public class CameraFollow : MonoBehaviour
         yFocusRequests.Remove(requestKey);
     }
 
+    /// <summary>离开餐厅等场景时立即回到默认跟随，避免 SmoothDamp 残留导致视角不归位。</summary>
+    public void SnapBackToDefaultFollow(float? orthoSize = null, Vector3? worldPosition = null)
+    {
+        ClearOverrideTarget();
+
+        velocity = Vector3.zero;
+        xFocusVelocity = 0f;
+        yFocusVelocity = 0f;
+        orthoSizeVelocity = 0f;
+
+        Transform followTarget = target != null ? target : defaultTarget;
+        if (worldPosition.HasValue)
+            transform.position = worldPosition.Value;
+        else if (followTarget != null)
+            transform.position = followTarget.position + offset;
+
+        Camera cam = GetComponent<Camera>();
+        if (cam == null)
+            cam = FindActiveMainCamera();
+        if (cam == null || !cam.orthographic)
+            return;
+
+        if (orthoSize.HasValue)
+        {
+            cam.orthographicSize = Mathf.Max(0.01f, orthoSize.Value);
+            if (orthoSizeRequests.Count == 0)
+                originalOrthoSize = -1f;
+        }
+        else if (orthoSizeRequests.Count == 0 && originalOrthoSize > 0f)
+        {
+            cam.orthographicSize = originalOrthoSize;
+            originalOrthoSize = -1f;
+        }
+    }
+
     private void UpdateOrthoSizeSmooth()
     {
         Camera cam = FindActiveMainCamera();

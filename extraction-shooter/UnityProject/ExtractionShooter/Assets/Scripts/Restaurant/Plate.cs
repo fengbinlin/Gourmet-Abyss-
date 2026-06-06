@@ -79,14 +79,37 @@ public class Plate : MonoBehaviour
     private void OnEnable()
     {
         TrySubscribeRestaurantStats();
+        TrySubscribeUpgradeManager();
         UpdateUI();
     }
 
     private void OnDisable()
     {
-        if (WeaponStatsManager.Instance != null && _subscribedRestaurantStats)
-            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= HandleRestaurantStatsChanged;
-        _subscribedRestaurantStats = false;
+        UnsubscribeRestaurantStats();
+        UnsubscribeUpgradeManager();
+    }
+
+    private bool _subscribedUpgradeManager;
+
+    private void Start()
+    {
+        StartCoroutine(CoWaitAndSubscribe());
+        UpdateUI();
+    }
+
+    private IEnumerator CoWaitAndSubscribe()
+    {
+        float timeout = 5f;
+        while (timeout > 0f
+               && (WeaponStatsManager.Instance == null || RestaurantFacilityUpgradeManager.Instance == null))
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        TrySubscribeRestaurantStats();
+        TrySubscribeUpgradeManager();
+        UpdateUI();
     }
 
     private void TrySubscribeRestaurantStats()
@@ -98,9 +121,38 @@ public class Plate : MonoBehaviour
         _subscribedRestaurantStats = true;
     }
 
+    private void UnsubscribeRestaurantStats()
+    {
+        if (WeaponStatsManager.Instance != null && _subscribedRestaurantStats)
+            WeaponStatsManager.Instance.OnRestaurantStatsChanged -= HandleRestaurantStatsChanged;
+        _subscribedRestaurantStats = false;
+    }
+
+    private void TrySubscribeUpgradeManager()
+    {
+        if (_subscribedUpgradeManager || RestaurantFacilityUpgradeManager.Instance == null)
+            return;
+
+        RestaurantFacilityUpgradeManager.Instance.OnFacilityLevelChanged += HandleFacilityLevelChanged;
+        _subscribedUpgradeManager = true;
+    }
+
+    private void UnsubscribeUpgradeManager()
+    {
+        if (RestaurantFacilityUpgradeManager.Instance != null && _subscribedUpgradeManager)
+            RestaurantFacilityUpgradeManager.Instance.OnFacilityLevelChanged -= HandleFacilityLevelChanged;
+        _subscribedUpgradeManager = false;
+    }
+
     private void HandleRestaurantStatsChanged()
     {
         UpdateUI();
+    }
+
+    private void HandleFacilityLevelChanged(RestaurantFacilityUpgradeType type, int _)
+    {
+        if (type == RestaurantFacilityUpgradeType.ServingCounter)
+            UpdateUI();
     }
 
     public int EffectiveMaxCapacity
@@ -131,11 +183,6 @@ public class Plate : MonoBehaviour
         if (sr != null)
             return sr.bounds.center;
         return transform.position;
-    }
-
-    void Start()
-    {
-        UpdateUI();
     }
 
     public void ClearDishDataFieldsOnly()

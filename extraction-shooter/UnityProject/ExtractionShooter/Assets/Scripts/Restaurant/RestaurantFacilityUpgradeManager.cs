@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 读取 RestaurantFacilityConfig，管理厨房/摆菜台/餐桌的升级等级与属性应用。
+/// 读取 RestaurantFacilityConfig，管理厨房/摆菜台/餐桌/外卖的升级等级与属性应用。
 /// </summary>
 [DefaultExecutionOrder(-20)]
 public class RestaurantFacilityUpgradeManager : MonoBehaviour
 {
     public static RestaurantFacilityUpgradeManager Instance { get; private set; }
-
-    private const string PrefsPrefix = "RestaurantFacilityLevel_";
 
     [Header("配置资产（必填）")]
     [SerializeField] private RestaurantFacilityConfig facilityConfig;
@@ -31,7 +29,7 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
 
         Instance = this;
         facilityConfig?.EnsureDefaultEntries();
-        LoadLevels();
+        ResetLevelsToDefault();
         ApplyAllCurrentLevels();
     }
 
@@ -60,7 +58,7 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
 
     public bool IsUpgradeSupported(RestaurantFacilityUpgradeType type)
     {
-        return type != RestaurantFacilityUpgradeType.Takeaway && facilityConfig != null;
+        return facilityConfig != null;
     }
 
     public FacilityResourceCost[] GetUpgradeCosts(RestaurantFacilityUpgradeType type)
@@ -117,7 +115,6 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
 
         int newLevel = GetLevel(type) + 1;
         _levels[type] = newLevel;
-        SaveLevel(type, newLevel);
         ApplyLevel(type, newLevel);
         OnFacilityLevelChanged?.Invoke(type, newLevel);
         GlobalMessageUI.Show($"{GetDisplayName(type)} 升至 Lv.{newLevel}", 1.2f);
@@ -132,6 +129,7 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
         ApplyLevel(RestaurantFacilityUpgradeType.Kitchen, GetLevel(RestaurantFacilityUpgradeType.Kitchen));
         ApplyLevel(RestaurantFacilityUpgradeType.ServingCounter, GetLevel(RestaurantFacilityUpgradeType.ServingCounter));
         ApplyLevel(RestaurantFacilityUpgradeType.Table, GetLevel(RestaurantFacilityUpgradeType.Table));
+        ApplyLevel(RestaurantFacilityUpgradeType.Takeaway, GetLevel(RestaurantFacilityUpgradeType.Takeaway));
     }
 
     private void ApplyLevel(RestaurantFacilityUpgradeType type, int level)
@@ -140,24 +138,25 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
             return;
 
         facilityConfig.ApplyUpgradeLevel(type, level);
+
+        if (type == RestaurantFacilityUpgradeType.ServingCounter)
+            RefreshAllPlateDisplays();
     }
 
-    private void LoadLevels()
+    private void ResetLevelsToDefault()
     {
         _levels.Clear();
         foreach (RestaurantFacilityUpgradeType type in Enum.GetValues(typeof(RestaurantFacilityUpgradeType)))
-        {
-            if (type == RestaurantFacilityUpgradeType.Takeaway)
-                continue;
-
-            int saved = PlayerPrefs.GetInt(PrefsPrefix + type, 1);
-            _levels[type] = Mathf.Clamp(saved, 1, GetMaxLevel(type));
-        }
+            _levels[type] = 1;
     }
 
-    private void SaveLevel(RestaurantFacilityUpgradeType type, int level)
+    private static void RefreshAllPlateDisplays()
     {
-        PlayerPrefs.SetInt(PrefsPrefix + type, level);
-        PlayerPrefs.Save();
+        Plate[] plates = FindObjectsOfType<Plate>(true);
+        for (int i = 0; i < plates.Length; i++)
+        {
+            if (plates[i] != null)
+                plates[i].RefreshDisplay();
+        }
     }
 }

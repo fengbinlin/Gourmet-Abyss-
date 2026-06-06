@@ -7,6 +7,8 @@ using UnityEngine.UI;
 /// </summary>
 public class RestaurantDecorationPanelUI : MonoBehaviour
 {
+    public static RestaurantDecorationPanelUI Instance { get; private set; }
+
     [Header("面板")]
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private bool startHidden = true;
@@ -19,6 +21,8 @@ public class RestaurantDecorationPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
+
         if (panelRoot == null)
             panelRoot = gameObject;
 
@@ -36,6 +40,9 @@ public class RestaurantDecorationPanelUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this)
+            Instance = null;
+
         if (toggleButton != null)
             toggleButton.onClick.RemoveListener(TogglePanel);
     }
