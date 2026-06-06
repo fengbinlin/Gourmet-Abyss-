@@ -44366,7 +44366,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd5bbd0999350754f95b5b209aeb2c7c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 80
+  maxHealth: 120
   currentHealth: 0
   whiteBar: {fileID: 7533706481742320484}
   redBar: {fileID: 590241346902743711}
