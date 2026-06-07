@@ -737,8 +737,12 @@ public class CustomerManager : MonoBehaviour
         for (int i = 0; i < takeoutCustomersQueue.Count; i++)
         {
             CustomerNPC npc = takeoutCustomersQueue[i];
-            if (npc != null && npc.state == CustomerState.TakeoutQueueing)
-                npc.SetTarget(GetTakeoutQueuePosition(i));
+            if (npc == null || npc.state != CustomerState.TakeoutQueueing)
+                continue;
+            // 队首正在取餐消费时保持占位，不刷新其目标
+            if (npc.IsTakeoutOrderInProgress)
+                continue;
+            npc.SetTarget(GetTakeoutQueuePosition(i));
         }
     }
 
@@ -758,6 +762,9 @@ public class CustomerManager : MonoBehaviour
             return;
         }
 
+        if (first.IsTakeoutOrderInProgress)
+            return;
+
         if (!IsNearAssignedTakeoutSlot(first))
             return;
 
@@ -775,9 +782,7 @@ public class CustomerManager : MonoBehaviour
         Vector3 coinSpawnPos = first.transform.position + takeoutCoinSpawnOffset;
         coinSpawnPos.z = first.transform.position.z;
 
-        takeoutCustomersQueue.RemoveAt(0);
-        UpdateTakeoutQueueMemberPositions();
-
+        // 取餐完成前保留在队列 index 0，避免后面的人提前补位到队首坐标
         float consumeWait = GetTakeoutConsumeWaitSeconds(recipe);
         StartCoroutine(FulfillTakeoutOrderCoroutine(
             first, recipe, plateFlyStart, goldAmount, coinSpawnPos, consumeWait, takeoutJumpDuration));
@@ -806,11 +811,20 @@ public class CustomerManager : MonoBehaviour
         float jumpDuration)
     {
         _fulfillingTakeoutOrder = true;
-        if (customer != null)
-            yield return customer.StartCoroutine(
-                customer.FulfillTakeoutOrderRoutine(
-                    recipe, plateFlyStart, goldAmount, coinSpawnPos, consumeWaitSeconds, jumpDuration));
-        _fulfillingTakeoutOrder = false;
+        try
+        {
+            if (customer != null)
+                yield return customer.StartCoroutine(
+                    customer.FulfillTakeoutOrderRoutine(
+                        recipe, plateFlyStart, goldAmount, coinSpawnPos, consumeWaitSeconds, jumpDuration));
+        }
+        finally
+        {
+            if (customer != null)
+                takeoutCustomersQueue.Remove(customer);
+            UpdateTakeoutQueueMemberPositions();
+            _fulfillingTakeoutOrder = false;
+        }
     }
 
     // 更新队列中所有成员的目标位置
