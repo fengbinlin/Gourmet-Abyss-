@@ -300,15 +300,17 @@ MonoBehaviour:
   expressionTextureProperty: _MainTex
   bubble: {fileID: 2006004846823217491}
   bubbleText: {fileID: 3663340849333493263}
+  carriedDishHoldPoint: {fileID: 0}
+  carriedDishLocalOffset: {x: 0.4, y: 0.5, z: 0}
   enableBirdGroundDrop: 0
   moveYWalkingOffset: 0.35
   idleDropSpeed: 2.5
   moveHeightRiseSpeedMultiplier: 1
-  reachXZThreshold: 0.1
+  reachPlanarThreshold: 0.1
   leavingDestroyYThreshold: 0.05
   enableSpawnRandomOffset: 1
   spawnRandomYRange: 0.2
-  spawnRandomZRange: 0.2
+  spawnRandomLaneRange: 0.08
   useScaleFlipForFacing: 1
   coinSpawnPoint: {fileID: 4892878015161159391}
   maxVisualCoins: 12
@@ -318,7 +320,7 @@ MonoBehaviour:
   - {fileID: 1896409738131075669}
   - {fileID: 5840517524775621101}
   - {fileID: 7962714816035100876}
-  animator: {fileID: 1610709353048305282}
+  animator: {fileID: 4350664103654947999}
   favouriteDishIconPrefab: {fileID: 4338762629739545908, guid: 6ad8c84b129e9bf4f8b8aa343fe2fe9d,
     type: 3}
   favouriteDishParent: {fileID: 4983541801295093164}
@@ -686,12 +688,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 97f78fbd76d448748a90697b134dd3aa, type: 3}
---- !u!95 &1610709353048305282 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 95289407993299506, guid: 97f78fbd76d448748a90697b134dd3aa,
-    type: 3}
-  m_PrefabInstance: {fileID: 1659834475776552112}
-  m_PrefabAsset: {fileID: 0}
 --- !u!137 &1648435763318713848 stripped
 SkinnedMeshRenderer:
   m_CorrespondingSourceObject: {fileID: 137501894358778184, guid: 97f78fbd76d448748a90697b134dd3aa,

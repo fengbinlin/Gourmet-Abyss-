@@ -19,9 +19,30 @@ public class CustomerManager : MonoBehaviour
     [Header("餐厅入口队首位置")]
     public Transform queueFrontPoint;
 
+    [Header("外卖等候点")]
+    [Tooltip("堂食座位已满且碟子有菜时，部分顾客会来此排队等候外卖")]
+    public Transform takeoutWaitFrontPoint;
+    [SerializeField] private float takeoutQueueSpacing = 1.2f;
+    [Tooltip("座位已满且有菜时，新顾客成为外卖顾客的概率（0~1）")]
+    [SerializeField, Range(0f, 1f)] private float takeoutSpawnProbability = 0.45f;
+    [Tooltip("外卖取餐时金币相对顾客站立点的偏移")]
+    [SerializeField] private Vector3 takeoutCoinSpawnOffset = new Vector3(0.5f, 0f, 0f);
+    [Header("外卖取餐节奏")]
+    [Tooltip("菜肴飞到顾客后的等待（秒）；勾选下方选项时改用菜谱 sellTime")]
+    [SerializeField] private float takeoutConsumeDuration = 0f;
+    [Tooltip("勾选后：外卖等待 = 菜谱 sellTime ÷ WeaponStatsManager.restaurantDiningSpeedMultiplier")]
+    [SerializeField] private bool takeoutUseRecipeSellTime = false;
+    [Tooltip("取餐完成后的跳跃动画时长（秒）")]
+    [SerializeField] private float takeoutJumpDuration = 0.6f;
+
     [Header("座位与金币")]
     [Tooltip("顾客就餐完成后在座位旁生成的可点击金币预制体（需挂 RestaurantCoinPickup）")]
     public GameObject restaurantCoinPrefab;
+    [Tooltip("同一落点多次掉币时，沿该轴方向错开（默认 X 轴）")]
+    [SerializeField] private Vector3 coinDropSpreadAxis = Vector3.right;
+    [SerializeField] private float coinDropSpacing = 0.42f;
+    [Tooltip("判定为「同一落点」的垂直于排开轴的最大距离")]
+    [SerializeField] private float coinDropRowMatchDistance = 0.35f;
     [Tooltip("碟子飞向顾客时的临时精灵预制体（可选）")]
     public GameObject dishFlyToCustomerPrefab;
     public float dishFlyToCustomerDuration = 0.35f;
@@ -35,12 +56,12 @@ public class CustomerManager : MonoBehaviour
     public List<GameObject> customerPrefabs;
     [Tooltip("勾选时：可用种类数受 WeaponStatsManager.restaurantCustomerPrefabCount 限制（技能树解锁）。不勾选：使用列表中全部预制体。")]
     [SerializeField] private bool limitPrefabPoolByWeaponStats = false;
-    // 用于记录当前场景中已存在的NPC类型
-    private HashSet<string> activeNPCTypes = new HashSet<string>();
 
     [Header("餐厅人数限制")]
     public int maxCustomersInside = 3;
     public float queueSpacing = 1.5f;
+    [Tooltip("走向排队点视为到达的距离（需与 CustomerNPC.reachPlanarThreshold 接近或略大）")]
+    [SerializeField] private float queueArrivalThreshold = 0.35f;
     public Text restaurantCustomerCountText;
 
     [Header("自动生成设置")]
@@ -53,6 +74,9 @@ public class CustomerManager : MonoBehaviour
     private List<CustomerNPC> activeCustomers = new List<CustomerNPC>();
     private List<CustomerNPC> customersQueue = new List<CustomerNPC>(); // 正在排队的顾客
     private List<CustomerNPC> walkingToQueue = new List<CustomerNPC>(); // 正在走向队尾的顾客
+    private List<CustomerNPC> takeoutCustomersQueue = new List<CustomerNPC>();
+    private List<CustomerNPC> walkingToTakeoutQueue = new List<CustomerNPC>();
+    private bool _fulfillingTakeoutOrder;
 
     private float nextSpawnTime; // 下次生成的时间
     public ProjectileLauncher projectileLauncher;
@@ -96,6 +120,9 @@ public class CustomerManager : MonoBehaviour
 
         if (queueFrontPoint == null && logOnStart)
             Debug.LogWarning("[CustomerManager] 未配置 queueFrontPoint，排队逻辑将无法正常工作。");
+
+        if (takeoutWaitFrontPoint == null && logOnStart)
+            Debug.LogWarning("[CustomerManager] 未配置 takeoutWaitFrontPoint，外卖顾客逻辑将无法启用。");
     }
 
     private void OnEnable()
@@ -121,23 +148,25 @@ public class CustomerManager : MonoBehaviour
             SpawnCustomer();
         }
 
-        // 自动生成顾客
+        // 自动生成顾客（无菜时仍会生成，由 TryHandleEntrance 直接离场营造人流，但不排队）
         if (enableAutoSpawn && Time.time >= nextSpawnTime)
         {
             if (activeCustomers.Count < maxTotalCustomers)
-            {
                 SpawnCustomer();
-                nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
-            }
-            else
-            {
-                nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
-            }
+            nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
         }
 
-        UpdateQueueTargets();    // 更新所有顾客的队列目标
-        HandleQueueEntry();      // 处理顾客加入队列
-        HandleQueueAdvancement(); // 处理队列推进
+        DismissQueuesWhenNoFood();
+
+        UpdateQueueTargets();           // 更新堂食队列目标
+        HandleQueueEntry();             // 堂食入队
+        ReconcileQueueMembership();     // 修复堂食队列与状态不一致
+        HandleQueueAdvancement();       // 堂食队首入座
+
+        UpdateTakeoutQueueTargets();
+        HandleTakeoutQueueEntry();
+        ReconcileTakeoutQueueMembership();
+        HandleTakeoutAdvancement();
 
 
         // 🔹 检测是否有两位喜欢的顾客可以聊天
@@ -208,28 +237,21 @@ public class CustomerManager : MonoBehaviour
             if (prefabNPC.data.isCook)
                 continue;
 
-            string npcType = prefabNPC.data.id.ToString();
-            if (!activeNPCTypes.Contains(npcType))
-                availablePrefabs.Add(prefab);
+            availablePrefabs.Add(prefab);
         }
 
         if (availablePrefabs.Count == 0)
         {
             Debug.LogWarning(
-                "[CustomerManager] 没有可生成的顾客：同类型已在场（每种 id 同时仅 1 个），或前 "
-                + allowedPrefabCount + " 个预制体均不可用。若只刷得出第一个，请检查 WeaponStatsManager.restaurantCustomerPrefabCount 是否被设为 1。");
+                "[CustomerManager] 没有可生成的顾客：前 "
+                + allowedPrefabCount + " 个预制体均不可用。请检查 customerPrefabs 或 WeaponStatsManager.restaurantCustomerPrefabCount。");
             return;
         }
 
         // 2️⃣ 随机选择一个预制体
         GameObject selectedPrefab = availablePrefabs[Random.Range(0, availablePrefabs.Count)];
-        CustomerNPC prefabNPCComponent = selectedPrefab.GetComponent<CustomerNPC>();
-        string selectedType = prefabNPCComponent.data.id.ToString();
 
-        // 3️⃣ 记录这个NPC类型
-        activeNPCTypes.Add(selectedType);
-
-        // 4️⃣ 生成并初始化（挂到 CustomerManager 自身下便于层级管理）
+        // 3️⃣ 生成并初始化（挂到 CustomerManager 自身下便于层级管理）
         Transform randomSpawn = spawnPoints[Random.Range(0, spawnPoints.Count)];
         GameObject go = Instantiate(selectedPrefab, randomSpawn.position, Quaternion.identity, transform);
         CustomerNPC npcInstance = go.GetComponent<CustomerNPC>();
@@ -275,6 +297,45 @@ public class CustomerManager : MonoBehaviour
         return RestaurantPanel.instance != null && RestaurantPanel.instance.HasPlateWithFood();
     }
 
+    /// <summary>碟子无菜时，已在排队/走向排队点的顾客直接离开，不再占位。</summary>
+    private void DismissQueuesWhenNoFood()
+    {
+        if (HasPlateWithFood())
+            return;
+
+        DismissWaitingCustomersFromList(walkingToQueue);
+        DismissWaitingCustomersFromList(customersQueue);
+        DismissWaitingCustomersFromList(walkingToTakeoutQueue);
+        DismissWaitingCustomersFromList(takeoutCustomersQueue);
+    }
+
+    private void DismissWaitingCustomersFromList(List<CustomerNPC> list)
+    {
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            CustomerNPC npc = list[i];
+            if (npc == null)
+            {
+                list.RemoveAt(i);
+                continue;
+            }
+
+            if (!IsWaitingForFoodQueueState(npc.state))
+                continue;
+
+            list.RemoveAt(i);
+            npc.LeaveRestaurantNoPlates();
+        }
+    }
+
+    private static bool IsWaitingForFoodQueueState(CustomerState state)
+    {
+        return state == CustomerState.WalkingToQueue
+            || state == CustomerState.Queueing
+            || state == CustomerState.WalkingToTakeoutQueue
+            || state == CustomerState.TakeoutQueueing;
+    }
+
     // 处理顾客到入口：有菜才排队，无菜直接离开
     private void TryHandleEntrance(CustomerNPC npc)
     {
@@ -286,7 +347,38 @@ public class CustomerManager : MonoBehaviour
             return;
         }
 
-        HandleEntrance(npc);
+        if (ShouldSpawnAsTakeoutCustomer())
+            HandleTakeoutEntrance(npc);
+        else
+            HandleEntrance(npc);
+    }
+
+    /// <summary>座位已满且碟子有菜时，按概率生成外卖顾客。</summary>
+    private bool ShouldSpawnAsTakeoutCustomer()
+    {
+        if (takeoutWaitFrontPoint == null)
+            return false;
+        if (!HasPlateWithFood())
+            return false;
+        if (SeatManager.Instance == null)
+            return false;
+        if (SeatManager.Instance.HasAvailableSeat)
+            return false;
+        return Random.value <= takeoutSpawnProbability;
+    }
+
+    private void HandleTakeoutEntrance(CustomerNPC npc)
+    {
+        if (takeoutWaitFrontPoint == null)
+        {
+            HandleEntrance(npc);
+            return;
+        }
+
+        npc.state = CustomerState.WalkingToTakeoutQueue;
+        walkingToTakeoutQueue.Add(npc);
+        npc.SetTarget(GetTakeoutQueueTailPosition());
+        npc.ShowCustomBubble(GetCustomerWord(npc, npc.data?.QueueJoinWords, "点外卖也要排队~"));
     }
 
     // 所有顾客都先排队进入餐厅
@@ -381,32 +473,344 @@ public class CustomerManager : MonoBehaviour
         }
     }
 
+    /// <summary>顾客走到分配排队位时入队；也可由 CustomerNPC 到达回调触发。</summary>
+    public bool TryCommitQueueArrival(CustomerNPC npc)
+    {
+        if (!HasPlateWithFood())
+            return false;
+
+        if (npc == null || npc.state != CustomerState.WalkingToQueue)
+            return false;
+
+        int walkingIndex = walkingToQueue.IndexOf(npc);
+        if (walkingIndex < 0)
+            return false;
+
+        if (!IsNearAssignedQueueSlot(npc))
+            return false;
+
+        walkingToQueue.RemoveAt(walkingIndex);
+        customersQueue.Add(npc);
+        npc.state = CustomerState.Queueing;
+        UpdateQueueMemberPositions();
+        return true;
+    }
+
+    private bool IsNearAssignedQueueSlot(CustomerNPC npc)
+    {
+        Vector3 assigned = npc.GetLiveTargetPosition();
+        return Vector2.Distance(
+            new Vector2(npc.transform.position.x, npc.transform.position.y),
+            new Vector2(assigned.x, assigned.y)
+        ) < queueArrivalThreshold;
+    }
+
     // 处理顾客加入队列
     private void HandleQueueEntry()
     {
         for (int i = walkingToQueue.Count - 1; i >= 0; i--)
         {
             CustomerNPC npc = walkingToQueue[i];
-            if (npc == null) continue;
-
-            // 检查是否到达“分配给自己的队列位置”（实时坐标）
-            Vector3 assigned = npc.GetLiveTargetPosition();
-            float distanceToAssigned = Vector2.Distance(
-                new Vector2(npc.transform.position.x, npc.transform.position.y),
-                new Vector2(assigned.x, assigned.y)
-            );
-
-            if (distanceToAssigned < 0.3f)
+            if (npc == null)
             {
-                // 加入队列
                 walkingToQueue.RemoveAt(i);
-                customersQueue.Add(npc);
-                npc.state = CustomerState.Queueing;
+                continue;
+            }
 
-                // 立即更新所有队列成员的目标位置
-                UpdateQueueMemberPositions();
+            if (npc.state != CustomerState.WalkingToQueue)
+            {
+                walkingToQueue.RemoveAt(i);
+                continue;
+            }
+
+            TryCommitQueueArrival(npc);
+        }
+    }
+
+    /// <summary>保证 WalkingToQueue / Queueing 状态与内部列表一致，避免目标解析失败而原地发呆。</summary>
+    private void ReconcileQueueMembership()
+    {
+        for (int i = 0; i < activeCustomers.Count; i++)
+        {
+            CustomerNPC npc = activeCustomers[i];
+            if (npc == null || (npc.data != null && npc.data.isCook))
+                continue;
+
+            bool inWalking = walkingToQueue.Contains(npc);
+            bool inQueue = customersQueue.Contains(npc);
+
+            switch (npc.state)
+            {
+                case CustomerState.WalkingToQueue:
+                    if (inQueue)
+                        customersQueue.Remove(npc);
+                    if (!walkingToQueue.Contains(npc))
+                        walkingToQueue.Add(npc);
+                    break;
+
+                case CustomerState.Queueing:
+                    if (inWalking)
+                        walkingToQueue.Remove(npc);
+                    if (!customersQueue.Contains(npc))
+                    {
+                        customersQueue.Add(npc);
+                        UpdateQueueMemberPositions();
+                    }
+                    break;
+
+                case CustomerState.WalkingToTakeoutQueue:
+                case CustomerState.TakeoutQueueing:
+                    if (inWalking)
+                        walkingToQueue.Remove(npc);
+                    if (inQueue)
+                    {
+                        customersQueue.Remove(npc);
+                        UpdateQueueMemberPositions();
+                    }
+                    break;
+
+                default:
+                    if (inWalking)
+                        walkingToQueue.Remove(npc);
+                    if (inQueue)
+                    {
+                        customersQueue.Remove(npc);
+                        UpdateQueueMemberPositions();
+                    }
+                    break;
             }
         }
+    }
+
+    private Vector3 GetTakeoutQueueTailPosition()
+    {
+        int index = takeoutCustomersQueue.Count + walkingToTakeoutQueue.Count;
+        return GetTakeoutQueuePosition(index);
+    }
+
+    public Vector3 GetTakeoutQueuePosition(int index)
+    {
+        if (takeoutWaitFrontPoint == null)
+            return transform != null ? transform.position : Vector3.zero;
+        return takeoutWaitFrontPoint.position
+            + takeoutWaitFrontPoint.right * (index * takeoutQueueSpacing)
+            + takeoutWaitFrontPoint.right * 0.15f;
+    }
+
+    public bool TryGetTakeoutWorldPosition(CustomerNPC npc, out Vector3 worldPos)
+    {
+        worldPos = default;
+        if (npc == null || takeoutWaitFrontPoint == null)
+            return false;
+
+        int index = takeoutCustomersQueue.IndexOf(npc);
+        if (index >= 0)
+        {
+            worldPos = GetTakeoutQueuePosition(index);
+            return true;
+        }
+
+        index = walkingToTakeoutQueue.IndexOf(npc);
+        if (index >= 0)
+        {
+            worldPos = GetTakeoutQueuePosition(takeoutCustomersQueue.Count + index);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void UpdateTakeoutQueueTargets()
+    {
+        for (int i = 0; i < walkingToTakeoutQueue.Count; i++)
+        {
+            CustomerNPC npc = walkingToTakeoutQueue[i];
+            if (npc == null || npc.state != CustomerState.WalkingToTakeoutQueue)
+            {
+                walkingToTakeoutQueue.RemoveAt(i);
+                i--;
+                continue;
+            }
+
+            int queueIndex = takeoutCustomersQueue.Count + i;
+            npc.SetTarget(GetTakeoutQueuePosition(queueIndex));
+        }
+    }
+
+    public bool TryCommitTakeoutQueueArrival(CustomerNPC npc)
+    {
+        if (!HasPlateWithFood())
+            return false;
+
+        if (npc == null || npc.state != CustomerState.WalkingToTakeoutQueue)
+            return false;
+
+        int walkingIndex = walkingToTakeoutQueue.IndexOf(npc);
+        if (walkingIndex < 0)
+            return false;
+
+        if (!IsNearAssignedTakeoutSlot(npc))
+            return false;
+
+        walkingToTakeoutQueue.RemoveAt(walkingIndex);
+        takeoutCustomersQueue.Add(npc);
+        npc.state = CustomerState.TakeoutQueueing;
+        UpdateTakeoutQueueMemberPositions();
+        return true;
+    }
+
+    private bool IsNearAssignedTakeoutSlot(CustomerNPC npc)
+    {
+        Vector3 assigned = npc.GetLiveTargetPosition();
+        return Vector2.Distance(
+            new Vector2(npc.transform.position.x, npc.transform.position.y),
+            new Vector2(assigned.x, assigned.y)
+        ) < queueArrivalThreshold;
+    }
+
+    private void HandleTakeoutQueueEntry()
+    {
+        for (int i = walkingToTakeoutQueue.Count - 1; i >= 0; i--)
+        {
+            CustomerNPC npc = walkingToTakeoutQueue[i];
+            if (npc == null)
+            {
+                walkingToTakeoutQueue.RemoveAt(i);
+                continue;
+            }
+
+            if (npc.state != CustomerState.WalkingToTakeoutQueue)
+            {
+                walkingToTakeoutQueue.RemoveAt(i);
+                continue;
+            }
+
+            TryCommitTakeoutQueueArrival(npc);
+        }
+    }
+
+    private void ReconcileTakeoutQueueMembership()
+    {
+        for (int i = 0; i < activeCustomers.Count; i++)
+        {
+            CustomerNPC npc = activeCustomers[i];
+            if (npc == null || (npc.data != null && npc.data.isCook) || npc.IsTakeoutOrderInProgress)
+                continue;
+
+            bool inWalking = walkingToTakeoutQueue.Contains(npc);
+            bool inQueue = takeoutCustomersQueue.Contains(npc);
+
+            switch (npc.state)
+            {
+                case CustomerState.WalkingToTakeoutQueue:
+                    if (inQueue)
+                        takeoutCustomersQueue.Remove(npc);
+                    if (!walkingToTakeoutQueue.Contains(npc))
+                        walkingToTakeoutQueue.Add(npc);
+                    break;
+
+                case CustomerState.TakeoutQueueing:
+                    if (inWalking)
+                        walkingToTakeoutQueue.Remove(npc);
+                    if (!takeoutCustomersQueue.Contains(npc))
+                    {
+                        takeoutCustomersQueue.Add(npc);
+                        UpdateTakeoutQueueMemberPositions();
+                    }
+                    break;
+
+                default:
+                    if (inWalking)
+                        walkingToTakeoutQueue.Remove(npc);
+                    if (inQueue)
+                    {
+                        takeoutCustomersQueue.Remove(npc);
+                        UpdateTakeoutQueueMemberPositions();
+                    }
+                    break;
+            }
+        }
+    }
+
+    private void UpdateTakeoutQueueMemberPositions()
+    {
+        for (int i = 0; i < takeoutCustomersQueue.Count; i++)
+        {
+            CustomerNPC npc = takeoutCustomersQueue[i];
+            if (npc != null && npc.state == CustomerState.TakeoutQueueing)
+                npc.SetTarget(GetTakeoutQueuePosition(i));
+        }
+    }
+
+    private void HandleTakeoutAdvancement()
+    {
+        if (_fulfillingTakeoutOrder || takeoutCustomersQueue.Count == 0)
+            return;
+
+        if (!HasPlateWithFood())
+            return;
+
+        CustomerNPC first = takeoutCustomersQueue[0];
+        if (first == null || first.state != CustomerState.TakeoutQueueing)
+        {
+            takeoutCustomersQueue.RemoveAt(0);
+            UpdateTakeoutQueueMemberPositions();
+            return;
+        }
+
+        if (!IsNearAssignedTakeoutSlot(first))
+            return;
+
+        Plate plate = RestaurantPanel.instance != null
+            ? RestaurantPanel.instance.FindFirstPlateWithFood()
+            : null;
+        if (plate == null || plate.IsPlateEmpty() || plate.currentDish?.recipe == null)
+            return;
+
+        DishRecipe recipe = plate.currentDish.recipe;
+        Vector3 plateFlyStart = plate.GetDishFlyTargetWorldPosition();
+        if (!plate.TryConsumeOneServing(out int goldAmount))
+            return;
+
+        Vector3 coinSpawnPos = first.transform.position + takeoutCoinSpawnOffset;
+        coinSpawnPos.z = first.transform.position.z;
+
+        takeoutCustomersQueue.RemoveAt(0);
+        UpdateTakeoutQueueMemberPositions();
+
+        float consumeWait = GetTakeoutConsumeWaitSeconds(recipe);
+        StartCoroutine(FulfillTakeoutOrderCoroutine(
+            first, recipe, plateFlyStart, goldAmount, coinSpawnPos, consumeWait, takeoutJumpDuration));
+    }
+
+    public float GetTakeoutConsumeWaitSeconds(DishRecipe recipe)
+    {
+        if (takeoutUseRecipeSellTime && recipe != null)
+        {
+            float eatMult = 1f;
+            if (WeaponStatsManager.Instance != null)
+                eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.restaurantDiningSpeedMultiplier);
+            return Mathf.Max(0.01f, recipe.sellTime / eatMult);
+        }
+
+        return Mathf.Max(0f, takeoutConsumeDuration);
+    }
+
+    private IEnumerator FulfillTakeoutOrderCoroutine(
+        CustomerNPC customer,
+        DishRecipe recipe,
+        Vector3 plateFlyStart,
+        int goldAmount,
+        Vector3 coinSpawnPos,
+        float consumeWaitSeconds,
+        float jumpDuration)
+    {
+        _fulfillingTakeoutOrder = true;
+        if (customer != null)
+            yield return customer.StartCoroutine(
+                customer.FulfillTakeoutOrderRoutine(
+                    recipe, plateFlyStart, goldAmount, coinSpawnPos, consumeWaitSeconds, jumpDuration));
+        _fulfillingTakeoutOrder = false;
     }
 
     // 更新队列中所有成员的目标位置
@@ -448,13 +852,20 @@ public class CustomerManager : MonoBehaviour
         while (customersQueue.Count > 0 && SeatManager.Instance.HasAvailableSeat && HasPlateWithFood())
         {
             CustomerNPC firstInQueue = customersQueue[0];
-            customersQueue.RemoveAt(0);
-            UpdateQueueMemberPositions();
+            if (firstInQueue == null || firstInQueue.state != CustomerState.Queueing)
+            {
+                customersQueue.RemoveAt(0);
+                UpdateQueueMemberPositions();
+                continue;
+            }
 
+            // 先占座再出队：避免占座失败时顾客脱离队列却仍为 Queueing，从而永久卡在排队点
             RestaurantSeat seat = SeatManager.Instance.TryReserveSeat(firstInQueue);
             if (seat == null)
                 break;
 
+            customersQueue.RemoveAt(0);
+            UpdateQueueMemberPositions();
             firstInQueue.GoToSeat(seat);
             break;
         }
@@ -480,18 +891,64 @@ public class CustomerManager : MonoBehaviour
         if (seat == null || goldAmount <= 0)
             return;
 
+        SpawnCoinPickupAtWorldPosition(seat.GetCoinSpawnWorldPosition(), goldAmount);
+    }
+
+    /// <summary>在指定世界坐标生成可点击金币（外卖等候点等）。</summary>
+    public void SpawnCoinPickupAtWorldPosition(Vector3 worldPos, int goldAmount)
+    {
+        if (goldAmount <= 0)
+            return;
+
         if (restaurantCoinPrefab == null)
         {
             Debug.LogWarning("[CustomerManager] 未配置 restaurantCoinPrefab，无法生成金币。");
             return;
         }
 
-        Vector3 pos = seat.GetCoinSpawnWorldPosition();
-        GameObject coinGo = Instantiate(restaurantCoinPrefab, pos, Quaternion.identity, transform);
+        Vector3 spawnPos = AllocateCoinDropPosition(worldPos);
+        GameObject coinGo = Instantiate(restaurantCoinPrefab, spawnPos, Quaternion.identity, transform);
         RestaurantCoinPickup pickup = coinGo.GetComponent<RestaurantCoinPickup>();
         if (pickup == null)
             pickup = coinGo.AddComponent<RestaurantCoinPickup>();
         pickup.Initialize(goldAmount);
+    }
+
+    /// <summary>同一落点附近已有金币时，沿排开轴取下一个空槽，避免叠在一起难点。</summary>
+    private Vector3 AllocateCoinDropPosition(Vector3 basePos)
+    {
+        Vector3 axis = coinDropSpreadAxis.sqrMagnitude > 0.0001f
+            ? coinDropSpreadAxis.normalized
+            : Vector3.right;
+        float spacing = Mathf.Max(0.15f, coinDropSpacing);
+        float rowMatch = Mathf.Max(0.1f, coinDropRowMatchDistance);
+
+        var usedSlots = new HashSet<int>();
+        RestaurantCoinPickup[] coins = GetComponentsInChildren<RestaurantCoinPickup>(false);
+        for (int i = 0; i < coins.Length; i++)
+        {
+            RestaurantCoinPickup coin = coins[i];
+            if (coin == null) continue;
+
+            Vector3 delta = coin.transform.position - basePos;
+            float along = Vector3.Dot(delta, axis);
+            if (along < -spacing * 0.25f)
+                continue;
+
+            Vector3 perpendicular = delta - axis * along;
+            if (perpendicular.magnitude > rowMatch)
+                continue;
+
+            int slot = Mathf.RoundToInt(along / spacing);
+            if (slot >= 0)
+                usedSlots.Add(slot);
+        }
+
+        int nextSlot = 0;
+        while (usedSlots.Contains(nextSlot))
+            nextSlot++;
+
+        return basePos + axis * (nextSlot * spacing);
     }
 
     /// <summary>菜肴从碟子飞向顾客就坐位置。</summary>
@@ -538,6 +995,24 @@ public class CustomerManager : MonoBehaviour
         Destroy(flyObj);
     }
 
+    /// <summary>仅从排队相关列表移除（不改变 activeCustomers），用于转职等场景。</summary>
+    public void RemoveCustomerFromQueuesOnly(CustomerNPC customer)
+    {
+        if (customer == null) return;
+
+        bool wasQueueing = customer.state == CustomerState.Queueing;
+        bool wasTakeoutQueueing = customer.state == CustomerState.TakeoutQueueing;
+        walkingToQueue.Remove(customer);
+        customersQueue.Remove(customer);
+        walkingToTakeoutQueue.Remove(customer);
+        takeoutCustomersQueue.Remove(customer);
+
+        if (wasQueueing)
+            UpdateQueueMemberPositions();
+        if (wasTakeoutQueueing)
+            UpdateTakeoutQueueMemberPositions();
+    }
+
     // 清理离开的顾客
     public void RemoveCustomer(CustomerNPC customer)
     {
@@ -554,20 +1029,18 @@ public class CustomerManager : MonoBehaviour
             }
         }
 
-        // 从类型记录中移除
-        if (!string.IsNullOrEmpty(customer.data.id.ToString()))
-        {
-            activeNPCTypes.Remove(customer.data.id.ToString());
-        }
+        bool wasQueueing = customer.state == CustomerState.Queueing;
+        bool wasTakeoutQueueing = customer.state == CustomerState.TakeoutQueueing;
         activeCustomers.Remove(customer);
         walkingToQueue.Remove(customer);
         customersQueue.Remove(customer);
+        walkingToTakeoutQueue.Remove(customer);
+        takeoutCustomersQueue.Remove(customer);
 
-        // 如果有顾客离开队列，重新更新队列位置
-        if (customer.state == CustomerState.Queueing)
-        {
+        if (wasQueueing)
             UpdateQueueMemberPositions();
-        }
+        if (wasTakeoutQueueing)
+            UpdateTakeoutQueueMemberPositions();
 
         UpdateCustomerCountDisplay();
     }
@@ -827,6 +1300,7 @@ public class CustomerManager : MonoBehaviour
 
         // 若其中有人在队列中，强制刷新一次队列站位，避免聊天暂停后队列错位/卡住
         UpdateQueueMemberPositions();
+        UpdateTakeoutQueueMemberPositions();
         chatting = false;
     }
 

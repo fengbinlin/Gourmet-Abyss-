@@ -16,7 +16,24 @@ public class RestaurantSeat : MonoBehaviour
 
     public CustomerNPC Occupant { get; private set; }
 
-    public bool IsAvailable => Occupant == null;
+    /// <summary>座位所属餐桌/设施已解锁，且物体处于激活状态。</summary>
+    public bool IsUsable => isActiveAndEnabled && IsFacilityUnlocked;
+
+    public bool IsFacilityUnlocked
+    {
+        get
+        {
+            Table table = GetComponentInParent<Table>(true);
+            if (table != null)
+                return table.IsFacilityUnlocked;
+
+            FacilityUnlockable unlock = GetComponent<FacilityUnlockable>()
+                ?? GetComponentInParent<FacilityUnlockable>(true);
+            return unlock == null || unlock.IsUnlocked;
+        }
+    }
+
+    public bool IsAvailable => IsUsable && Occupant == null;
 
     private void OnEnable()
     {
@@ -45,7 +62,7 @@ public class RestaurantSeat : MonoBehaviour
 
     public bool TryAssign(CustomerNPC customer)
     {
-        if (!IsAvailable || customer == null)
+        if (!IsUsable || Occupant != null || customer == null)
             return false;
 
         Occupant = customer;

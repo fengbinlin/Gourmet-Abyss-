@@ -29,6 +29,7 @@ public class RestaurantTableManager : MonoBehaviour
     private void OnEnable()
     {
         TrySubscribeStats();
+        FacilityUnlockable.OnFacilityUnlocked += HandleFacilityUnlocked;
         SyncTablesFromStats();
     }
 
@@ -40,9 +41,18 @@ public class RestaurantTableManager : MonoBehaviour
 
     private void OnDisable()
     {
+        FacilityUnlockable.OnFacilityUnlocked -= HandleFacilityUnlocked;
         if (WeaponStatsManager.Instance != null && _subscribed)
             WeaponStatsManager.Instance.OnRestaurantStatsChanged -= SyncTablesFromStats;
         _subscribed = false;
+    }
+
+    private void HandleFacilityUnlocked(FacilityUnlockable unlockable)
+    {
+        if (unlockable == null || unlockable.Type != FacilityType.Table)
+            return;
+
+        SyncTablesFromStats();
     }
 
     private void OnDestroy()

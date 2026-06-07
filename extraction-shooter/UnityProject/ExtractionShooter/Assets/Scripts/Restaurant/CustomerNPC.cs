@@ -14,11 +14,13 @@ public enum PointType
 
 public enum CustomerState
 {
-    Spawning,         // 刚生成
-    WalkingToQueue,   // 正在走向队尾
-    Queueing,         // 排队中
-    InsideRestaurant, // 在餐厅消费
-    Leaving           // 离开餐厅
+    Spawning,              // 刚生成
+    WalkingToQueue,        // 正在走向堂食队尾
+    Queueing,              // 堂食排队中
+    WalkingToTakeoutQueue, // 正在走向外卖等候队尾
+    TakeoutQueueing,       // 外卖排队等候
+    InsideRestaurant,      // 在餐厅消费
+    Leaving                // 离开餐厅
 }
 
 /// <summary>入场后取菜 → 端上桌 → 就餐的子阶段。</summary>
@@ -96,6 +98,8 @@ public class CustomerNPC : MonoBehaviour
     private int _carriedGoldAmount;
     private GameObject _carriedDishVisual;
     private bool isConsuming = false;
+    private bool _takeoutOrderInProgress;
+    public bool IsTakeoutOrderInProgress => _takeoutOrderInProgress;
     private CustomerDiningPhase _diningPhase = CustomerDiningPhase.None;
     private bool _hasHandledPlateArrival;
     private bool _hasHandledSeatArrival;
@@ -346,7 +350,7 @@ public class CustomerNPC : MonoBehaviour
         animator.SetBool("isRunning", isMovingNow);
 
         // 排队时统一面朝右边
-        if (state == CustomerState.Queueing)
+        if (state == CustomerState.Queueing || state == CustomerState.TakeoutQueueing)
         {
             FaceByX(1f);
         }
@@ -600,6 +604,11 @@ public class CustomerNPC : MonoBehaviour
                 thoughtText = GetRandomThought(data.QueueingWords.ToArray());
                 break;
 
+            case CustomerState.WalkingToTakeoutQueue:
+            case CustomerState.TakeoutQueueing:
+                thoughtText = GetRandomThought(data.QueueingWords.ToArray());
+                break;
+
             case CustomerState.InsideRestaurant:
                 if (isConsuming)
                     thoughtText = GetRandomThought(data.InsideRestaurantConsumingWords.ToArray());
@@ -692,6 +701,11 @@ public class CustomerNPC : MonoBehaviour
             && manager != null
             && manager.TryGetQueueWorldPosition(this, out Vector3 queuePos))
             return ToPlanarTarget(queuePos, applySpawnLaneOffset: true);
+
+        if ((state == CustomerState.WalkingToTakeoutQueue || state == CustomerState.TakeoutQueueing)
+            && manager != null
+            && manager.TryGetTakeoutWorldPosition(this, out Vector3 takeoutPos))
+            return ToPlanarTarget(takeoutPos, applySpawnLaneOffset: true);
 
         if (state == CustomerState.Leaving && _exitTargetTransform != null)
             return ToPlanarTarget(_exitTargetTransform.position, applySpawnLaneOffset: false);
@@ -830,7 +844,7 @@ public class CustomerNPC : MonoBehaviour
         }
         else
         {
-            if (state == CustomerState.Queueing)
+            if (state == CustomerState.Queueing || state == CustomerState.TakeoutQueueing)
             {
                 FaceByX(1f);
                 return;
@@ -840,7 +854,7 @@ public class CustomerNPC : MonoBehaviour
                 return;
         }
 
-        if (reached && state != CustomerState.Queueing)
+        if (reached && state != CustomerState.Queueing && state != CustomerState.TakeoutQueueing)
             OnReachTarget();
     }
 
@@ -870,6 +884,18 @@ public class CustomerNPC : MonoBehaviour
 
     private void OnReachTarget()
     {
+        if (state == CustomerState.WalkingToQueue)
+        {
+            manager?.TryCommitQueueArrival(this);
+            return;
+        }
+
+        if (state == CustomerState.WalkingToTakeoutQueue)
+        {
+            manager?.TryCommitTakeoutQueueArrival(this);
+            return;
+        }
+
         if (state != CustomerState.InsideRestaurant)
             return;
 
@@ -1032,11 +1058,46 @@ public class CustomerNPC : MonoBehaviour
         _carriedGoldAmount = 0;
     }
 
-    private IEnumerator PlaySatisfactionJump(int times)
+    /// <summary>外卖取餐：菜飞到身上 →（可选等待）→ 跳一下 → 在等候点留下金币后离开。</summary>
+    public IEnumerator FulfillTakeoutOrderRoutine(
+        DishRecipe recipe,
+        Vector3 plateFlyStart,
+        int goldAmount,
+        Vector3 coinSpawnPos,
+        float consumeWaitSeconds = 0f,
+        float jumpDuration = 0.6f)
+    {
+        _takeoutOrderInProgress = true;
+        isConsuming = true;
+        animator.SetBool("isRunning", false);
+        SetExpression(CustomerExpression.Serious);
+        ShowCustomBubble(GetChatText(data?.InsideRestaurantQueueingWords, "打包带走~"));
+
+        if (manager != null && recipe != null && recipe.dishIcon != null)
+        {
+            Vector3 end = transform.position + Vector3.up * 0.2f;
+            yield return manager.StartCoroutine(
+                manager.PlayDishFlyToCustomerCoroutine(recipe.dishIcon, plateFlyStart, end));
+        }
+
+        if (consumeWaitSeconds > 0f)
+            yield return new WaitForSeconds(consumeWaitSeconds);
+
+        yield return PlaySatisfactionJump(1, jumpDuration);
+
+        if (goldAmount > 0 && manager != null)
+            manager.SpawnCoinPickupAtWorldPosition(coinSpawnPos, goldAmount);
+
+        isConsuming = false;
+        _takeoutOrderInProgress = false;
+        LeaveRestaurant();
+    }
+
+    private IEnumerator PlaySatisfactionJump(int times, float jumpDuration = 0.6f)
     {
         Vector3 originalPos = transform.position;
         float jumpHeight = 1.2f;
-        float jumpDuration = 0.6f;
+        jumpDuration = Mathf.Max(0.05f, jumpDuration);
 
         for (int i = 0; i < times; i++)
         {
@@ -1337,10 +1398,13 @@ public class CustomerNPC : MonoBehaviour
         StopAllCoroutines();
         restaurantAmbienceRoutine = null;
         isInteractingWithPlayer = false;
+        isPairChatPositioning = false;
         isConsuming = false;
+        _takeoutOrderInProgress = false;
         _diningPhase = CustomerDiningPhase.None;
         ClearCarriedDishState();
         ReleaseCurrentSeat();
+        manager?.RemoveCustomerFromQueuesOnly(this);
         state = CustomerState.Spawning;
 
         // 转职后不再需要顾客交互UI
@@ -1685,8 +1749,10 @@ public class CustomerNPC : MonoBehaviour
         switch (state)
         {
             case CustomerState.Queueing:
+            case CustomerState.TakeoutQueueing:
                 return CustomerExpression.Awkward;
             case CustomerState.WalkingToQueue:
+            case CustomerState.WalkingToTakeoutQueue:
                 return CustomerExpression.Serious;
             case CustomerState.Leaving:
                 return CustomerExpression.Touched;

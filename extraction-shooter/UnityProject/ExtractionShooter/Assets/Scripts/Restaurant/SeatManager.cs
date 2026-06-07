@@ -13,7 +13,19 @@ public class SeatManager : MonoBehaviour
 
     private readonly List<RestaurantSeat> _seats = new List<RestaurantSeat>();
 
-    public int TotalSeatCount => _seats.Count;
+    public int TotalSeatCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 0; i < _seats.Count; i++)
+            {
+                if (_seats[i] != null && _seats[i].IsUsable)
+                    count++;
+            }
+            return count;
+        }
+    }
 
     public int OccupiedSeatCount
     {
@@ -22,14 +34,28 @@ public class SeatManager : MonoBehaviour
             int count = 0;
             for (int i = 0; i < _seats.Count; i++)
             {
-                if (_seats[i] != null && !_seats[i].IsAvailable)
+                RestaurantSeat seat = _seats[i];
+                if (seat != null && seat.IsUsable && !seat.IsAvailable)
                     count++;
             }
             return count;
         }
     }
 
-    public int AvailableSeatCount => Mathf.Max(0, TotalSeatCount - OccupiedSeatCount);
+    public int AvailableSeatCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 0; i < _seats.Count; i++)
+            {
+                RestaurantSeat seat = _seats[i];
+                if (seat != null && seat.IsAvailable)
+                    count++;
+            }
+            return count;
+        }
+    }
 
     public bool HasAvailableSeat => AvailableSeatCount > 0;
 
@@ -78,7 +104,7 @@ public class SeatManager : MonoBehaviour
         _seats.Remove(seat);
     }
 
-    /// <summary>为顾客预留第一个空位；失败返回 null。</summary>
+    /// <summary>为顾客预留第一个「已解锁餐桌」上的空位；失败返回 null。</summary>
     public RestaurantSeat TryReserveSeat(CustomerNPC customer)
     {
         if (customer == null)
@@ -87,7 +113,7 @@ public class SeatManager : MonoBehaviour
         for (int i = 0; i < _seats.Count; i++)
         {
             RestaurantSeat seat = _seats[i];
-            if (seat == null || !seat.IsAvailable)
+            if (seat == null || !seat.IsUsable || !seat.IsAvailable)
                 continue;
 
             if (seat.TryAssign(customer))

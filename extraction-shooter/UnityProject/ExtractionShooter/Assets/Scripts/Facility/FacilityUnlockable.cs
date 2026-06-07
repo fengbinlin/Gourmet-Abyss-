@@ -259,6 +259,15 @@ public class FacilityUnlockable : MonoBehaviour
         {
             if (RestaurantPanel.instance != null)
                 RestaurantPanel.instance.RefreshRestaurantUnits();
+            return;
+        }
+
+        if (facilityType == FacilityType.Table)
+        {
+            if (RestaurantTableManager.Instance != null)
+                RestaurantTableManager.Instance.RefreshTables();
+            else if (SeatManager.Instance != null)
+                SeatManager.Instance.RefreshRegisteredSeats();
         }
     }
 
