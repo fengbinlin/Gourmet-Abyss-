@@ -203,7 +203,7 @@ public class GameValManager : MonoBehaviour
             OnResourceAdded?.Invoke(type, added, item.count);
             OnResourceChanged?.Invoke(type, oldCount, item.count);
 
-            if (added > 0 && type != ResourceType.Money)
+            if (added > 0 && ShouldShowResourceGainMessage(type))
             {
                 GlobalMessageUI.ShowResourceGain(item.Icon, added);
             }
@@ -219,11 +219,18 @@ public class GameValManager : MonoBehaviour
         OnResourceAdded?.Invoke(type, amount, item.count);
         OnResourceChanged?.Invoke(type, oldCount, item.count);
 
-        if (actualAdded > 0 && type != ResourceType.Money)
+        if (actualAdded > 0 && ShouldShowResourceGainMessage(type))
         {
             GlobalMessageUI.ShowResourceGain(item.Icon, actualAdded);
         }
         
+        return true;
+    }
+
+    private static bool ShouldShowResourceGainMessage(ResourceType type)
+    {
+        if (type == ResourceType.Money || type == ResourceType.LootPumkin)
+            return false;
         return true;
     }
     
