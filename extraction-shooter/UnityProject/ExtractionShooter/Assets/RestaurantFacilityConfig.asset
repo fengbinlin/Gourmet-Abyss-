@@ -125,3 +125,8 @@ MonoBehaviour:
         amount: 100
       sellBonusRate: 2
       maxTotalCustomers: 8
+    - upgradeCosts:
+      - resourceType: 20
+        amount: 300
+      sellBonusRate: 4
+      maxTotalCustomers: 8
