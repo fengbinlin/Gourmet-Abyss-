@@ -307,19 +307,6 @@ public class CustomerNPC : MonoBehaviour
 
         data.AddAffection(amount);
         UpdateAffectionUI();
-
-        // 全局消息提示：好感度提升/等级提升
-        if (amount > 0f)
-        {
-            string name = string.IsNullOrEmpty(data.customerName) ? "顾客" : data.customerName;
-            GlobalMessageUI.Show($"{name} 好感度 +{amount:0.#}", 1.2f);
-        }
-
-        if (data.affectionLevel > oldLevel)
-        {
-            string name = string.IsNullOrEmpty(data.customerName) ? "顾客" : data.customerName;
-            GlobalMessageUI.Show($"{name} 好感等级提升：Lv.{data.affectionLevel}", 1.6f);
-        }
     }
 
     void Update()
@@ -860,13 +847,14 @@ public class CustomerNPC : MonoBehaviour
 
     private float GetFinalMoveSpeed()
     {
+        float dataSpeed = data != null ? data.moveSpeed : 1f;
+        if (manager != null)
+            return manager.GetCustomerMoveSpeed(dataSpeed);
+
         float multiplier = 1f;
         if (WeaponStatsManager.Instance != null)
-        {
             multiplier = WeaponStatsManager.Instance.customerMoveSpeedMultiplier;
-        }
-
-        return data.moveSpeed * multiplier;
+        return Mathf.Max(0.01f, dataSpeed * multiplier);
     }
 
     private void ReleaseCurrentSeat()
@@ -979,11 +967,10 @@ public class CustomerNPC : MonoBehaviour
         ShowBubble(GetChatText(data?.ConsumeStartWords, "开动了！"));
         SetExpression(CustomerExpression.Serious);
 
-        float baseEat = recipe != null ? recipe.sellTime : (servedPlate != null ? servedPlate.consumeTime : 2f);
-        float eatMult = 1f;
-        if (WeaponStatsManager.Instance != null)
-            eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.restaurantDiningSpeedMultiplier);
-        float waitSeconds = Mathf.Max(0.01f, baseEat / eatMult);
+        float plateFallback = servedPlate != null ? servedPlate.consumeTime : 2f;
+        float waitSeconds = manager != null
+            ? manager.GetDiningWaitSeconds(recipe, plateFallback)
+            : Mathf.Max(0.01f, (recipe != null ? recipe.sellTime : plateFallback));
 
         yield return new WaitForSeconds(waitSeconds);
 

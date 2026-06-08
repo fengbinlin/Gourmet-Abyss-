@@ -476,16 +476,20 @@ public class RestaurantPanel : MonoBehaviour
 
         idx = FindSuitableCookQueueSlotIndex(recipe);
         if (idx < 0)
-            yield break;
-
-        CookQueueStackEntry e = _cookQueueData[idx];
-        if (e.IsEmpty)
         {
-            e.recipe = recipe;
-            e.count = 1;
+            RefundIngredientsForRecipe(recipe);
+            if (GameValManager.Instance != null && foodItemParent != null)
+                GenerateFoodItems();
+            yield break;
         }
-        else
-            e.count++;
+
+        if (!TryCommitRecipeToCookQueueSlot(idx, recipe))
+        {
+            RefundIngredientsForRecipe(recipe);
+            if (GameValManager.Instance != null && foodItemParent != null)
+                GenerateFoodItems();
+            yield break;
+        }
 
         RefreshCookQueueUI();
         PulseCookQueueSlotIfValid(idx);
@@ -559,6 +563,40 @@ public class RestaurantPanel : MonoBehaviour
     {
         if (InventoryManager.instance == null || recipe == null) return false;
         return InventoryManager.instance.TryConsumeIngredientsForRecipe(recipe);
+    }
+
+    private void RefundIngredientsForRecipe(DishRecipe recipe)
+    {
+        if (InventoryManager.instance == null || recipe == null || recipe.ingredients == null)
+            return;
+
+        for (int i = 0; i < recipe.ingredients.Count; i++)
+        {
+            DishIngredient ing = recipe.ingredients[i];
+            if (ing == null || ing.requiredCount <= 0) continue;
+            InventoryManager.instance.AddItem(ing.resourceType, ing.requiredCount);
+        }
+    }
+
+    private bool TryCommitRecipeToCookQueueSlot(int idx, DishRecipe recipe)
+    {
+        if (recipe == null || idx < 0 || idx >= _cookQueueData.Count)
+            return false;
+
+        int maxPer = GetCookQueueMaxPerSlot();
+        CookQueueStackEntry e = _cookQueueData[idx];
+        if (e.IsEmpty)
+        {
+            e.recipe = recipe;
+            e.count = 1;
+            return true;
+        }
+
+        if (!RecipesMatch(e.recipe, recipe) || e.count >= maxPer)
+            return false;
+
+        e.count++;
+        return true;
     }
 
     private IEnumerator PlayIngredientFlyToQueueCoroutine(List<InventoryManager.IngredientFlySource> flySources, int queueIndex)

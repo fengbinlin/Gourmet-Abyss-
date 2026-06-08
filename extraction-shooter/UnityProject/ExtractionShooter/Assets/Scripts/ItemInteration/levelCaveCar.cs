@@ -11,9 +11,6 @@ public class levelCaveCar : MonoBehaviour
     private bool isPlayerInTrigger = false;
     private GameObject player;
     
-    // 颜色过渡组件引用
-    private VehicleColorTransition colorTransition;
-
     [Header("交互反馈-波动")]
     [SerializeField] private float pulseDuration = 0.12f;
     [SerializeField] private float pulseScaleMultiplier = 1.12f;
@@ -34,8 +31,6 @@ public class levelCaveCar : MonoBehaviour
     
     private void Start()
     {
-        // 获取颜色过渡组件
-        colorTransition = GetComponent<VehicleColorTransition>();
         originalScale = transform.localScale;
     }
     

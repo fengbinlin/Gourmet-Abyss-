@@ -131,8 +131,6 @@ public class LevelManager : MonoBehaviour
         {
             Debug.Log("主场景车辆开始过渡到白色");
 
-            // 修改：在开始过渡前设置层级为10
-            homeVehicle.SetLayer(10);
             homeVehicle.TransitionToWhite(transitionDuration);
         }
 
@@ -194,20 +192,9 @@ public class LevelManager : MonoBehaviour
         {
             Debug.Log("新场景车辆开始从白色过渡到原色");
 
-            // 修改：开始时设置层级为10
-            levelVehicle.SetLayer(10);
-
-            // 确保车辆脚本启用
             levelVehicle.enabled = true;
-
-            // 立即设置为白色
             levelVehicle.SetToWhiteImmediate();
-
-            // 从白色过渡到原色
             levelVehicle.TransitionToOriginal(transitionDuration);
-
-            // 修改：从不发光变成发光后，层级变为11
-            StartCoroutine(SetVehicleLayerAfterDelay(levelVehicle, 11, transitionDuration));
         }
         else
         {
@@ -246,8 +233,6 @@ public class LevelManager : MonoBehaviour
         {
             Debug.Log("关卡车辆开始过渡到白色");
 
-            // 修改：离开场景前，设置层级为10
-            levelVehicle.SetLayer(10);
             levelVehicle.TransitionToWhite(transitionDuration);
         }
 
@@ -301,20 +286,9 @@ public class LevelManager : MonoBehaviour
         {
             Debug.Log("主场景车辆开始从白色过渡到原色");
 
-            // 修改：开始时设置层级为10
-            homeVehicle.SetLayer(10);
-
-            // 确保车辆脚本启用
             homeVehicle.enabled = true;
-
-            // 立即设置为白色
             homeVehicle.SetToWhiteImmediate();
-
-            // 从白色过渡到原色
             homeVehicle.TransitionToOriginal(transitionDuration);
-
-            // 修改：从不发光变成发光后，层级变为11
-            StartCoroutine(SetVehicleLayerAfterDelay(homeVehicle, 11, transitionDuration));
         }
 
         loadedLevels.Remove(levelName);
@@ -347,8 +321,6 @@ public class LevelManager : MonoBehaviour
         VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
         if (levelVehicle != null)
         {
-            // 修改：离开场景前，设置层级为10
-            levelVehicle.SetLayer(10);
             levelVehicle.TransitionToWhite(transitionDuration);
         }
 
@@ -391,15 +363,9 @@ public class LevelManager : MonoBehaviour
         VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
         if (homeVehicle != null)
         {
-            // 修改：开始时设置层级为10
-            homeVehicle.SetLayer(10);
-
             homeVehicle.enabled = true;
             homeVehicle.SetToWhiteImmediate();
             homeVehicle.TransitionToOriginal(transitionDuration);
-
-            // 修改：从不发光变成发光后，层级变为11
-            StartCoroutine(SetVehicleLayerAfterDelay(homeVehicle, 11, transitionDuration));
         }
         UITapBounce.Instance.ResetPosition();
         TitleText.text = SceneTitle.instance.SceneName;
@@ -434,8 +400,6 @@ public class LevelManager : MonoBehaviour
         VehicleColorTransition fromVehicle = FindVehicleInScene(fromLevel);
         if (fromVehicle != null)
         {
-            // 修改：离开场景前，设置层级为10
-            fromVehicle.SetLayer(10);
             fromVehicle.TransitionToWhite(transitionDuration);
         }
 
@@ -480,15 +444,9 @@ public class LevelManager : MonoBehaviour
         {
             Debug.Log("新关卡车辆开始从白色过渡到原色");
 
-            // 修改：开始时设置层级为10
-            toVehicle.SetLayer(10);
-
             toVehicle.enabled = true;
             toVehicle.SetToWhiteImmediate();
             toVehicle.TransitionToOriginal(transitionDuration);
-
-            // 修改：从不发光变成发光后，层级变为11
-            StartCoroutine(SetVehicleLayerAfterDelay(toVehicle, 11, transitionDuration));
         }
         UITapBounce.Instance.ResetPosition();
         TitleText.text = SceneTitle.instance.SceneName;
@@ -501,15 +459,6 @@ public class LevelManager : MonoBehaviour
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.Battle;
         UIManager.instance?.SetBattleUIActive(true);
-    }
-
-    /// <summary>
-    /// 延迟设置车辆层级
-    /// </summary>
-    private IEnumerator SetVehicleLayerAfterDelay(VehicleColorTransition vehicle, int layer, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        vehicle.SetLayer(layer);
     }
 
     /// <summary>

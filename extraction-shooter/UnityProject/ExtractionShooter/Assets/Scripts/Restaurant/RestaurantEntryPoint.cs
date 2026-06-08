@@ -128,8 +128,18 @@ public class RestaurantEntryPoint : MonoBehaviour
         player.SetPlayerMovementEnabled(false);
         _isEntered = true;
         SetRestaurantContentActive(true);
+        RefreshRestaurantMenuOnEnter();
 
         AudioManager.Instance?.PlayAudio("3");
+    }
+
+    private static void RefreshRestaurantMenuOnEnter()
+    {
+        if (RestaurantPanel.instance == null)
+            return;
+
+        RestaurantPanel.instance.RefreshRestaurantUnits();
+        RestaurantPanel.instance.RefreshOnOpen();
     }
 
     /// <summary>

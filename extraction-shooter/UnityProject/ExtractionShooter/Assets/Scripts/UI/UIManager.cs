@@ -12,6 +12,10 @@ public class UIManager : MonoBehaviour
     [Tooltip("副武器UI在 BattleUI 列表中的 id（下标）。当副武器未激活时会被强制隐藏。")]
     [SerializeField] private int secondaryWeaponUIId = 3;
 
+    [Header("教程面板")]
+    [Tooltip("教程/引导面板根物体，可在按钮 OnClick 中绑定 CloseTutorialPanel")]
+    [SerializeField] private GameObject tutorialPanel;
+
     private void Awake()
     {
         if (instance != null && instance != this)
@@ -76,5 +80,12 @@ public class UIManager : MonoBehaviour
 
             if (go.activeSelf != active) go.SetActive(active);
         }
+    }
+
+    /// <summary>关闭教程面板（供按钮 OnClick 或脚本调用）。</summary>
+    public void CloseTutorialPanel()
+    {
+        if (tutorialPanel != null)
+            tutorialPanel.SetActive(false);
     }
 }

@@ -174,7 +174,7 @@ public class LootCollector : MonoBehaviour
                 playerInTrigger = true;
                 timeSinceLastInteraction = Time.time;
 
-                if (isPlantResource && plantDirectToGameVal)
+                if (IsDirectToGameValPickup())
                 {
                     canBeCollected = true;
                     StartFlyToPlayer();
@@ -212,7 +212,7 @@ public class LootCollector : MonoBehaviour
             timeSinceLastInteraction = Time.time; // 重置超时计时
             
             // 如果是植物资源并且设置为直接加入数值管理器，则直接可以收集
-            if (isPlantResource && plantDirectToGameVal)
+            if (IsDirectToGameValPickup())
             {
                 canBeCollected = true;
                 StartFlyToPlayer();
@@ -308,6 +308,12 @@ public class LootCollector : MonoBehaviour
         }
     }
 
+    /// <summary>植物/南瓜等直入 GameValManager 的拾取物，不占背包，也不提示背包满。</summary>
+    private bool IsDirectToGameValPickup()
+    {
+        return plantDirectToGameVal && (isPlantResource || resourceType == ResourceType.LootPumkin);
+    }
+
     // 检查背包空间
     private bool CheckInventorySpace()
     {
@@ -391,7 +397,7 @@ public class LootCollector : MonoBehaviour
     {
         // 植物类/南瓜类收集物：直接写入数值管理器，不进背包
         // 约定：当 plantDirectToGameVal 开启时，勾选 isPlantResource 的物体会直入；同时南瓜（LootPumkin）强制按植物类处理，避免 prefab/生成逻辑漏传 isPlant 导致进背包。
-        bool shouldDirectToGameVal = plantDirectToGameVal && (isPlantResource || resourceType == ResourceType.LootPumkin);
+        bool shouldDirectToGameVal = IsDirectToGameValPickup();
         if (shouldDirectToGameVal)
         {
             // 播放收集特效
@@ -539,10 +545,11 @@ public class LootCollector : MonoBehaviour
 
     private void ShowFullInventoryMessage()
     {
-        if (Time.time - lastFullMessageTime < Mathf.Max(0.1f, fullMessageCooldown))
-        {
+        if (IsDirectToGameValPickup())
             return;
-        }
+
+        if (Time.time - lastFullMessageTime < Mathf.Max(0.1f, fullMessageCooldown))
+            return;
 
         lastFullMessageTime = Time.time;
         GlobalMessageUI.Show(fullInventoryMessage);

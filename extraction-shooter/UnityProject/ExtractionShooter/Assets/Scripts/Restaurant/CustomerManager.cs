@@ -64,11 +64,24 @@ public class CustomerManager : MonoBehaviour
     [SerializeField] private float queueArrivalThreshold = 0.35f;
     public Text restaurantCustomerCountText;
 
-    [Header("自动生成设置")]
-    public bool enableAutoSpawn = true; // 是否启用自动生成
-    public float minSpawnInterval = 5f; // 最小生成间隔
-    public float maxSpawnInterval = 15f; // 最大生成间隔
-    public int maxTotalCustomers = 20; // 最大总顾客数（防止卡顿）
+    [Header("客人生成")]
+    public bool enableAutoSpawn = true;
+    [Tooltip("自动生成间隔随机范围（秒）：每次在最小值与最大值之间抽取")]
+    [SerializeField] private float minSpawnInterval = 5f;
+    [SerializeField] private float maxSpawnInterval = 15f;
+    public int maxTotalCustomers = 20;
+
+    [Header("顾客移动速度")]
+    [Tooltip("移动速度倍率（× CustomerData.moveSpeed，再叠加技能树倍率）")]
+    [SerializeField] private float customerMoveSpeedMultiplier = 1f;
+    [Tooltip("大于 0 时：所有顾客统一使用该速度，忽略 CustomerData.moveSpeed")]
+    [SerializeField] private float customerMoveSpeedOverride = 0f;
+
+    [Header("顾客用餐时间")]
+    [Tooltip("用餐速度倍率：堂食/外卖(按菜谱) 实际秒数 = 基础时间 ÷ 倍率")]
+    [SerializeField] private float customerDiningSpeedMultiplier = 1f;
+    [Tooltip("大于 0 时：所有顾客统一使用该用餐秒数，忽略菜谱 sellTime")]
+    [SerializeField] private float customerDiningDurationSeconds = 0f;
    [Header("是否顾客间对话")]
     public bool isCustomerChat=false;
     private List<CustomerNPC> activeCustomers = new List<CustomerNPC>();
@@ -98,7 +111,7 @@ public class CustomerManager : MonoBehaviour
         // 设置第一次自动生成时间
         if (enableAutoSpawn)
         {
-            nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
+            nextSpawnTime = Time.time + GetNextSpawnInterval();
         }
     }
 
@@ -153,7 +166,7 @@ public class CustomerManager : MonoBehaviour
         {
             if (activeCustomers.Count < maxTotalCustomers)
                 SpawnCustomer();
-            nextSpawnTime = Time.time + Random.Range(minSpawnInterval, maxSpawnInterval);
+            nextSpawnTime = Time.time + GetNextSpawnInterval();
         }
 
         DismissQueuesWhenNoFood();
@@ -790,15 +803,50 @@ public class CustomerManager : MonoBehaviour
 
     public float GetTakeoutConsumeWaitSeconds(DishRecipe recipe)
     {
-        if (takeoutUseRecipeSellTime && recipe != null)
-        {
-            float eatMult = 1f;
-            if (WeaponStatsManager.Instance != null)
-                eatMult = Mathf.Max(0.01f, WeaponStatsManager.Instance.restaurantDiningSpeedMultiplier);
-            return Mathf.Max(0.01f, recipe.sellTime / eatMult);
-        }
+        if (takeoutUseRecipeSellTime)
+            return GetDiningWaitSeconds(recipe, 2f);
 
         return Mathf.Max(0f, takeoutConsumeDuration);
+    }
+
+    /// <summary>下次自动刷客的间隔（秒）。</summary>
+    public float GetNextSpawnInterval()
+    {
+        float min = Mathf.Max(0.1f, minSpawnInterval);
+        float max = Mathf.Max(min, maxSpawnInterval);
+        return Random.Range(min, max);
+    }
+
+    /// <summary>顾客最终移动速度（供 CustomerNPC 调用）。</summary>
+    public float GetCustomerMoveSpeed(float dataMoveSpeed)
+    {
+        float speed = customerMoveSpeedOverride > 0f
+            ? customerMoveSpeedOverride
+            : Mathf.Max(0.01f, dataMoveSpeed) * Mathf.Max(0.01f, customerMoveSpeedMultiplier);
+
+        if (WeaponStatsManager.Instance != null)
+            speed *= Mathf.Max(0.01f, WeaponStatsManager.Instance.customerMoveSpeedMultiplier);
+
+        return Mathf.Max(0.01f, speed);
+    }
+
+    /// <summary>堂食就坐后的用餐等待秒数。</summary>
+    public float GetDiningWaitSeconds(DishRecipe recipe, float fallbackSeconds = 2f)
+    {
+        if (customerDiningDurationSeconds > 0f)
+            return Mathf.Max(0.01f, customerDiningDurationSeconds);
+
+        float baseEat = recipe != null ? recipe.sellTime : fallbackSeconds;
+        float mult = GetCombinedDiningSpeedMultiplier();
+        return Mathf.Max(0.01f, baseEat / mult);
+    }
+
+    private float GetCombinedDiningSpeedMultiplier()
+    {
+        float mult = Mathf.Max(0.01f, customerDiningSpeedMultiplier);
+        if (WeaponStatsManager.Instance != null)
+            mult *= Mathf.Max(0.01f, WeaponStatsManager.Instance.restaurantDiningSpeedMultiplier);
+        return mult;
     }
 
     private IEnumerator FulfillTakeoutOrderCoroutine(

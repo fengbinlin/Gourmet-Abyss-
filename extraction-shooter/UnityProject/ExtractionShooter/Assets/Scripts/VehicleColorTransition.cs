@@ -25,9 +25,7 @@ public class VehicleColorTransition : MonoBehaviour
     [SerializeField] private Color whiteEmissionColor = Color.white;
     [SerializeField] private float whiteEmissionIntensity = 1f; // 白色时的高发光强度
     
-    [Header("层级设置")]
-    [SerializeField] private int initialLayer = 10; // 初始层级
-    [SerializeField] private int afterTransitionLayer = 11; // 过渡完成后的层级
+    private const int FixedVehicleLayer = 11;
 
     [Header("材质来源")]
     [Tooltip("为 true 时只使用子物体上的 Renderer；无子物体 Renderer 时回退到自身")]
@@ -40,11 +38,10 @@ public class VehicleColorTransition : MonoBehaviour
     private Material[] materials;
     private Coroutine transitionCoroutine;
     public bool isInitialized = false;
-    private int originalLayer; // 记录原始层级
 
     private void Awake()
     {
-        originalLayer = gameObject.layer; // 保存原始层级
+        ApplyFixedLayer();
         InitializeMaterials();
         isInitialized = false;
     }
@@ -59,12 +56,6 @@ public class VehicleColorTransition : MonoBehaviour
             SetToWhiteImmediate();
             TransitionToOriginal();
         }
-    }
-
-    private void Start()
-    {
-        // 在Start中设置初始层级为10
-        SetLayer(initialLayer);
     }
 
     /// <summary>
@@ -270,34 +261,11 @@ public class VehicleColorTransition : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// 设置车辆层级
-    /// </summary>
-    public void SetLayer(int layer)
+    private void ApplyFixedLayer()
     {
-        // 同步设置自身及所有子物体层级（包含未激活子物体）
         var transforms = GetComponentsInChildren<Transform>(includeInactive: true);
-        foreach (var t in transforms)
-        {
-            t.gameObject.layer = layer;
-        }
-        //Debug.Log($"车辆 {gameObject.name} 层级已设置为: {layer}");
-    }
-    
-    /// <summary>
-    /// 获取车辆当前层级
-    /// </summary>
-    public int GetCurrentLayer()
-    {
-        return gameObject.layer;
-    }
-    
-    /// <summary>
-    /// 获取原始层级
-    /// </summary>
-    public int GetOriginalLayer()
-    {
-        return originalLayer;
+        for (int i = 0; i < transforms.Length; i++)
+            transforms[i].gameObject.layer = FixedVehicleLayer;
     }
 
     private IEnumerator TransitionRoutine(bool toOriginal, float duration)
@@ -421,12 +389,6 @@ public class VehicleColorTransition : MonoBehaviour
             {
                 mat.SetFloat("_EmissionIntensity", targetEmissionIntensities[i]);
             }
-        }
-        
-        // 如果过渡到原色（从不发光变成发光），设置层级为11
-        if (toOriginal)
-        {
-            SetLayer(afterTransitionLayer);
         }
 
         transitionCoroutine = null;

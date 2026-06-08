@@ -14,9 +14,6 @@ public class HomeCavecar : MonoBehaviour
     [SerializeField] private float hideAnimationDuration = 0.3f;
     [SerializeField] private float showScaleMultiplier = 1.2f;
     
-    // 颜色过渡组件引用
-    private VehicleColorTransition colorTransition;
-    
     private RectTransform mapUIRectTransform;
     private CanvasGroup mapUICanvasGroup;
     private Vector3 originalUIScale;
@@ -33,9 +30,6 @@ public class HomeCavecar : MonoBehaviour
     private void Start()
     {
         homeCavecar = this;
-        
-        // 获取颜色过渡组件
-        colorTransition = GetComponent<VehicleColorTransition>();
         originalCarScale = transform.localScale;
         
         InitializeMapUI();
@@ -178,19 +172,6 @@ public class HomeCavecar : MonoBehaviour
         return isUIActive;
     }
 
-    /// <summary>
-    /// 设置当前物体及所有子物体的 Layer（包含未激活子物体）。
-    /// 可在 UnityEvent 中直接调用。
-    /// </summary>
-    public void SetLayerForSelfAndChildren(int targetLayer)
-    {
-        var transforms = GetComponentsInChildren<Transform>(includeInactive: true);
-        foreach (var t in transforms)
-        {
-            t.gameObject.layer = targetLayer;
-        }
-    }
-    
     private void OnDestroy()
     {
         if (currentUITween != null && currentUITween.IsActive())
