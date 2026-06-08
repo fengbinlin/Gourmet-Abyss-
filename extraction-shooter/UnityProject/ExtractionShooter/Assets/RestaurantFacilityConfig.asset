@@ -60,19 +60,19 @@ MonoBehaviour:
       plateCapacity: 3
     - upgradeCosts:
       - resourceType: 0
-        amount: 120
+        amount: 50
       plateCapacity: 4
     - upgradeCosts:
       - resourceType: 0
-        amount: 280
+        amount: 70
       plateCapacity: 5
     - upgradeCosts:
       - resourceType: 0
-        amount: 550
+        amount: 100
       plateCapacity: 6
     - upgradeCosts:
       - resourceType: 0
-        amount: 900
+        amount: 300
       plateCapacity: 8
   tableUpgrade:
     displayName: "\u9910\u684C"
@@ -83,11 +83,11 @@ MonoBehaviour:
       diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
-        amount: 40
+        amount: 50
       diningSpeedMultiplier: 2
     - upgradeCosts:
       - resourceType: 0
-        amount: 40
+        amount: 50
       diningSpeedMultiplier: 3
   takeawayUpgrade:
     displayName: "\u5916\u5356"
