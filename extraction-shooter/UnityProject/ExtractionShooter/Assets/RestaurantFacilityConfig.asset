@@ -36,44 +36,44 @@ MonoBehaviour:
         amount: 0
       cookingTimeMultiplier: 1
     - upgradeCosts:
-      - resourceType: 0
-        amount: 150
-      cookingTimeMultiplier: 0.9
+      - resourceType: 20
+        amount: 20
+      cookingTimeMultiplier: 0.5
     - upgradeCosts:
-      - resourceType: 0
-        amount: 350
-      cookingTimeMultiplier: 0.8
+      - resourceType: 20
+        amount: 20
+      cookingTimeMultiplier: 0.333333
     - upgradeCosts:
-      - resourceType: 0
-        amount: 700
-      cookingTimeMultiplier: 0.72
+      - resourceType: 20
+        amount: 20
+      cookingTimeMultiplier: 0.25
     - upgradeCosts:
-      - resourceType: 0
-        amount: 1200
-      cookingTimeMultiplier: 0.65
+      - resourceType: 20
+        amount: 20
+      cookingTimeMultiplier: 0.2
   servingCounterUpgrade:
     displayName: "\u6446\u83DC\u53F0"
     levels:
     - upgradeCosts:
       - resourceType: 0
         amount: 0
-      plateCapacity: 5
+      plateCapacity: 3
     - upgradeCosts:
       - resourceType: 0
         amount: 120
-      plateCapacity: 7
+      plateCapacity: 4
     - upgradeCosts:
       - resourceType: 0
         amount: 280
-      plateCapacity: 9
+      plateCapacity: 5
     - upgradeCosts:
       - resourceType: 0
         amount: 550
-      plateCapacity: 12
+      plateCapacity: 6
     - upgradeCosts:
       - resourceType: 0
         amount: 900
-      plateCapacity: 15
+      plateCapacity: 8
   tableUpgrade:
     displayName: "\u9910\u684C"
     levels:
@@ -83,20 +83,12 @@ MonoBehaviour:
       diningSpeedMultiplier: 1
     - upgradeCosts:
       - resourceType: 0
-        amount: 200
-      diningSpeedMultiplier: 1.15
+        amount: 40
+      diningSpeedMultiplier: 2
     - upgradeCosts:
       - resourceType: 0
-        amount: 450
-      diningSpeedMultiplier: 1.3
-    - upgradeCosts:
-      - resourceType: 0
-        amount: 800
-      diningSpeedMultiplier: 1.5
-    - upgradeCosts:
-      - resourceType: 0
-        amount: 1300
-      diningSpeedMultiplier: 1.75
+        amount: 40
+      diningSpeedMultiplier: 3
   takeawayUpgrade:
     displayName: "\u5916\u5356"
     levels:
