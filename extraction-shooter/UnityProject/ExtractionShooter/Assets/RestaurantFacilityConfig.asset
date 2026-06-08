@@ -104,24 +104,24 @@ MonoBehaviour:
       - resourceType: 0
         amount: 0
       sellBonusRate: 0
-      maxTotalCustomers: 20
+      maxTotalCustomers: 4
     - upgradeCosts:
-      - resourceType: 0
-        amount: 180
-      sellBonusRate: 0.05
-      maxTotalCustomers: 25
-    - upgradeCosts:
-      - resourceType: 0
-        amount: 400
-      sellBonusRate: 0.1
-      maxTotalCustomers: 30
-    - upgradeCosts:
-      - resourceType: 0
-        amount: 750
-      sellBonusRate: 0.15
-      maxTotalCustomers: 35
-    - upgradeCosts:
-      - resourceType: 0
-        amount: 1200
+      - resourceType: 20
+        amount: 5
       sellBonusRate: 0.2
-      maxTotalCustomers: 40
+      maxTotalCustomers: 4
+    - upgradeCosts:
+      - resourceType: 20
+        amount: 10
+      sellBonusRate: 0.5
+      maxTotalCustomers: 4
+    - upgradeCosts:
+      - resourceType: 20
+        amount: 30
+      sellBonusRate: 1
+      maxTotalCustomers: 6
+    - upgradeCosts:
+      - resourceType: 20
+        amount: 100
+      sellBonusRate: 2
+      maxTotalCustomers: 8
