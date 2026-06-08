@@ -419,7 +419,6 @@ public class SkillTreeInitializer : MonoBehaviour
             case 39: wsm.SetRestaurantPlateCount(wsm.restaurantPlateCount + (int)value); break;
             case 40: wsm.SetCookingTimeMultiplier(initialValue / (1f + value * level)); break; // 与换弹一致：正值缩短烹饪时间
             case 41: wsm.SetRestaurantSellBonusRate(Mathf.Max(0f, initialValue + value * level)); break;
-            case 69: wsm.SetRestaurantDishQueueSlotCount(wsm.restaurantDishQueueSlotCount + (int)value); break;
 
             // 顾客
             case 42: wsm.SetRestaurantMaxTotalCustomers(wsm.restaurantMaxTotalCustomers + (int)value); break;

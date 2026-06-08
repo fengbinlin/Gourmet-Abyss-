@@ -292,9 +292,9 @@ MonoBehaviour:
   costIconImage: {fileID: 245100309665957177}
   resourceIcons:
   - resourceType: 0
-    icon: {fileID: 21300000, guid: 59a7951d50e52c34ea463c23f373bbd4, type: 3}
+    icon: {fileID: 21300000, guid: 28c622bad6837224392f39b04d88b8a1, type: 3}
   - resourceType: 20
-    icon: {fileID: 21300000, guid: abb6ef384ddf2e24c8086aec388082df, type: 3}
+    icon: {fileID: 21300000, guid: 37cbf4bc6a83466428a304b0f4f793ab, type: 3}
   fadeInDuration: 0.3
   fadeOutDuration: 0.2
   scaleInDuration: 0.3
@@ -874,7 +874,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59a7951d50e52c34ea463c23f373bbd4, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 28c622bad6837224392f39b04d88b8a1, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3439,7 +3439,7 @@ PrefabInstance:
     - target: {fileID: 6247322095957291741, guid: 34df8cc0cab290046acde7bcaeb8d530,
         type: 3}
       propertyPath: _bursts.Array.data[0].used
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

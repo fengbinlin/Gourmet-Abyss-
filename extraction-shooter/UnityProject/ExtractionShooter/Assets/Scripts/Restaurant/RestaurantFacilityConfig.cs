@@ -30,8 +30,6 @@ public class KitchenUpgradeLevel
 public class KitchenUpgradeTrack
 {
     public string displayName = "厨房";
-    [Tooltip("升级预览用的参考烹饪时间（秒）；实际各菜仍以菜谱 cookTime × 倍率为准")]
-    [Min(0.1f)] public float previewReferenceCookTimeSeconds = 10f;
     [Tooltip("levels[0] = 1 级")]
     public KitchenUpgradeLevel[] levels;
 }
@@ -212,8 +210,7 @@ public class RestaurantFacilityConfig : ScriptableObject
                 KitchenUpgradeLevel current = GetKitchenLevel(currentLevel);
                 KitchenUpgradeLevel next = GetKitchenLevel(currentLevel + 1);
                 if (current == null || next == null) return string.Empty;
-                float refCookSec = kitchenUpgrade != null ? kitchenUpgrade.previewReferenceCookTimeSeconds : 10f;
-                AppendCookingTimeDelta(parts, refCookSec, current.cookingTimeMultiplier, next.cookingTimeMultiplier);
+                AppendCookingSpeedDelta(parts, current.cookingTimeMultiplier, next.cookingTimeMultiplier);
                 break;
             }
             case RestaurantFacilityUpgradeType.ServingCounter:
@@ -491,19 +488,13 @@ public class RestaurantFacilityConfig : ScriptableObject
         parts.Add($"{label} {current * 100f:0}%→{next * 100f:0}%");
     }
 
-    private static void AppendCookingTimeDelta(List<string> parts, float referenceSeconds, float currentTimeMult, float nextTimeMult)
+    private static void AppendCookingSpeedDelta(List<string> parts, float currentTimeMult, float nextTimeMult)
     {
         if (Mathf.Approximately(currentTimeMult, nextTimeMult))
             return;
 
-        float refSec = Mathf.Max(0.1f, referenceSeconds);
-        float currentSec = refSec * Mathf.Max(0.01f, currentTimeMult);
-        float nextSec = refSec * Mathf.Max(0.01f, nextTimeMult);
-        parts.Add($"烹饪时间 {FormatCookTimeSeconds(currentSec)}→{FormatCookTimeSeconds(nextSec)}");
-    }
-
-    private static string FormatCookTimeSeconds(float seconds)
-    {
-        return $"{seconds:0.#}秒";
+        float currentSpeed = 1f / Mathf.Max(0.01f, currentTimeMult);
+        float nextSpeed = 1f / Mathf.Max(0.01f, nextTimeMult);
+        parts.Add($"烹饪速度 {currentSpeed * 100f:0}%→{nextSpeed * 100f:0}%");
     }
 }
