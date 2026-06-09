@@ -302,8 +302,6 @@ public class CustomerNPC : MonoBehaviour
     public void AddAffection(float amount)
     {
         if (data == null) return;
-        int oldLevel = data.affectionLevel;
-        float oldValue = data.affectionValue;
 
         data.AddAffection(amount);
         UpdateAffectionUI();
