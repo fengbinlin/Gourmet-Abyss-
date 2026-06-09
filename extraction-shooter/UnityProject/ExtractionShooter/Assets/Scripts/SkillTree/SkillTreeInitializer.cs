@@ -430,6 +430,7 @@ public class SkillTreeInitializer : MonoBehaviour
             case 46: wsm.secondaryMagazineCapacity = Mathf.Max(1, Mathf.RoundToInt(initialValue * (1f + value * level))); break;
             case 47: wsm.SetPrimaryReloadDuration(initialValue / (1f + value * level)); break;
             case 48: wsm.SetSecondaryReloadDuration(initialValue / (1f + value * level)); break;
+            case 69: wsm.SetRestaurantDishQueueSlotCount(wsm.restaurantDishQueueSlotCount + (int)value); break;
 
             // FlyingCompanion（数值来自 PetManager Awake 快照；statID 52–65）
             case 52:
@@ -567,7 +568,8 @@ public class SkillTreeInitializer : MonoBehaviour
             wsm.OnWeaponStatsChangedInvoke();
         }
         if (buffEffects.Contains("(38,") || buffEffects.Contains("(39,") ||
-            buffEffects.Contains("(40,") || buffEffects.Contains("(41,"))
+            buffEffects.Contains("(40,") || buffEffects.Contains("(41,") ||
+            buffEffects.Contains("(69,"))
         {
             wsm.OnRestaurantStatsChangedInvoke();
         }
