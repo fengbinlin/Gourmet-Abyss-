@@ -367,6 +367,19 @@ public class WeaponStatsManager : MonoBehaviour
         OnRestaurantStatsChanged?.Invoke();
     }
 
+    /// <summary>
+    /// 餐厅售卖金币：单价已含技能树 sellPriceMultiplier 时，再叠加外卖升级 sellBonusRate。
+    /// </summary>
+    public int CalcRestaurantSellGold(float unitPrice, int count = 1)
+    {
+        count = Mathf.Max(0, count);
+        if (count <= 0)
+            return 0;
+
+        float price = unitPrice * count * (1f + restaurantSellBonusRate);
+        return Mathf.Max(0, Mathf.RoundToInt(price));
+    }
+
     public void SetRestaurantCustomerPrefabCount(int count)
     {
         restaurantCustomerPrefabCount = Mathf.Max(0, count);

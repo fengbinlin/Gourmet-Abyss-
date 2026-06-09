@@ -240,7 +240,9 @@ public class Plate : MonoBehaviour
         if (consumed <= 0)
             return false;
 
-        goldEarned = Mathf.RoundToInt(currentDish.recipe.baseDishPrice * consumed);
+        goldEarned = WeaponStatsManager.Instance != null
+            ? WeaponStatsManager.Instance.CalcRestaurantSellGold(currentDish.recipe.baseDishPrice, consumed)
+            : Mathf.RoundToInt(currentDish.recipe.baseDishPrice * consumed);
 
         if (currentDish.IsEmpty())
         {

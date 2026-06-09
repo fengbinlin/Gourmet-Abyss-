@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -30,6 +31,25 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
         Instance = this;
         facilityConfig?.EnsureDefaultEntries();
         ResetLevelsToDefault();
+    }
+
+    private void Start()
+    {
+        StartCoroutine(CoApplyLevelsWhenStatsReady());
+    }
+
+    /// <summary>
+    /// 等待 WeaponStatsManager 就绪后再应用配置，避免 DefaultExecutionOrder 过早导致属性未写入。
+    /// </summary>
+    private IEnumerator CoApplyLevelsWhenStatsReady()
+    {
+        float timeout = 5f;
+        while (WeaponStatsManager.Instance == null && timeout > 0f)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
         ApplyAllCurrentLevels();
     }
 
