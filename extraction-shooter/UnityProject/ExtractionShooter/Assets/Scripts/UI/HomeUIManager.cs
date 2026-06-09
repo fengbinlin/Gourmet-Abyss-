@@ -11,8 +11,10 @@ public class HomeUIManager : MonoBehaviour
     public Text STextPKVal;
 
     [Header("金币数字滚动")]
-    [SerializeField] private float moneyScrollSmoothTime = 0.14f;
-    [SerializeField] private float moneyScrollMaxSpeed = 2200f;
+    [Tooltip("用于估算动画时长：时长 ≈ 变化量 / 该速度，再被下方最小/最大时长钳制")]
+    [SerializeField] private float moneyScrollReferenceSpeed = 2200f;
+    [SerializeField] private float moneyScrollMinDuration = 0.06f;
+    [SerializeField] private float moneyScrollMaxDuration = 0.42f;
     [SerializeField] private float moneyScrollSnapEpsilon = 0.35f;
 
     [Header("金币滚动时仅 Y 轴缩放")]
@@ -33,7 +35,9 @@ public class HomeUIManager : MonoBehaviour
     private int _moneyTarget;
     private bool _moneyScrolling;
     private float _moneyPulsePhase;
-    private float _moneyScrollVel;
+    private float _moneyScrollStartValue;
+    private float _moneyScrollElapsed;
+    private float _moneyScrollDuration;
 
     private Vector3 _moneyTextScaleOriginal;
     private Vector3 _stMoneyTextScaleOriginal;
@@ -95,23 +99,37 @@ public class HomeUIManager : MonoBehaviour
         if (type != ResourceType.Money) return;
 
         if (newCount > oldCount)
-        {
-            _moneyTarget = newCount;
-            if (!_moneyScrolling)
-            {
-                _moneyScrolling = true;
-                _moneyPulsePhase = 0f;
-            }
-        }
+            BeginMoneyIncreaseScroll(newCount);
         else
+            SnapMoneyDisplay(newCount);
+    }
+
+    private void BeginMoneyIncreaseScroll(int newTarget)
+    {
+        _moneyTarget = newTarget;
+        float delta = Mathf.Abs(_moneyTarget - _moneyDisplayFloat);
+        if (delta <= moneyScrollSnapEpsilon)
         {
-            _moneyTarget = newCount;
-            _moneyDisplayFloat = newCount;
-            _moneyScrolling = false;
-            _moneyScrollVel = 0f;
-            ResetMoneyTextScales();
-            ApplyMoneyTexts();
+            SnapMoneyDisplay(newTarget);
+            return;
         }
+
+        _moneyScrollStartValue = _moneyDisplayFloat;
+        _moneyScrollElapsed = 0f;
+        float refSpeed = Mathf.Max(1f, moneyScrollReferenceSpeed);
+        _moneyScrollDuration = Mathf.Clamp(delta / refSpeed, moneyScrollMinDuration, moneyScrollMaxDuration);
+        _moneyScrolling = true;
+        _moneyPulsePhase = 0f;
+    }
+
+    private void SnapMoneyDisplay(int value)
+    {
+        _moneyTarget = value;
+        _moneyDisplayFloat = value;
+        _moneyScrolling = false;
+        _moneyScrollElapsed = 0f;
+        ResetMoneyTextScales();
+        ApplyMoneyTexts();
     }
 
     private void Update()
@@ -131,25 +149,17 @@ public class HomeUIManager : MonoBehaviour
     {
         if (_moneyScrolling)
         {
-            float dist = _moneyTarget - _moneyDisplayFloat;
-            if (Mathf.Abs(dist) <= moneyScrollSnapEpsilon)
+            _moneyScrollElapsed += Time.deltaTime;
+            float duration = Mathf.Max(0.01f, _moneyScrollDuration);
+            float t = Mathf.Clamp01(_moneyScrollElapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+            _moneyDisplayFloat = Mathf.Lerp(_moneyScrollStartValue, _moneyTarget, eased);
+
+            if (t >= 1f || Mathf.Abs(_moneyTarget - _moneyDisplayFloat) <= moneyScrollSnapEpsilon)
             {
-                _moneyDisplayFloat = _moneyTarget;
-                _moneyScrollVel = 0f;
-                _moneyScrolling = false;
-                ResetMoneyTextScales();
-                ApplyMoneyTexts();
+                SnapMoneyDisplay(_moneyTarget);
                 return;
             }
-
-            float smoothT = Mathf.Max(0.03f, moneyScrollSmoothTime);
-            _moneyDisplayFloat = Mathf.SmoothDamp(
-                _moneyDisplayFloat,
-                _moneyTarget,
-                ref _moneyScrollVel,
-                smoothT,
-                moneyScrollMaxSpeed,
-                Time.deltaTime);
 
             _moneyPulsePhase += Time.deltaTime * moneyWobbleHz * Mathf.PI * 2f;
             float p = _moneyPulsePhase;
@@ -162,12 +172,7 @@ public class HomeUIManager : MonoBehaviour
         }
         else
         {
-            int m = GameValManager.Instance.GetResourceCount(ResourceType.Money);
-            _moneyTarget = m;
-            _moneyDisplayFloat = m;
-            _moneyScrollVel = 0f;
-            ResetMoneyTextScales();
-            ApplyMoneyTexts();
+            SnapMoneyDisplay(GameValManager.Instance.GetResourceCount(ResourceType.Money));
         }
     }
 
