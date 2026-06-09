@@ -112,6 +112,10 @@ public class LootCollector : MonoBehaviour
             float floatY = Mathf.Sin((Time.time + floatingOffset.x) * floatFrequency) * floatAmplitude;
             Vector3 newPosition = startPosition + new Vector3(0, floatY, 0);
             transform.position = newPosition;
+
+            // 兜底：物体生成时玩家已在范围内，或 Update 直接改位置导致 OnTriggerEnter 未触发
+            if (!canBeCollected && !isFlyingToPlayer)
+                TryBeginCollectionFromPlayerOverlap();
         }
         else if (player != null && isFlyingToPlayer)
         {
@@ -165,99 +169,110 @@ public class LootCollector : MonoBehaviour
         isReadyToCollect = true;
         timeSinceLastInteraction = Time.time;
 
-        // 检测玩家是否已经在触发器内部
-        if (player != null && col != null)
-        {
-            if (col.bounds.Contains(player.position))
-            {
-                // 等效于玩家刚刚进入触发器
-                playerInTrigger = true;
-                timeSinceLastInteraction = Time.time;
+        TryBeginCollectionFromPlayerOverlap();
+    }
 
-                if (IsDirectToGameValPickup())
-                {
-                    canBeCollected = true;
-                    StartFlyToPlayer();
-                }
-                else
-                {
-                    if (CheckInventorySpace())
-                    {
-                        canBeCollected = true;
-                        StartFlyToPlayer();
-                    }
-                    else
-                    {
-                        if (waitForCollectionCoroutine != null)
-                            StopCoroutine(waitForCollectionCoroutine);
-                        waitForCollectionCoroutine = StartCoroutine(WaitForCollectionInTrigger());
-                    }
-                }
-            }
+    private static bool IsPlayerCollider(Collider other)
+    {
+        if (other == null) return false;
+        if (other.CompareTag("Player")) return true;
+        if (other.attachedRigidbody != null && other.attachedRigidbody.CompareTag("Player")) return true;
+        return other.transform.root != null && other.transform.root.CompareTag("Player");
+    }
+
+    private static bool IsPlayerDead(Collider other)
+    {
+        if (other == null) return false;
+
+        TopDownController ctrl = other.GetComponent<TopDownController>();
+        if (ctrl == null && other.attachedRigidbody != null)
+            ctrl = other.attachedRigidbody.GetComponent<TopDownController>();
+        if (ctrl == null && other.transform.root != null)
+            ctrl = other.transform.root.GetComponent<TopDownController>();
+
+        return ctrl != null && ctrl.isDead;
+    }
+
+    private void TryBeginCollectionFromPlayerOverlap()
+    {
+        if (!isReadyToCollect || isFlyingToPlayer || canBeCollected || col == null)
+            return;
+
+        if (player == null)
+        {
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            if (playerObject != null)
+                player = playerObject.transform;
         }
+
+        if (player == null)
+            return;
+
+        Vector3 closest = col.ClosestPoint(player.position);
+        if (Vector3.Distance(closest, player.position) > 0.35f)
+            return;
+
+        BeginCollectionForPlayer();
+    }
+
+    private void BeginCollectionForPlayer()
+    {
+        playerInTrigger = true;
+        timeSinceLastInteraction = Time.time;
+
+        if (IsDirectToGameValPickup())
+        {
+            canBeCollected = true;
+            StartFlyToPlayer();
+            return;
+        }
+
+        bool hasSpace = CheckInventorySpace();
+        isInventoryFull = !hasSpace;
+
+        if (hasSpace)
+        {
+            canBeCollected = true;
+            StartFlyToPlayer();
+            return;
+        }
+
+        if (flyAndDestroyWhenFull)
+        {
+            canBeCollected = true;
+            isInventoryFull = true;
+            ShowFullInventoryMessage();
+            StartFlyToPlayer();
+            return;
+        }
+
+        ShowFullInventoryMessage();
+        if (waitForCollectionCoroutine != null)
+            StopCoroutine(waitForCollectionCoroutine);
+        waitForCollectionCoroutine = StartCoroutine(WaitForCollectionInTrigger());
     }
 
     // 当玩家进入触发器
     private void OnTriggerEnter(Collider other)
     {
-        if (!isReadyToCollect || isFlyingToPlayer) return;
+        if (!isReadyToCollect || isFlyingToPlayer || canBeCollected) return;
+        if (!IsPlayerCollider(other) || IsPlayerDead(other)) return;
 
-        if (other.CompareTag("Player"))
-        {
-            if (other.GetComponent<TopDownController>().isDead)
-            {
-                return;
-            }
-            playerInTrigger = true;
-            timeSinceLastInteraction = Time.time; // 重置超时计时
-            
-            // 如果是植物资源并且设置为直接加入数值管理器，则直接可以收集
-            if (IsDirectToGameValPickup())
-            {
-                canBeCollected = true;
-                StartFlyToPlayer();
-            }
-            else
-            {
-                // 检查背包空间
-                bool hasSpace = CheckInventorySpace();
-                isInventoryFull = !hasSpace;
-                
-                if (hasSpace)
-                {
-                    canBeCollected = true;
-                    StartFlyToPlayer();
-                }
-                else
-                {
-                    // 背包已满
-                    if (flyAndDestroyWhenFull)
-                    {
-                        // 即使背包已满，也直接开始飞向玩家
-                        canBeCollected = true;
-                        isInventoryFull = true;
-                        ShowFullInventoryMessage();
-                        StartFlyToPlayer();
-                    }
-                    else
-                    {
-                        ShowFullInventoryMessage();
-                        // 背包已满，开始等待重试
-                        if (waitForCollectionCoroutine != null)
-                        {
-                            StopCoroutine(waitForCollectionCoroutine);
-                        }
-                        waitForCollectionCoroutine = StartCoroutine(WaitForCollectionInTrigger());
-                    }
-                }
-            }
-        }
+        BeginCollectionForPlayer();
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (!isReadyToCollect || isFlyingToPlayer || canBeCollected) return;
+        if (!IsPlayerCollider(other) || IsPlayerDead(other)) return;
+
+        BeginCollectionForPlayer();
     }
 
     // 当玩家离开触发器
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (IsPlayerCollider(other))
         {
             playerInTrigger = false;
 
