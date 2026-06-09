@@ -247,6 +247,32 @@ public class WeaponStatsManager : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// 按资源类型读取敌人掉落密度倍率；列表未配置或下标越界时返回 1。
+    /// </summary>
+    public float GetEnemyLootDensityMultiplier(ResourceType type)
+    {
+        if (type == ResourceType.None || enemtLootDensityBindings == null || enemtLootDensityBindings.Count == 0)
+            return 1f;
+
+        int index = (int)type;
+        if (index >= 0 && index < enemtLootDensityBindings.Count)
+        {
+            EnemyLootBinding binding = enemtLootDensityBindings[index];
+            if (binding != null && binding.type == type)
+                return Mathf.Max(0f, binding.lootDensityMultiplier);
+        }
+
+        for (int i = 0; i < enemtLootDensityBindings.Count; i++)
+        {
+            EnemyLootBinding binding = enemtLootDensityBindings[i];
+            if (binding != null && binding.type == type)
+                return Mathf.Max(0f, binding.lootDensityMultiplier);
+        }
+
+        return 1f;
+    }
     
     public void OnShopStatsChangedInvoke()
     {

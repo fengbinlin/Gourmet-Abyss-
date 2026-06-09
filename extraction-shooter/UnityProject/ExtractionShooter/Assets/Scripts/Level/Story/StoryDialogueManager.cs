@@ -1,9 +1,7 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 /// <summary>
 /// 剧情对话期间：冻结玩家移动/射击、暂停扣氧气、聚焦相机（orthographicSize）。
@@ -13,11 +11,12 @@ public class StoryDialogueManager : MonoBehaviour
 {
     public static StoryDialogueManager Instance { get; private set; }
 
-    [Header("剧情完成本地存档（按关卡）")]
-    [Tooltip("用于生成 PlayerPrefs Key；建议每套剧情用不同 ID。留空会自动用场景名作为区分。")]
+    [Header("剧情完成（仅当前游戏轮，停止运行后重置）")]
+    [Tooltip("区分不同剧情线；建议每套剧情用不同 ID。")]
     [SerializeField] private string storyId = "CarrotCubBossSister";
-    [Tooltip("剧情进度数据资产（右键 Create -> Story -> Story Progress Data 创建）")]
-    [SerializeField] private StoryProgressData storyProgressData;
+
+    /// <summary>进程内会话缓存：退出 Play / 关闭游戏后自动清空，不写盘。</summary>
+    private static readonly Dictionary<string, bool> SessionStoryCleared = new Dictionary<string, bool>();
 
     private bool storyClearedThisScene;
     private string completionKey;
@@ -75,7 +74,7 @@ public class StoryDialogueManager : MonoBehaviour
         bvm = BattleValManager.Instance;
 
         InitCompletionKeyForCurrentScene();
-        LoadStoryProgress();
+        SyncClearedStateFromSession();
 
         if (playerController == null)
         {
@@ -115,56 +114,50 @@ public class StoryDialogueManager : MonoBehaviour
     {
         string sceneName = SceneManager.GetActiveScene().name;
         currentSceneName = sceneName;
-        string idPart = string.IsNullOrWhiteSpace(storyId) ? "Auto" : storyId;
-        completionKey = $"StoryCleared_{idPart}_{sceneName}";
+        completionKey = BuildSessionProgressKey(GetEffectiveStoryId(), sceneName);
     }
 
-    private void LoadStoryProgress()
+    public bool IsStoryClearedThisScene
     {
-        if (storyProgressData == null)
+        get
         {
-            storyClearedThisScene = false;
-            Debug.LogError($"[StoryDialogueManager] 未绑定 StoryProgressData，默认按未通关处理。storyId={storyId}, scene={currentSceneName}");
-            return;
+            string key = BuildSessionProgressKey(GetEffectiveStoryId(), SceneManager.GetActiveScene().name);
+            return SessionStoryCleared.TryGetValue(key, out bool cleared) && cleared;
         }
-
-        bool exists = storyProgressData.TryGetCleared(GetEffectiveStoryId(), currentSceneName, out bool cleared);
-        storyClearedThisScene = exists && cleared;
     }
-
-    public bool IsStoryClearedThisScene => storyClearedThisScene;
 
     public void MarkStoryClearedThisScene()
     {
-        if (storyClearedThisScene) return;
-        storyClearedThisScene = true;
-        if (storyProgressData == null)
-        {
-            Debug.LogError($"[StoryDialogueManager] 标记通关失败：StoryProgressData 未绑定。storyId={storyId}, scene={currentSceneName}");
+        string sceneName = SceneManager.GetActiveScene().name;
+        string key = BuildSessionProgressKey(GetEffectiveStoryId(), sceneName);
+        if (SessionStoryCleared.TryGetValue(key, out bool cleared) && cleared)
             return;
-        }
 
-        storyProgressData.SetCleared(GetEffectiveStoryId(), currentSceneName, true);
-        SaveStoryProgressAsset();
+        storyClearedThisScene = true;
+        SessionStoryCleared[key] = true;
+        currentSceneName = sceneName;
+        completionKey = key;
     }
 
     /// <summary>
-    /// 清除“当前场景 + 当前 storyId”对应的剧情完成标记。
+    /// 清除“当前场景 + 当前 storyId”对应的剧情完成标记（仅本会话）。
     /// </summary>
     public void ClearStoryClearedFlagForCurrentScene()
     {
         InitCompletionKeyForCurrentScene();
-        if (storyProgressData == null)
-        {
-            Debug.LogError($"[StoryDialogueManager] 清除通关标记失败：StoryProgressData 未绑定。storyId={storyId}, scene={currentSceneName}");
-            storyClearedThisScene = false;
-            return;
-        }
-
-        storyProgressData.SetCleared(GetEffectiveStoryId(), currentSceneName, false);
-        SaveStoryProgressAsset();
+        SessionStoryCleared[completionKey] = false;
         storyClearedThisScene = false;
-        Debug.Log($"[StoryDialogueManager] 已清除剧情完成标记: {completionKey}");
+    }
+
+    private void SyncClearedStateFromSession()
+    {
+        storyClearedThisScene = IsStoryClearedThisScene;
+    }
+
+    private static string BuildSessionProgressKey(string effectiveStoryId, string sceneName)
+    {
+        string idPart = string.IsNullOrWhiteSpace(effectiveStoryId) ? "Auto" : effectiveStoryId;
+        return $"StoryCleared_{idPart}_{sceneName}";
     }
 
     /// <summary>
@@ -189,24 +182,12 @@ public class StoryDialogueManager : MonoBehaviour
 
     public string GetCurrentStoryProgressDebugText()
     {
-        string dataName = storyProgressData != null ? storyProgressData.name : "null";
-        return $"storyId={GetEffectiveStoryId()}, scene={currentSceneName}, key={completionKey}, cleared={storyClearedThisScene}, dataAsset={dataName}";
+        return $"storyId={GetEffectiveStoryId()}, scene={currentSceneName}, key={completionKey}, cleared={IsStoryClearedThisScene}, persistence=session-only";
     }
 
     private string GetEffectiveStoryId()
     {
         return string.IsNullOrWhiteSpace(storyId) ? "Auto" : storyId;
-    }
-
-    private void SaveStoryProgressAsset()
-    {
-#if UNITY_EDITOR
-        if (storyProgressData != null)
-        {
-            EditorUtility.SetDirty(storyProgressData);
-            AssetDatabase.SaveAssets();
-        }
-#endif
     }
 
     public void BeginDialogueLock(float focusOrthographicSize)

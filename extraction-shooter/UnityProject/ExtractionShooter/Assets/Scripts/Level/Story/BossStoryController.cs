@@ -154,7 +154,6 @@ public class BossStoryController : MonoBehaviour
     {
         if (hideCanvasOnStart && canvasRoot != null) canvasRoot.SetActive(false);
 
-        // 若已通关：本关不再激活 BOSS 剧情逻辑
         if (StoryDialogueManager.Instance != null && StoryDialogueManager.Instance.IsStoryClearedThisScene)
         {
             if (canvasRoot != null) canvasRoot.SetActive(false);

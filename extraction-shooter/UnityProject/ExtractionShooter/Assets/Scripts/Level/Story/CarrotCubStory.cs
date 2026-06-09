@@ -172,23 +172,13 @@ public class CarrotCubStory : MonoBehaviour
             }
         }
 
-        // 若已通关：本关不再激活幼崽/BOSS/姐姐（直接跳过剧情）
         if (StoryDialogueManager.Instance != null && StoryDialogueManager.Instance.IsStoryClearedThisScene)
         {
-            Debug.LogError($"[CarrotCubStory] 启动即销毁：检测到本场景剧情已通关。{StoryDialogueManager.Instance.GetCurrentStoryProgressDebugText()}");
             if (bossRoot != null) bossRoot.SetActive(false);
             if (sisterRoot != null) sisterRoot.SetActive(false);
             if (canvasRoot != null) canvasRoot.SetActive(false);
             Destroy(gameObject);
             return;
-        }
-        else if (StoryDialogueManager.Instance == null)
-        {
-            Debug.LogError("[CarrotCubStory] StoryDialogueManager.Instance 为空，无法读取剧情进度，按未通关继续。");
-        }
-        else
-        {
-            Debug.Log($"[CarrotCubStory] 正常启动（未通关）。{StoryDialogueManager.Instance.GetCurrentStoryProgressDebugText()}");
         }
 
         if (deactivateBossAndSisterAtStart)

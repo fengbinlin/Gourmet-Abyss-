@@ -119,7 +119,6 @@ public class SisterStoryController : MonoBehaviour
         if (hideCanvasOnStart && canvasRoot != null && !continuousCryingAfterActivation)
             canvasRoot.SetActive(false);
 
-        // 若已通关：本关不再激活姐姐剧情逻辑（由 CarrotCubStory 统一关掉根物体）
         if (StoryDialogueManager.Instance != null && StoryDialogueManager.Instance.IsStoryClearedThisScene)
         {
             if (sisterRoot != null) sisterRoot.SetActive(false);
@@ -362,7 +361,6 @@ public class SisterStoryController : MonoBehaviour
 
         TryEnablePetAndSpawn();
 
-        // 写入本地通关存档：不依赖宠物是否生成、当前是否 Battle
         if (StoryDialogueManager.Instance != null)
             StoryDialogueManager.Instance.MarkStoryClearedThisScene();
 

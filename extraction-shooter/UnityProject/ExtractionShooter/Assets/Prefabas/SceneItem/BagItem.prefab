@@ -170,6 +170,10 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 2127c2a0db800404b952ca4e42ccc1ad, type: 3}
   - type: 20
     icon: {fileID: 21300000, guid: 3c4cd928e437dad45a928cd1677dc079, type: 3}
+  - type: 25
+    icon: {fileID: 21300000, guid: f1fa437f947cc8e4a9540fe0b5d46daf, type: 3}
+  - type: 24
+    icon: {fileID: 21300000, guid: 0f1e86c233537e64994aa50dc6afb0f0, type: 3}
 --- !u!1 &6837150894747597180
 GameObject:
   m_ObjectHideFlags: 0
