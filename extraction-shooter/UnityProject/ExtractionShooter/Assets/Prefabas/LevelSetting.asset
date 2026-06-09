@@ -17,8 +17,8 @@ MonoBehaviour:
     requiredSkills: 1
     levelTitle: 
   - level: 1
-    requiredSkills: 40
+    requiredSkills: 30
     levelTitle: 
   - level: 2
-    requiredSkills: 80
+    requiredSkills: 100
     levelTitle: 
