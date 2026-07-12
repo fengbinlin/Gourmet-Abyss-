@@ -5,6 +5,12 @@ using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 public class EnemyHealth : MonoBehaviour
 {
+    public enum HealthBarType
+    {
+        Monster,
+        Gatherable
+    }
+
     [Header("生命值设置")]
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float currentHealth;
@@ -86,6 +92,10 @@ public class EnemyHealth : MonoBehaviour
     public bool IsDead => isDead;
     
     // 进度条相关变量
+    [SerializeField] private HealthBarType healthBarType = HealthBarType.Monster;
+    [SerializeField] private Color monsterHealthColor = new Color(0.86f, 0.34f, 0.34f, 1f);
+    [SerializeField] private Color gatherableHealthColor = new Color(0.55f, 0.55f, 0.55f, 1f);
+
     private Coroutine redFillCoroutine;
     
     // 血量条隐藏相关变量
@@ -118,11 +128,12 @@ public class EnemyHealth : MonoBehaviour
         {
             // 设置锚点和轴心为中间
             SetAnchorAndPivotToCenter(whiteBar);
-            SetAnchorAndPivotToCenter(redBar);
+            SetAnchorAndPivotToLeft(redBar);
+            ApplyHealthBarColor();
             
             // 初始时进度条宽度为0
             SetBarWidth(whiteBar, maxBarWidth);
-            SetBarWidth(redBar, 0f);
+            SetBarWidth(redBar, maxBarWidth);
             
             // 初始隐藏进度条
             if (healthBarParent != null)
@@ -151,6 +162,25 @@ public class EnemyHealth : MonoBehaviour
     {
         if(width>maxBarWidth) width = maxBarWidth;
         bar.sizeDelta = new Vector2(width, bar.sizeDelta.y);
+    }
+
+    private void SetAnchorAndPivotToLeft(RectTransform rectTransform)
+    {
+        rectTransform.anchorMin = new Vector2(0f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0f, 0.5f);
+        rectTransform.pivot = new Vector2(0f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(0f, rectTransform.anchoredPosition.y);
+    }
+
+    private void ApplyHealthBarColor()
+    {
+        Image fillImage = redBar != null ? redBar.GetComponent<Image>() : null;
+        if (fillImage != null)
+        {
+            fillImage.color = healthBarType == HealthBarType.Gatherable
+                ? gatherableHealthColor
+                : monsterHealthColor;
+        }
     }
     
     // 获取当前宽度
@@ -221,9 +251,10 @@ public class EnemyHealth : MonoBehaviour
         SetBarWidth(whiteBar, maxBarWidth);
 
         // 计算损失的血量百分比
-        float healthPercent = currentHealth / maxHealth;
-        float lostHealthPercent = 1f - healthPercent;
-        float targetWidth = lostHealthPercent * maxBarWidth;
+        float healthPercent = maxHealth > 0f
+            ? Mathf.Clamp01(currentHealth / maxHealth)
+            : 0f;
+        float targetWidth = healthPercent * maxBarWidth;
         
         // 重置隐藏计时器
         ResetHideTimer();
