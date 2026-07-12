@@ -108,6 +108,7 @@ MonoBehaviour:
   redBar: {fileID: 7044841150195392706}
   healthBarParent: {fileID: 3001424616569880909}
   maxBarWidth: 2367.1
+  healthBarType: 1
   fillDelay: 0.5
   fillDuration: 0.3
   hideDelay: 2
