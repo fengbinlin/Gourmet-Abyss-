@@ -11,7 +11,6 @@ using DG.Tweening;
 public class PrerequisiteData
 {
     public SkillNode node;  // 前置节点
-    public int requiredLevel = 1;  // 需要的前置节点等级
 }
 
 [System.Serializable]
@@ -102,7 +101,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public SkillNodeData skillData;
 
     [Header("前置条件")]
-    public List<PrerequisiteData> prerequisites = new List<PrerequisiteData>(); // 前置节点及其等级要求
+    public List<PrerequisiteData> prerequisites = new List<PrerequisiteData>();
 
     [Header("连线点")]
     public Transform[] connectionPoints;
@@ -275,7 +274,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             if (prereq.node == null)
                 continue;
 
-            if (prereq.node.skillData.currentLevel < prereq.requiredLevel)
+            if (prereq.node.skillData.currentLevel < 1)
                 return false;
         }
 
@@ -592,7 +591,7 @@ public class SkillNode : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
         foreach (var prereq in prerequisites)
         {
-            if (prereq.node == null || prereq.node.skillData.currentLevel < prereq.requiredLevel)
+            if (prereq.node == null || prereq.node.skillData.currentLevel < 1)
                 return false;
         }
 

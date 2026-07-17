@@ -268,7 +268,7 @@ public class SkillTree : MonoBehaviour
                 .FirstOrDefault(p => p.node == connection.fromNode);
 
             bool levelEnough = prereqData != null &&
-                               prereqData.node.skillData.currentLevel >= prereqData.requiredLevel;
+                               prereqData.node.skillData.currentLevel >= 1;
 
             Color lineColor = hiddenLineColor;
             float alpha = 0f;

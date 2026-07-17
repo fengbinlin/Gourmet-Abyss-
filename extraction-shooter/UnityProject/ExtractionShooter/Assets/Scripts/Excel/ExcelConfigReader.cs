@@ -17,7 +17,7 @@ public class SkillConfigData
 {
     public int skillID;
     public string skillName;
-    public string prerequisiteIDs; // 原来的，兼容旧数据
+    public List<int> prerequisiteSkillIDs = new List<int>();
     public string position;
     public int maxLevel;
     public int isRare;
@@ -28,9 +28,6 @@ public class SkillConfigData
     public string iconPath;
     public string levelCostStr;
     public List<SkillLevelCost> levelCosts;
-
-    // ✅ 新增：前置技能等级需求字符串（例如 "1:2;2:3"）
-    public string prerequisiteLevels;
 }
 
 [DefaultExecutionOrder(100)]
@@ -176,8 +173,11 @@ public class ExcelConfigReader : MonoBehaviour
                 SkillConfigData data = new SkillConfigData();
                 if (int.TryParse(values[0], out int id)) data.skillID = id;
                 data.skillName = values[1];
-                data.prerequisiteIDs = values[2];
-                data.prerequisiteLevels = values[2];
+                if (!TryParsePrerequisiteSkillIDs(values[2], out data.prerequisiteSkillIDs))
+                {
+                    Debug.LogError($"技能 {data.skillID} 的前置技能ID格式无效: '{values[2]}'。仅支持用英文分号分隔的正整数，例如 13;15。");
+                    continue;
+                }
                 data.position = values[3];
                 if (int.TryParse(values[4], out int maxLevel)) data.maxLevel = maxLevel;
                 if (int.TryParse(values[5], out int isRare)) data.isRare = isRare;
@@ -193,6 +193,25 @@ public class ExcelConfigReader : MonoBehaviour
                 skillConfigs.Add(data);
             }
         }
+    }
+
+    private static bool TryParsePrerequisiteSkillIDs(string rawValue, out List<int> skillIDs)
+    {
+        skillIDs = new List<int>();
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return true;
+
+        string[] entries = rawValue.Split(';');
+        foreach (string entry in entries)
+        {
+            string value = entry.Trim();
+            if (!Regex.IsMatch(value, @"^[1-9]\d*$") || !int.TryParse(value, out int skillID))
+                return false;
+
+            skillIDs.Add(skillID);
+        }
+
+        return true;
     }
 
     private void ApplyInitialStats()

@@ -128,37 +128,19 @@ public class SkillTreeInitializer : MonoBehaviour
             skillNodeMap[config.skillID] = newNode;
         }
 
-        // 第二遍：建立前置关系
+        // 第二遍：建立前置关系。所有前置技能只需达到 1 级。
         foreach (var config in skillConfigs)
         {
-            if (!string.IsNullOrEmpty(config.prerequisiteIDs))
+            if (config.prerequisiteSkillIDs != null && config.prerequisiteSkillIDs.Count > 0)
             {
                 SkillNode currentNode = skillNodeMap[config.skillID];
-                string[] prereqIDs = config.prerequisiteIDs.Split(';');
-
-                foreach (string entry in prereqIDs)
+                foreach (int prereqId in config.prerequisiteSkillIDs)
                 {
-                    if (string.IsNullOrWhiteSpace(entry)) continue;
-
-                    string[] parts = entry.Split(':');
-                    int prereqId = 0;
-                    int requiredLevel = 1;
-
-                    if (parts.Length > 0 && int.TryParse(parts[0].Trim(), out int id))
-                    {
-                        prereqId = id;
-                    }
-                    if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int level))
-                    {
-                        requiredLevel = level;
-                    }
-
                     if (skillNodeMap.ContainsKey(prereqId))
                     {
                         currentNode.prerequisites.Add(new PrerequisiteData
                         {
-                            node = skillNodeMap[prereqId],
-                            requiredLevel = requiredLevel
+                            node = skillNodeMap[prereqId]
                         });
                     }
                 }
