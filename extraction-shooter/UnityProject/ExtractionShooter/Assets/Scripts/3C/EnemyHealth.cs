@@ -697,7 +697,8 @@ public class EnemyHealth : MonoBehaviour
             {
                 // 生成随机数量的掉落物实例
                 int itemAmount = Random.Range(lootItem.minAmount, lootItem.maxAmount + 1);
-                float lootDensityMultiplier = WeaponStatsManager.Instance != null
+                // Enemy drop-density upgrades must not change gatherable yields.
+                float lootDensityMultiplier = healthBarType == HealthBarType.Monster && WeaponStatsManager.Instance != null
                     ? WeaponStatsManager.Instance.GetEnemyLootDensityMultiplier(lootItem.resourceType)
                     : 1f;
                 itemAmount = Mathf.Max(0, Mathf.RoundToInt(itemAmount * lootDensityMultiplier));

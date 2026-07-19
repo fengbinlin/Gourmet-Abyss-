@@ -2,6 +2,14 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+public enum LootStorageMode
+{
+    UseLegacyConfiguration = 0,
+    SlotInventory = 1,
+    RunIngredientBag = 2,
+    PermanentResource = 3
+}
+
 public class LootCollector : MonoBehaviour
 {
     [Header("收集设置")]
@@ -21,7 +29,11 @@ public class LootCollector : MonoBehaviour
     [SerializeField] private float attractionRadius = 3f; // 引力半径
 
     [Header("销毁设置")]
-    [SerializeField] private float destroyTimeout = 10f;  // 超过此时间未被采集则销毁自身
+    [SerializeField] private float destroyTimeout = 10f;  // Total lifetime from spawn.
+    [Tooltip("Seconds of blinking before the loot expires. Included in Destroy Timeout.")]
+    [SerializeField] private float expiryWarningDuration = 3f;
+    [Tooltip("Visibility toggle interval during the expiry warning.")]
+    [SerializeField] private float expiryBlinkInterval = 0.15f;
 
     [Header("特效设置")]
     [SerializeField] private GameObject collectEffectPrefab; // 收集特效
@@ -34,9 +46,12 @@ public class LootCollector : MonoBehaviour
 
     [Header("植物设置")]
     [Tooltip("是否为植物类资源")]
+    [HideInInspector]
     [SerializeField] private bool isPlantResource = false; // 是否为植物类资源
-    [Tooltip("植物资源是否直接加入数值管理器而不经过背包")]
-    [SerializeField] private bool plantDirectToGameVal = true; // 植物资源是否直接加入数值管理器
+    [Tooltip("Where this pickup is stored. Legacy preserves existing prefab behavior.")]
+    [SerializeField] private LootStorageMode storageMode = LootStorageMode.UseLegacyConfiguration;
+    [HideInInspector]
+    [SerializeField] private bool plantDirectToGameVal = true; // Legacy compatibility only.
 
     [Header("背包已满设置")]
     [Tooltip("背包已满时是否仍然飞向玩家并销毁")]
@@ -62,6 +77,8 @@ public class LootCollector : MonoBehaviour
     private Coroutine waitForCollectionCoroutine; // 等待收集的协程
     private bool isInventoryFull = false; // 标记背包是否已满
     private float lastFullMessageTime = -999f;
+    private Renderer[] cachedRenderers;
+    private bool[] rendererInitialStates;
 
     private void Awake()
     {
@@ -70,6 +87,11 @@ public class LootCollector : MonoBehaviour
         startPosition = transform.position;
         spawnTime = Time.time;
         timeSinceLastInteraction = Time.time;
+
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        rendererInitialStates = new bool[cachedRenderers.Length];
+        for (int i = 0; i < cachedRenderers.Length; i++)
+            rendererInitialStates[i] = cachedRenderers[i] != null && cachedRenderers[i].enabled;
 
         // 随机浮动偏移
         floatingOffset = new Vector3(
@@ -122,11 +144,9 @@ public class LootCollector : MonoBehaviour
             FlyToPlayer();
         }
 
-        // 检查是否超时（只有玩家不在触发器内且没有飞行时才检查）
-        if (!playerInTrigger && !isFlyingToPlayer)
-        {
+        // Lifetime is based on spawn time and is never reset by trigger interaction.
+        if (!isFlyingToPlayer)
             CheckDestroyTimeout();
-        }
     }
 
     // 添加随机起始旋转
@@ -147,19 +167,40 @@ public class LootCollector : MonoBehaviour
     // 检查销毁超时
     private void CheckDestroyTimeout()
     {
-        if (Time.time - timeSinceLastInteraction > destroyTimeout)
+        if (destroyTimeout <= 0f) return;
+
+        float age = Time.time - spawnTime;
+        if (age >= destroyTimeout)
         {
             Debug.Log($"物品存在时间超过{destroyTimeout}秒，自动销毁: {resourceType}");
             Destroy(gameObject);
+            return;
         }
+
+        float warningStart = Mathf.Max(0f, destroyTimeout - Mathf.Max(0f, expiryWarningDuration));
+        if (age < warningStart)
+        {
+            RestoreRendererVisibility();
+            return;
+        }
+
+        float interval = Mathf.Max(0.03f, expiryBlinkInterval);
+        bool visible = Mathf.FloorToInt((age - warningStart) / interval) % 2 == 0;
+        SetRendererVisibility(visible);
     }
 
     // 设置掉落物的资源类型和数量
-    public void SetResourceInfo(ResourceType type, int amount, bool isPlant = false)
+    public void SetResourceInfo(ResourceType type, int amount)
     {
         resourceType = type;
         resourceAmount = amount;
-        isPlantResource = isPlant;
+    }
+
+    public void SetResourceInfo(ResourceType type, int amount, LootStorageMode targetStorageMode)
+    {
+        resourceType = type;
+        resourceAmount = amount;
+        storageMode = targetStorageMode;
     }
 
     private IEnumerator InitiateCollection()
@@ -220,7 +261,7 @@ public class LootCollector : MonoBehaviour
         playerInTrigger = true;
         timeSinceLastInteraction = Time.time;
 
-        if (IsDirectToGameValPickup())
+        if (UsesNoSlotStorage())
         {
             canBeCollected = true;
             StartFlyToPlayer();
@@ -323,10 +364,22 @@ public class LootCollector : MonoBehaviour
         }
     }
 
-    /// <summary>植物/南瓜等直入 GameValManager 的拾取物，不占背包，也不提示背包满。</summary>
-    private bool IsDirectToGameValPickup()
+    private LootStorageMode GetEffectiveStorageMode()
     {
-        return plantDirectToGameVal && (isPlantResource || resourceType == ResourceType.LootPumkin);
+        if (storageMode != LootStorageMode.UseLegacyConfiguration)
+            return storageMode;
+
+        // Existing plant prefabs used these two booleans. Preserve their serialized
+        // behavior, but route them to the run-only bag instead of permanent storage.
+        return plantDirectToGameVal && isPlantResource
+            ? LootStorageMode.RunIngredientBag
+            : LootStorageMode.SlotInventory;
+    }
+
+    private bool UsesNoSlotStorage()
+    {
+        LootStorageMode mode = GetEffectiveStorageMode();
+        return mode == LootStorageMode.RunIngredientBag || mode == LootStorageMode.PermanentResource;
     }
 
     // 检查背包空间
@@ -342,6 +395,7 @@ public class LootCollector : MonoBehaviour
 
     private void StartFlyToPlayer()
     {
+        RestoreRendererVisibility();
         isFlyingToPlayer = true;
         currentFlySpeed = flySpeed;
 
@@ -354,6 +408,26 @@ public class LootCollector : MonoBehaviour
         if (col != null)
         {
             col.isTrigger = true;
+        }
+    }
+
+    private void SetRendererVisibility(bool visible)
+    {
+        if (cachedRenderers == null) return;
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            if (cachedRenderers[i] != null)
+                cachedRenderers[i].enabled = visible && rendererInitialStates[i];
+        }
+    }
+
+    private void RestoreRendererVisibility()
+    {
+        if (cachedRenderers == null) return;
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            if (cachedRenderers[i] != null)
+                cachedRenderers[i].enabled = rendererInitialStates[i];
         }
     }
 
@@ -410,10 +484,8 @@ public class LootCollector : MonoBehaviour
 
     private void Collect()
     {
-        // 植物类/南瓜类收集物：直接写入数值管理器，不进背包
-        // 约定：当 plantDirectToGameVal 开启时，勾选 isPlantResource 的物体会直入；同时南瓜（LootPumkin）强制按植物类处理，避免 prefab/生成逻辑漏传 isPlant 导致进背包。
-        bool shouldDirectToGameVal = IsDirectToGameValPickup();
-        if (shouldDirectToGameVal)
+        LootStorageMode effectiveStorageMode = GetEffectiveStorageMode();
+        if (UsesNoSlotStorage())
         {
             // 播放收集特效
             if (collectEffectPrefab != null)
@@ -435,16 +507,28 @@ public class LootCollector : MonoBehaviour
                 AudioManager.Instance.PlayAudio("2");
             }
 
-            if (GameValManager.Instance != null)
+            bool stored = false;
+            if (effectiveStorageMode == LootStorageMode.RunIngredientBag)
+            {
+                InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
+                stored = inventoryManager != null;
+                if (stored)
+                    inventoryManager.AddRunIngredient(resourceType, resourceAmount);
+            }
+            else if (effectiveStorageMode == LootStorageMode.PermanentResource && GameValManager.Instance != null)
             {
                 GameValManager.Instance.AddResource(resourceType, resourceAmount);
-                Debug.Log($"已收集并直接加入数值管理器: {resourceAmount} 个 {resourceType}");
+                stored = true;
+            }
+
+            if (stored)
+            {
+                Debug.Log($"已收集到 {effectiveStorageMode}: {resourceAmount} 个 {resourceType}");
                 Destroy(gameObject);
                 return;
             }
 
-            Debug.LogWarning($"GameValManager.Instance 为空，无法直入资源：{resourceAmount} 个 {resourceType}；将按背包逻辑回退");
-            // 若数值管理器未初始化，回退到原背包逻辑（不 return）
+            Debug.LogWarning($"{effectiveStorageMode} 不可用，资源未写入，将按占格背包逻辑回退：{resourceAmount} 个 {resourceType}");
         }
 
         // 统一走战斗背包：收集前都要检查背包空间
@@ -560,7 +644,7 @@ public class LootCollector : MonoBehaviour
 
     private void ShowFullInventoryMessage()
     {
-        if (IsDirectToGameValPickup())
+        if (UsesNoSlotStorage())
             return;
 
         if (Time.time - lastFullMessageTime < Mathf.Max(0.1f, fullMessageCooldown))
