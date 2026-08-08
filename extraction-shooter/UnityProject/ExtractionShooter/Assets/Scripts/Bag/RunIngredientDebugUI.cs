@@ -61,7 +61,13 @@ public class RunIngredientDebugUI : MonoBehaviour
         textRect.offsetMax = new Vector2(-14f, -10f);
 
         ingredientText = textObject.GetComponent<Text>();
-        ingredientText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        // Unity 2022.2+ removed the built-in "Arial.ttf"; it now returns null and the
+        // Text renders no glyphs (red panel shows, text invisible). Prefer the new
+        // "LegacyRuntime.ttf" and fall back to Arial for older editors.
+        Font builtinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (builtinFont == null)
+            builtinFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        ingredientText.font = builtinFont;
         ingredientText.fontSize = 28;
         ingredientText.color = new Color(1f, 0.92f, 0.2f, 1f);
         ingredientText.alignment = TextAnchor.UpperCenter;
