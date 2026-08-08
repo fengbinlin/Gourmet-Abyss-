@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Core.SceneFlow;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -52,6 +53,8 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
         CacheRestaurantInitialPosition();
     }
 
+    #region 对外的四条转场入口
+
     /// <summary>
     /// 进入关卡
     /// </summary>
@@ -61,7 +64,7 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
 
         string targetScene = sceneName ?? levelSceneName;
         AudioManager.Instance.PlayAudio("3");
-        StartCoroutine(EnterLevelProcess(targetScene));
+        StartCoroutine(RunTransition(TransitionPresets.EnterLevel(targetScene)));
     }
 
     /// <summary>
@@ -72,7 +75,8 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
         if (isTransitioning || loadedLevels.Count == 0) return;
 
         string currentLevel = loadedLevels[loadedLevels.Count - 1];
-        StartCoroutine(ExitLevelProcess(currentLevel));
+        AudioManager.Instance.PlayAudio("3");
+        StartCoroutine(RunTransition(TransitionPresets.ExitLevel(currentLevel)));
     }
 
     /// <summary>
@@ -88,7 +92,7 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
             targetScene = loadedLevels[loadedLevels.Count - 1];
         }
         AudioManager.Instance.PlayAudio("3");
-        StartCoroutine(FromLevelToHomeProcess(targetScene));
+        StartCoroutine(RunTransition(TransitionPresets.LevelToHome(targetScene)));
     }
 
     /// <summary>
@@ -98,366 +102,215 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
     {
         if (isTransitioning) return;
         AudioManager.Instance.PlayAudio("3");
-        StartCoroutine(SwitchLevelProcess(fromLevel, toLevel));
+        StartCoroutine(RunTransition(TransitionPresets.SwitchLevel(fromLevel, toLevel)));
     }
 
-    private IEnumerator EnterLevelProcess(string levelName)
+    /// <summary>
+    /// 检查是否正在过渡
+    /// </summary>
+    public bool IsTransitioning()
     {
+        return isTransitioning;
+    }
+
+    #endregion
+
+    #region 统一转场管线
+
+    /// <summary>
+    /// 所有转场的唯一执行器。四条路径的差异全部由 <see cref="TransitionRequest"/> 描述，
+    /// 取值见 <see cref="TransitionPresets"/>。新增路径加预设即可，不要再复制这段协程。
+    /// </summary>
+    private IEnumerator RunTransition(TransitionRequest req)
+    {
+        // ---- 前置状态 ----
         isTransitioning = true;
-        // A newly entered dungeon always starts with an empty run-only ingredient bag.
-        InventoryManager.instance?.ClearRunIngredients();
-        
+        ApplyRunBag(req.RunBag);
+        if (req.Oxygen == OxygenAction.StopConsuming) BattleValManager.Instance?.StopConsuming();
         // 切场前清理全局消息，避免消息面板残留卡住
         GlobalMessageUI.Clear();
 
-        // 1. 触发UI动画
-        if (transitionUIAnimator != null)
-        {
-            transitionUIAnimator.SetTrigger("EnterLevel");
-        }
+        if (transitionUIAnimator != null && !string.IsNullOrEmpty(req.AnimatorTrigger))
+            transitionUIAnimator.SetTrigger(req.AnimatorTrigger);
 
         yield return new WaitForSeconds(uiAnimationDelay);
 
-        // 2. 首先将主场景车辆从原色过渡到白色
-        VehicleColorTransition homeVehicle = FindVehicleInScene("UpGround");
-        if (homeVehicle != null)
-        {
-            Debug.Log("主场景车辆开始过渡到白色");
+        // ---- 旧场景淡出到白色 ----
+        VehicleColorTransition fadeOut = FindVehicleInScene(req.VehicleFadeOutScene);
+        if (fadeOut != null) fadeOut.TransitionToWhite(transitionDuration);
 
-            homeVehicle.TransitionToWhite(transitionDuration);
-        }
+        ApplySaturation(req.Saturation);
+        ApplyEmission(req.Emission);
 
-
-        // 3. 其他过渡效果
-        if (saturationTransition != null)
-        {
-            saturationTransition.TransitionToUnsaturated();
-        }
-
-        if (emissionTransition != null)
-        {
-            emissionTransition.EnterLevelTransition();
-        }
-
-        // 等待车辆过渡完成
         yield return new WaitForSeconds(transitionDuration);
 
-        // 4. 确保主场景车辆完全变成白色
-        if (homeVehicle != null)
+        if (fadeOut != null) fadeOut.SetToWhiteImmediate();
+
+        // ---- 场景加载 / 卸载 ----
+        AsyncOperation unload = null;
+        AsyncOperation load = null;
+
+        if (!string.IsNullOrEmpty(req.SceneToUnload))
         {
-            // 立即设置为白色，确保在加载新场景前完成
-            homeVehicle.SetToWhiteImmediate();
+            unload = SceneManager.UnloadSceneAsync(req.SceneToUnload);
+            if (unload != null) unload.allowSceneActivation = true;
         }
 
-        Debug.Log($"车辆已变成白色，开始加载场景: {levelName}");
-
-        // 5. 加载关卡场景
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(levelName, LoadSceneMode.Additive);
-        asyncLoad.allowSceneActivation = true;
-
-        while (!asyncLoad.isDone)
+        if (!string.IsNullOrEmpty(req.SceneToLoad))
         {
+            load = SceneManager.LoadSceneAsync(req.SceneToLoad, LoadSceneMode.Additive);
+            if (load != null) load.allowSceneActivation = true;
+        }
+
+        // 这一档要在等待完成之前就复位，是跨帧行为，不能挪。
+        if (req.HudTiming == HudRefreshTiming.BeforeSceneOpCompletes)
+        {
+            ResetTapBounce();
+            BlinkMainUI();
+        }
+
+        while ((unload != null && !unload.isDone) || (load != null && !load.isDone))
             yield return null;
-        }
-        ResetTapBounce();
-        ApplySceneTitle(levelName);
-        mainUI.SetActive(false);
-        mainUI.SetActive(true);
-        // 6. 隐藏主场景物体
-        if (homeSceneObject != null)
-        {
-            homeSceneObject.SetActive(false);
-        }
-        if (postProcessObject != null)
-        {
-            postProcessObject.SetActive(false);
-        }
-        MoveRestaurantForBattle();
-        RefreshMainCamera();
 
-        // 7. 新场景车辆从白色过渡到原色
-        // 注意：这里需要等待一帧确保新场景完全加载
-        yield return null;
+        if (req.HudTiming == HudRefreshTiming.BeforeSceneOpCompletes)
+            ApplySceneTitle(TitleSceneOf(req));
+        else if (req.HudTiming == HudRefreshTiming.AfterSceneOpBeforeWorldSetup)
+            RefreshHud(req);
 
-        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
+        // ---- 世界状态 ----
+        ApplyHomeObjects(req.HomeObjects);
+        ApplyRestaurantPose(req.Restaurant);
+        if (req.RefreshMainCamera) RefreshMainCamera();
 
-        if (levelVehicle != null)
+        if (req.HudTiming == HudRefreshTiming.AfterWorldSetup)
+            RefreshHud(req);
+
+        // ---- 新场景从白色淡回原色 ----
+        if (req.ExtraFrameBeforeFadeIn) yield return null;
+
+        VehicleColorTransition fadeIn = FindVehicleInScene(req.VehicleFadeInScene);
+        if (fadeIn != null)
         {
-            Debug.Log("新场景车辆开始从白色过渡到原色");
-
-            levelVehicle.enabled = true;
-            levelVehicle.SetToWhiteImmediate();
-            levelVehicle.TransitionToOriginal(transitionDuration);
+            fadeIn.enabled = true;
+            fadeIn.SetToWhiteImmediate();
+            fadeIn.TransitionToOriginal(transitionDuration);
         }
-        else
+        else if (req.Kind == TransitionKind.EnterLevel)
         {
-            Debug.LogWarning($"在场景 {levelName} 中未找到VehicleColorTransition组件");
+            Debug.LogWarning($"在场景 {req.VehicleFadeInScene} 中未找到VehicleColorTransition组件");
         }
-        
-        BattleValManager.Instance.StartConsuming();
-        loadedLevels.Add(levelName);
+
+        // ---- 收尾 ----
+        if (req.ReenablePlayerController) ReenablePlayerController();
+        if (req.Oxygen == OxygenAction.StartConsuming) BattleValManager.Instance?.StartConsuming();
+
+        if (!string.IsNullOrEmpty(req.SceneToUnload)) loadedLevels.Remove(req.SceneToUnload);
+        if (!string.IsNullOrEmpty(req.SceneToLoad)) loadedLevels.Add(req.SceneToLoad);
+
         isTransitioning = false;
-        PlayerStateManager.instance.currentState=PlayerState.Battle;
-        UIManager.instance?.SetBattleUIActive(true);
+        PlayerStateManager.instance.currentState = req.TargetPlayerState;
+        UIManager.instance?.SetBattleUIActive(req.BattleUiActive);
+        if (req.ResetBattleValues) BattleValManager.Instance?.ResetValues();
+        if (req.PlaySlotsEntranceAnimation) InventoryManager.instance?.PlaySlotsEntranceAnimation();
     }
 
-    private IEnumerator ExitLevelProcess(string levelName)
+    private static void ApplyRunBag(RunBagAction action)
     {
-        AudioManager.Instance.PlayAudio("3");
-        // 8. 重置游戏状态
-
-        BattleValManager.Instance?.StopConsuming();
-        InventoryManager.instance?.TransferRunIngredientsToGameValAndClear();
-        isTransitioning = true;
-        
-        // 切场前清理全局消息，避免消息面板残留卡住
-        GlobalMessageUI.Clear();
-
-        // 1. 触发UI动画
-        if (transitionUIAnimator != null)
+        switch (action)
         {
-            transitionUIAnimator.SetTrigger("ExitLevel");
+            case RunBagAction.Clear:
+                InventoryManager.instance?.ClearRunIngredients();
+                break;
+            case RunBagAction.CommitToGameVal:
+                InventoryManager.instance?.TransferRunIngredientsToGameValAndClear();
+                break;
         }
-
-        yield return new WaitForSeconds(uiAnimationDelay);
-
-        // 2. 当前关卡车辆从原色过渡到白色
-        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
-        if (levelVehicle != null)
-        {
-            Debug.Log("关卡车辆开始过渡到白色");
-
-            levelVehicle.TransitionToWhite(transitionDuration);
-        }
-
-        // 3. 其他过渡效果
-        if (saturationTransition != null)
-        {
-            saturationTransition.TransitionToSaturated();
-        }
-
-        if (emissionTransition != null)
-        {
-            emissionTransition.ExitLevelTransition();
-        }
-
-        // 等待车辆过渡完成
-        yield return new WaitForSeconds(transitionDuration);
-
-        // 4. 确保关卡车辆完全变成白色
-        if (levelVehicle != null)
-        {
-            levelVehicle.SetToWhiteImmediate();
-        }
-
-        Debug.Log("关卡车辆已变成白色，开始卸载场景");
-
-        // 5. 卸载关卡场景
-        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(levelName);
-        asyncUnload.allowSceneActivation = true;
-        ResetTapBounce();
-        mainUI.SetActive(false);
-        mainUI.SetActive(true);
-        while (!asyncUnload.isDone)
-        {
-            yield return null;
-        }
-        ApplySceneTitle(SceneManager.GetActiveScene().name);
-        // 6. 显示主场景物体
-        if (homeSceneObject != null)
-        {
-            homeSceneObject.SetActive(true);
-        }
-        if (postProcessObject != null)
-        {
-            postProcessObject.SetActive(true);
-        }
-        RestoreRestaurantToHomePosition();
-
-        // 7. 主场景车辆从白色过渡到原色
-        VehicleColorTransition homeVehicle = FindVehicleInScene("UpGround");
-        if (homeVehicle != null)
-        {
-            Debug.Log("主场景车辆开始从白色过渡到原色");
-
-            homeVehicle.enabled = true;
-            homeVehicle.SetToWhiteImmediate();
-            homeVehicle.TransitionToOriginal(transitionDuration);
-        }
-
-        loadedLevels.Remove(levelName);
-        isTransitioning = false;
-        PlayerStateManager.instance.currentState=PlayerState.UpGround;
-        UIManager.instance?.SetBattleUIActive(false);
-        BattleValManager.Instance?.ResetValues();
-        InventoryManager.instance?.PlaySlotsEntranceAnimation();
     }
 
-    private IEnumerator FromLevelToHomeProcess(string levelName)
+    private void ApplySaturation(SaturationDirection direction)
     {
-        // 8. 重置游戏状态
+        if (saturationTransition == null) return;
 
-        BattleValManager.Instance?.StopConsuming();
-        // Death clears the run bag before reaching this path; a normal cave-car exit commits it.
-        InventoryManager.instance?.TransferRunIngredientsToGameValAndClear();
-        isTransitioning = true;
-        
-        // 切场前清理全局消息，避免消息面板残留卡住
-        GlobalMessageUI.Clear();
-
-        // 1. 触发UI动画
-        if (transitionUIAnimator != null)
+        switch (direction)
         {
-            transitionUIAnimator.SetTrigger("EnterLevel");
+            case SaturationDirection.ToSaturated:
+                saturationTransition.TransitionToSaturated();
+                break;
+            case SaturationDirection.ToUnsaturated:
+                saturationTransition.TransitionToUnsaturated();
+                break;
         }
+    }
 
-        yield return new WaitForSeconds(uiAnimationDelay);
+    private void ApplyEmission(EmissionEffect effect)
+    {
+        if (emissionTransition == null) return;
 
-        // 2. 当前关卡车辆从原色过渡到白色
-        VehicleColorTransition levelVehicle = FindVehicleInScene(levelName);
-        if (levelVehicle != null)
+        switch (effect)
         {
-            levelVehicle.TransitionToWhite(transitionDuration);
+            case EmissionEffect.EnterLevel:
+                emissionTransition.EnterLevelTransition();
+                break;
+            case EmissionEffect.ExitLevel:
+                emissionTransition.ExitLevelTransition();
+                break;
         }
+    }
 
-        // 3. 其他过渡效果
-        if (saturationTransition != null)
-        {
-            saturationTransition.TransitionToSaturated();
-        }
+    private void ApplyHomeObjects(HomeSceneVisibility visibility)
+    {
+        if (visibility == HomeSceneVisibility.Unchanged) return;
 
-        // 等待车辆过渡完成
-        yield return new WaitForSeconds(transitionDuration);
+        bool active = visibility == HomeSceneVisibility.Show;
+        if (homeSceneObject != null) homeSceneObject.SetActive(active);
+        if (postProcessObject != null) postProcessObject.SetActive(active);
+    }
 
-        // 4. 确保关卡车辆完全变成白色
-        if (levelVehicle != null)
+    private void ApplyRestaurantPose(RestaurantPose pose)
+    {
+        switch (pose)
         {
-            levelVehicle.SetToWhiteImmediate();
+            case RestaurantPose.MoveAwayForBattle:
+                MoveRestaurantForBattle();
+                break;
+            case RestaurantPose.RestoreToHome:
+                RestoreRestaurantToHomePosition();
+                break;
         }
+    }
 
-        // 5. 卸载关卡场景
-        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(levelName);
-        asyncUnload.allowSceneActivation = true;
-
-        while (!asyncUnload.isDone)
-        {
-            yield return null;
-        }
-
-        // 6. 显示主场景物体
-        if (homeSceneObject != null)
-        {
-            homeSceneObject.SetActive(true);
-        }
-        if (postProcessObject != null)
-        {
-            postProcessObject.SetActive(true);
-        }
-        RestoreRestaurantToHomePosition();
-        RefreshMainCamera();
-        // 7. 主场景车辆从白色过渡到原色
-        VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
-        if (homeVehicle != null)
-        {
-            homeVehicle.enabled = true;
-            homeVehicle.SetToWhiteImmediate();
-            homeVehicle.TransitionToOriginal(transitionDuration);
-        }
+    private void RefreshHud(TransitionRequest req)
+    {
         ResetTapBounce();
-        ApplySceneTitle(SceneManager.GetActiveScene().name);
+        ApplySceneTitle(TitleSceneOf(req));
+        BlinkMainUI();
+    }
+
+    /// <summary>标题取自新加载的场景；没有新场景（退出关卡）时取当前活动场景。</summary>
+    private static string TitleSceneOf(TransitionRequest req)
+    {
+        return !string.IsNullOrEmpty(req.SceneToLoad)
+            ? req.SceneToLoad
+            : SceneManager.GetActiveScene().name;
+    }
+
+    /// <summary>关开一次 mainUI，让其下的面板重跑 OnEnable 完成刷新。</summary>
+    private void BlinkMainUI()
+    {
+        if (mainUI == null) return;
+
         mainUI.SetActive(false);
         mainUI.SetActive(true);
+    }
 
+    private static void ReenablePlayerController()
+    {
         GameObject player = GameObject.FindGameObjectWithTag("Player");
-        TopDownController playerController = player != null ? player.GetComponent<TopDownController>() : null;
-        if (playerController != null) playerController.enabled = true;
-        loadedLevels.Remove(levelName);
-        isTransitioning = false;
-        PlayerStateManager.instance.currentState=PlayerState.UpGround;
-        UIManager.instance?.SetBattleUIActive(false);
-        BattleValManager.Instance?.ResetValues();
-        InventoryManager.instance?.PlaySlotsEntranceAnimation();
+        TopDownController controller = player != null ? player.GetComponent<TopDownController>() : null;
+        if (controller != null) controller.enabled = true;
     }
 
-    private IEnumerator SwitchLevelProcess(string fromLevel, string toLevel)
-    {
-        isTransitioning = true;
-        
-        // 切场前清理全局消息，避免消息面板残留卡住
-        GlobalMessageUI.Clear();
-
-        // 1. 触发UI动画
-        if (transitionUIAnimator != null)
-        {
-            transitionUIAnimator.SetTrigger("SwitchLevel");
-        }
-
-        yield return new WaitForSeconds(uiAnimationDelay);
-
-        // 2. 当前关卡车辆从原色过渡到白色
-        VehicleColorTransition fromVehicle = FindVehicleInScene(fromLevel);
-        if (fromVehicle != null)
-        {
-            fromVehicle.TransitionToWhite(transitionDuration);
-        }
-
-        // 3. 其他过渡效果
-        if (saturationTransition != null)
-        {
-            saturationTransition.TransitionToUnsaturated();
-        }
-
-        if (emissionTransition != null)
-        {
-            emissionTransition.ExitLevelTransition();
-        }
-
-        // 等待车辆过渡完成
-        yield return new WaitForSeconds(transitionDuration);
-
-        // 4. 确保当前关卡车辆完全变成白色
-        if (fromVehicle != null)
-        {
-            fromVehicle.SetToWhiteImmediate();
-        }
-
-        Debug.Log("当前关卡车辆已变成白色，开始切换场景");
-
-        // 5. 卸载当前关卡
-        AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(fromLevel);
-        asyncUnload.allowSceneActivation = true;
-
-        // 6. 加载新关卡
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(toLevel, LoadSceneMode.Additive);
-        asyncLoad.allowSceneActivation = true;
-
-        while (!asyncUnload.isDone || !asyncLoad.isDone)
-        {
-            yield return null;
-        }
-        RefreshMainCamera();
-        // 7. 新关卡车辆从白色过渡到原色
-        VehicleColorTransition toVehicle = FindVehicleInScene(toLevel);
-        if (toVehicle != null)
-        {
-            Debug.Log("新关卡车辆开始从白色过渡到原色");
-
-            toVehicle.enabled = true;
-            toVehicle.SetToWhiteImmediate();
-            toVehicle.TransitionToOriginal(transitionDuration);
-        }
-        ResetTapBounce();
-        ApplySceneTitle(toLevel);
-        mainUI.SetActive(false);
-        mainUI.SetActive(true);
-        // 更新关卡列表
-        loadedLevels.Remove(fromLevel);
-        loadedLevels.Add(toLevel);
-
-        isTransitioning = false;
-        PlayerStateManager.instance.currentState=PlayerState.Battle;
-        UIManager.instance?.SetBattleUIActive(true);
-    }
+    #endregion
 
     /// <summary>按目标场景解析标题。解析不到时保留原文本。</summary>
     private void ApplySceneTitle(string sceneName)
@@ -484,6 +337,8 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
     /// </summary>
     private VehicleColorTransition FindVehicleInScene(string sceneName)
     {
+        if (string.IsNullOrEmpty(sceneName)) return null;
+
         Scene scene = SceneManager.GetSceneByName(sceneName);
         if (!scene.IsValid())
         {
@@ -506,14 +361,6 @@ public class LevelManager : PersistentMonoSingleton<LevelManager>
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// 检查是否正在过渡
-    /// </summary>
-    public bool IsTransitioning()
-    {
-        return isTransitioning;
     }
 
     private void CacheRestaurantInitialPosition()

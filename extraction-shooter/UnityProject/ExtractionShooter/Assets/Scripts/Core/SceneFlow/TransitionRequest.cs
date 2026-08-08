@@ -34,12 +34,25 @@ namespace Game.Core.SceneFlow
     /// <summary>地面主场景物体（homeSceneObject / postProcessObject）的显隐处理。</summary>
     public enum HomeSceneVisibility { Unchanged, Hide, Show }
 
-    /// <summary>HUD 收尾（mainUI 关开一次 + UITapBounce.ResetPosition）相对于场景加载/卸载的时机。</summary>
+    /// <summary>
+    /// HUD 收尾（UITapBounce 复位 + 标题 + mainUI 关开一次）的时机。
+    /// </summary>
+    /// <remarks>
+    /// 必须区分三档而不能合并：mainUI 关开会让子面板重跑 OnEnable，它相对于
+    /// homeSceneObject 显隐的先后会改变这些面板启动时看到的状态。
+    /// </remarks>
     public enum HudRefreshTiming
     {
-        /// <summary>在 LoadSceneAsync / UnloadSceneAsync 完成之后执行。</summary>
-        AfterSceneOp,
-        /// <summary>在 UnloadSceneAsync 发起之后、等待其完成之前执行（ExitLevel 的既有时机）。</summary>
+        /// <summary>场景操作完成后、地面物体显隐之前（EnterLevel 的既有时机）。</summary>
+        AfterSceneOpBeforeWorldSetup,
+
+        /// <summary>地面物体显隐、餐厅归位、相机重绑之后（SwitchLevel / FromLevelToHome 的既有时机）。</summary>
+        AfterWorldSetup,
+
+        /// <summary>
+        /// 卸载发起后、等待完成之前就复位 UITapBounce 与 mainUI，标题留到卸载完成后
+        /// （ExitLevel 的既有时机，跨帧，不能与上面两档合并）。
+        /// </summary>
         BeforeSceneOpCompletes
     }
 
@@ -72,7 +85,10 @@ namespace Game.Core.SceneFlow
         public OxygenAction Oxygen;
         public RestaurantPose Restaurant;
         public HomeSceneVisibility HomeObjects;
-        public HudRefreshTiming HudTiming = HudRefreshTiming.AfterSceneOp;
+        public HudRefreshTiming HudTiming = HudRefreshTiming.AfterSceneOpBeforeWorldSetup;
+
+        /// <summary>淡入前空转一帧，等新场景完全就绪（EnterLevel 的既有行为）。</summary>
+        public bool ExtraFrameBeforeFadeIn;
 
         /// <summary>转场结束时把玩家状态置为该值。</summary>
         public PlayerState TargetPlayerState;
@@ -119,7 +135,8 @@ namespace Game.Core.SceneFlow
             Oxygen = OxygenAction.StartConsuming,
             Restaurant = RestaurantPose.MoveAwayForBattle,
             HomeObjects = HomeSceneVisibility.Hide,
-            HudTiming = HudRefreshTiming.AfterSceneOp,
+            HudTiming = HudRefreshTiming.AfterSceneOpBeforeWorldSetup,
+            ExtraFrameBeforeFadeIn = true,
             TargetPlayerState = PlayerState.Battle,
             BattleUiActive = true,
             RefreshMainCamera = true,
@@ -181,7 +198,7 @@ namespace Game.Core.SceneFlow
             Oxygen = OxygenAction.StopConsuming,
             Restaurant = RestaurantPose.RestoreToHome,
             HomeObjects = HomeSceneVisibility.Show,
-            HudTiming = HudRefreshTiming.AfterSceneOp,
+            HudTiming = HudRefreshTiming.AfterWorldSetup,
             TargetPlayerState = PlayerState.UpGround,
             BattleUiActive = false,
             RefreshMainCamera = true,
@@ -212,7 +229,7 @@ namespace Game.Core.SceneFlow
             Oxygen = OxygenAction.None,
             Restaurant = RestaurantPose.Unchanged,
             HomeObjects = HomeSceneVisibility.Unchanged,
-            HudTiming = HudRefreshTiming.AfterSceneOp,
+            HudTiming = HudRefreshTiming.AfterWorldSetup,
             TargetPlayerState = PlayerState.Battle,
             BattleUiActive = true,
             RefreshMainCamera = true,

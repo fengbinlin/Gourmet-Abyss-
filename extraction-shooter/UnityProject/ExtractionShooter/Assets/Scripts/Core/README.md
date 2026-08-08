@@ -6,7 +6,8 @@
 |---|---|
 | `MonoSingleton.cs` | **已生效**，26 个管理器已迁移 |
 | `GameRoot.cs` | **未激活**，缺 `Resources/GameRoot.prefab` 时自动跳过 |
-| `SceneFlow/*.cs` | **仅类型定义**，尚未接入 `LevelManager` |
+| `SceneFlow/TransitionRequest.cs` | **已生效**，`LevelManager` 四条转场路径已收敛为一个协程 |
+| `SceneFlow/SceneContext.cs` | **仅类型定义**，广播尚未接线 |
 
 ---
 
@@ -193,21 +194,25 @@ GameRoot.ResetAllAndLoad("UpGround");
 
 ## 五、SceneFlow
 
-### 现状
+### 新增一条转场路径
 
-类型已定义，`LevelManager` 尚未改用。四个转场协程仍是复制粘贴的独立实现。
-
-### 接线后的用法
-
-`TransitionRequest` 把「一次转场做哪些事」表格化，四条路径变成四份配置：
+`LevelManager` 的四个协程已收敛为一个 `RunTransition(TransitionRequest)`，差异全部由配置描述。加新路径不要再复制协程，照着 `TransitionPresets` 加预设、再加一个公开入口即可：
 
 ```csharp
-LevelManager.instance.Run(TransitionPresets.EnterLevel("Layer1"));
+public void EnterBossLevel(string sceneName)
+{
+    if (isTransitioning) return;
+    StartCoroutine(RunTransition(TransitionPresets.EnterBossLevel(sceneName)));
+}
 ```
 
-新增第五条路径时，照着 `TransitionPresets` 加一个预设即可，不必再抄一遍协程。字段含义见 `TransitionRequest.cs`。
+字段含义见 `TransitionRequest.cs`。`TransitionPresets` 里的四个预设是对**当前行为的逐位复刻，含已知缺陷**，每处都有 `[现状]` 注释；修缺陷是独立一轮改动。
 
-`TransitionPresets` 里的四个预设是对**当前行为的逐位复刻，包含已知缺陷**，每处都有 `[现状]` 注释标注。修复缺陷是独立一轮改动，不要在接线时顺手改。
+### 改配置时注意执行顺序
+
+`HudRefreshTiming` 有三档，**不能合并**：`mainUI` 关开会让子面板重跑 `OnEnable`，它相对于 `homeSceneObject` 显隐的先后决定这些面板启动时看到的状态。EnterLevel 是「先刷 HUD 再隐藏地面」，FromLevelToHome 是「先显示地面再刷 HUD」，ExitLevel 更特殊——跨帧。
+
+`ExtraFrameBeforeFadeIn` 只有 EnterLevel 用，作用是等新加载的场景完全就绪再取它的车辆组件。
 
 ### 场景相关逻辑不要再写进 LevelManager
 
