@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
@@ -5,9 +6,14 @@ using System.Linq;
 using System.Collections;
 using UnityEngine.UI;
 
-public class InventoryManager : MonoBehaviour
+public class InventoryManager : MonoSingleton<InventoryManager>
 {
-    public static InventoryManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static InventoryManager instance => Instance;
+
     [Header("背包设置")]
     [SerializeField] private Transform gridParent; // Grid Layout Group的父物体
     [SerializeField] private GameObject slotPrefab; // 格子预制体
@@ -70,9 +76,8 @@ public class InventoryManager : MonoBehaviour
         public Vector3 fromWorldPos;
     }
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        instance = this;
         InitializeInventory();
     }
 
@@ -138,8 +143,10 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         // 取消订阅事件
         if (WeaponStatsManager.Instance != null)
         {

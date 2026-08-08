@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UI;
@@ -103,9 +104,11 @@ public class UnlockStatus
     }
 }
 
-public class MapUIManager : MonoBehaviour
+public class MapUIManager : MonoSingleton<MapUIManager>
 {
-    public static MapUIManager Instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
     [Header("UI References")]
     [SerializeField] private Transform mapContent; // 地图Item的父对象
     [SerializeField] private Transform regionContent; // 区域Item的父对象
@@ -133,10 +136,6 @@ public class MapUIManager : MonoBehaviour
     // 当前选中的Item
     private MapItemUI currentSelectedMapItem;
     private RegionItemUI currentHoveredRegionItem;
-    void Awake()
-    {
-        Instance = this;
-    }
     private void Start()
     {
         InitializeMapUI();

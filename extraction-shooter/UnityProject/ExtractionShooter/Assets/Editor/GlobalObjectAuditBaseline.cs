@@ -100,21 +100,14 @@ namespace Game.Core.EditorTools
                 return;
             }
 
-            string dir = RunDirectory(label);
-            if (Directory.Exists(dir) &&
-                !EditorUtility.DisplayDialog("目录已存在",
-                    $"{dir}\n\n该标签的快照已存在，继续将覆盖同名文件。", "继续", "取消"))
-                return;
-
             if (EditorApplication.isPlaying) EditorApplication.isPlaying = false;
 
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
 
+            string dir = RunDirectory(label);
+            RotatePreviousRun(dir);
             Directory.CreateDirectory(dir);
-            foreach (string old in Directory.GetFiles(dir, "*.txt")) File.Delete(old);
-            string log = Path.Combine(dir, "_run.log");
-            if (File.Exists(log)) File.Delete(log);
 
             EditorSceneManager.OpenScene("Assets/Scenes/MainUI.unity", OpenSceneMode.Single);
 
@@ -372,6 +365,34 @@ namespace Game.Core.EditorTools
         private static string RunDirectory(string label)
         {
             return Path.Combine(GlobalObjectAudit.SnapshotDirectory(), label);
+        }
+
+        /// <summary>
+        /// 把上一次同标签的快照挪到 &lt;标签&gt;.prev，再开始新的一轮。
+        /// </summary>
+        /// <remarks>
+        /// 目录名由代码状态决定，所以连续改两轮迁移后的代码会落进同一个目录。
+        /// 不留一份上轮结果就没法做「本轮改动前 vs 改动后」的对比。
+        /// </remarks>
+        private static void RotatePreviousRun(string dir)
+        {
+            if (!Directory.Exists(dir)) return;
+
+            string prev = dir + ".prev";
+            try
+            {
+                if (Directory.Exists(prev)) Directory.Delete(prev, true);
+                Directory.Move(dir, prev);
+                Debug.Log($"[基线] 上一轮快照已保留到: {prev}");
+            }
+            catch (Exception e)
+            {
+                // 轮转失败不该挡住本次运行，退回原来的「清空重写」。
+                Debug.LogWarning($"[基线] 轮转上一轮快照失败，将直接覆盖: {e.Message}");
+                foreach (string old in Directory.GetFiles(dir, "*.txt")) File.Delete(old);
+                string log = Path.Combine(dir, "_run.log");
+                if (File.Exists(log)) File.Delete(log);
+            }
         }
 
         private static void WriteSnapshot(string name, string description)

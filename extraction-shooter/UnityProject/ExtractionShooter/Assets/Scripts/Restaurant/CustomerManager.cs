@@ -1,10 +1,16 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.UI;
-public class CustomerManager : MonoBehaviour
+public class CustomerManager : MonoSingleton<CustomerManager>
 {
-    public static CustomerManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static CustomerManager instance => Instance;
+
 
     [Header("顾客生成位置")]
     public List<Transform> spawnPoints;
@@ -97,10 +103,6 @@ public class CustomerManager : MonoBehaviour
     // 🔹 当前正在与玩家交互的 NPC（全局唯一）
     public CustomerNPC currentInteractingNPC = null;
     private bool hasSubscribedCustomerStats = false;
-    void Awake()
-    {
-        instance = this;
-    }
 
     void Start()
     {

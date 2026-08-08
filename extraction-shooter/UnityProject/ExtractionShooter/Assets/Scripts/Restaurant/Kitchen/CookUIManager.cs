@@ -1,11 +1,17 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
 [DefaultExecutionOrder(-10)] // 在 CookManager 初始化之后不久
-public class CookUIManager : MonoBehaviour
+public class CookUIManager : MonoSingleton<CookUIManager>
 {
-    public static CookUIManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static CookUIManager instance => Instance;
+
 
     [Header("厨师面板")]
     public Transform cookListParent; // 厨师条目生成父物体
@@ -17,10 +23,6 @@ public class CookUIManager : MonoBehaviour
 
     private readonly List<CookUIItem> spawnedItems = new List<CookUIItem>();
 
-    private void Awake()
-    {
-        instance = this;
-    }
 
     public void SetMaxCookCount(int newMax)
     {

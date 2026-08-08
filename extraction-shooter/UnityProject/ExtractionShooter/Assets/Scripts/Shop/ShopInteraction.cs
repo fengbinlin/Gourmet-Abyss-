@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.Events;
 using System.Collections;
@@ -5,9 +6,11 @@ using System.Collections.Generic;
 using TMPro;
 using DG.Tweening;
 
-public class ShopInteraction : MonoBehaviour
+public class ShopInteraction : MonoSingleton<ShopInteraction>
 {
-    public static ShopInteraction Instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
     [Header("商店设置")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private KeyCode interactKey = KeyCode.E;
@@ -74,9 +77,8 @@ public class ShopInteraction : MonoBehaviour
             Mathf.Max(originalUIScale.z * MinShopUiScaleFactor, 1e-6f));
     }
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        Instance = this;
         playerInventory = FindObjectOfType<InventoryManager>();
         shopManager = GetComponent<ShopManager>();
         audioSource = GetComponent<AudioSource>();
@@ -468,8 +470,10 @@ public class ShopInteraction : MonoBehaviour
         return 0;
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (shopManager != null)
             shopManager.OnShopStateChanged.RemoveListener(HandleShopStateChanged);
         if (currentUItween != null && currentUItween.IsActive())

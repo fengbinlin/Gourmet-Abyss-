@@ -1,13 +1,15 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
 /// 管理场景中所有 <see cref="RestaurantSeat"/> 的可用与占用状态。
 /// </summary>
 [DefaultExecutionOrder(-100)]
-public class SeatManager : MonoBehaviour
+public class SeatManager : MonoSingleton<SeatManager>
 {
-    public static SeatManager Instance { get; private set; }
+    // 留首个实例，重复的那份继续存活（Start/Update 照跑），只是不接管静态引用。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.KeepIncumbent;
 
     [SerializeField] private bool logSeatCountOnStart;
 
@@ -59,12 +61,9 @@ public class SeatManager : MonoBehaviour
 
     public bool HasAvailableSeat => AvailableSeatCount > 0;
 
-    private void Awake()
+    protected override void OnLostSingletonRace()
     {
-        if (Instance == null)
-            Instance = this;
-        else if (Instance != this)
-            Debug.LogWarning("[SeatManager] 场景中存在多个 SeatManager，保留首个实例。");
+        Debug.LogWarning("[SeatManager] 场景中存在多个 SeatManager，保留首个实例。");
     }
 
     private void Start()
@@ -84,11 +83,8 @@ public class SeatManager : MonoBehaviour
             RegisterSeat(found[i]);
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
+    // 原 OnDestroy 只做「清空 Instance」，该职责已由 MonoSingleton 基类接管。
+
 
     public void RegisterSeat(RestaurantSeat seat)
     {

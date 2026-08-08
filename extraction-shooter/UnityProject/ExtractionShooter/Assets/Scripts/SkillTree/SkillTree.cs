@@ -1,3 +1,4 @@
+using Game.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,9 +7,11 @@ using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
 
-public class SkillTree : MonoBehaviour
+public class SkillTree : MonoSingleton<SkillTree>
 {
-    public static SkillTree Instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
     [Header("技能树设置")]
     public string treeName = "技能树";
     public List<SkillNode> allSkillNodes = new List<SkillNode>();
@@ -56,10 +59,6 @@ public class SkillTree : MonoBehaviour
 
     public int learnedSkillNum = 0;
 
-    private void Awake()
-    {
-        Instance = this;
-    }
 
     private void Start()
     {

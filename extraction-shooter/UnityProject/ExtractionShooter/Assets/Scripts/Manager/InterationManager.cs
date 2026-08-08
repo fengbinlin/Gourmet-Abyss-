@@ -1,17 +1,19 @@
+using Game.Core;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class InterationManager : MonoBehaviour
+public class InterationManager : MonoSingleton<InterationManager>
 {
-    public static InterationManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static InterationManager instance => Instance;
+
     public GameObject mainSceneObject;
     public GameObject mainUI;
     public GameObject skillTreeObject;
-    private void Awake()
-    {
-        instance = this;
-    }
     void Start()
     {
         

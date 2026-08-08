@@ -180,10 +180,9 @@ namespace Game.Core.SceneFlow
         /// 从关卡回家（矿车/死亡路径）。对应 <c>LevelManager.FromLevelToHomeProcess</c>。
         /// </summary>
         /// <remarks>
-        /// [现状] AnimatorTrigger 是 "EnterLevel" 而非 "ExitLevel"，疑似复制粘贴未改。<br/>
-        /// [现状] VehicleFadeInScene 是 "HomeScene"，但项目中不存在该场景（地面场景叫 "UpGround"），
-        /// 因此这一步实际永远找不到车辆、静默跳过。<br/>
-        /// [现状] 无 Emission 过渡（另外三条都有）。
+        /// AnimatorTrigger 用 "EnterLevel" 是对的：Transition Plus.controller 里只有这一个参数，
+        /// "ExitLevel" / "SwitchLevel" 都不存在，填了也是空操作。<br/>
+        /// [现状] 无 Emission 过渡——但场景里 emissionTransition 引用为空，整条链路本就不生效。
         /// </remarks>
         public static TransitionRequest LevelToHome(string levelName) => new TransitionRequest
         {
@@ -191,7 +190,8 @@ namespace Game.Core.SceneFlow
             SceneToUnload = levelName,
             AnimatorTrigger = "EnterLevel",
             VehicleFadeOutScene = levelName,
-            VehicleFadeInScene = "HomeScene",
+            // 原来填的是不存在的场景名 "HomeScene"，导致进本时变白的地面载具永远恢复不了原色。
+            VehicleFadeInScene = HomeSceneName,
             Saturation = SaturationDirection.ToSaturated,
             Emission = EmissionEffect.None,
             RunBag = RunBagAction.CommitToGameVal,

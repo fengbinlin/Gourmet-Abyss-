@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,9 +6,10 @@ using UnityEngine.UI;
 /// 挂在 DecorationPanel 上，请在 Inspector 手动绑定面板、按钮与升级项。
 /// BDecoration 也可在 OnClick 中直接绑定 TogglePanel()。
 /// </summary>
-public class RestaurantDecorationPanelUI : MonoBehaviour
+public class RestaurantDecorationPanelUI : MonoSingleton<RestaurantDecorationPanelUI>
 {
-    public static RestaurantDecorationPanelUI Instance { get; private set; }
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
 
     [Header("面板")]
     [SerializeField] private GameObject panelRoot;
@@ -19,10 +21,8 @@ public class RestaurantDecorationPanelUI : MonoBehaviour
     [Header("升级项（手动拖入 4 个 KitchenUpgrade 等）")]
     [SerializeField] private RestaurantFacilityUpgradeItemUI[] upgradeItems;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        Instance = this;
-
         if (panelRoot == null)
             panelRoot = gameObject;
 
@@ -38,10 +38,10 @@ public class RestaurantDecorationPanelUI : MonoBehaviour
         RefreshAllItems();
     }
 
-    private void OnDestroy()
+    // 基类负责清空 Instance；解绑监听对所有实例都要执行。
+    protected override void OnDestroy()
     {
-        if (Instance == this)
-            Instance = null;
+        base.OnDestroy();
 
         if (toggleButton != null)
             toggleButton.onClick.RemoveListener(TogglePanel);

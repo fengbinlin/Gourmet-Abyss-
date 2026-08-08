@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using DG.Tweening;
 
 [DisallowMultipleComponent]
-public class UIFloatingButtonGroup : MonoBehaviour
+public class UIFloatingButtonGroup : MonoSingleton<UIFloatingButtonGroup>
 {
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
     [Serializable]
     public struct AnimConfig
     {
@@ -88,8 +92,6 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     private int currentSelectedIndex = -1;
     private float[] lastWaveTime;
-    public static UIFloatingButtonGroup Instance;
-
     [Header("玩家移动取消选中")]
     [SerializeField] private TopDownController playerController;
     private bool wasMovingLastFrame = false;
@@ -112,9 +114,8 @@ public class UIFloatingButtonGroup : MonoBehaviour
 
     public int RestaurantButtonIndex => restaurantButtonIndex;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        Instance=this;
         AutoPopulateIfNeeded();
         BindItems();
         EnsureSelectedStateListSize();

@@ -1,15 +1,14 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 
-public class DungeonObjectPool : MonoBehaviour
+public class DungeonObjectPool : MonoSingleton<DungeonObjectPool>
 {
     private Dictionary<GameObject, Queue<GameObject>> poolDict = new Dictionary<GameObject, Queue<GameObject>>();
-    public static DungeonObjectPool Instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
 
-    private void Awake()
-    {
-        Instance = this;
-    }
+
 
     public void Prewarm(GameObject prefab, int count, Transform parent = null)
     {

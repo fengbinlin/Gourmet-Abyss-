@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +38,7 @@ public class ObjectRecord
     public Quaternion rotation;
     public Transform parent;
 }
-public class Dungeon3DGenerator : MonoBehaviour
+public class Dungeon3DGenerator : MonoSingleton<Dungeon3DGenerator>
 {
     // ================================
     [Header("无限生成设置")]
@@ -50,7 +51,12 @@ public class Dungeon3DGenerator : MonoBehaviour
     public int localMaxX = 50;
     public int localMaxY = 22;
     public int dungeoHeight = 30;
-    public static Dungeon3DGenerator instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static Dungeon3DGenerator instance => Instance;
+
     public GameObject chunkConnector;
     public GameObject ChunkBaseObject;
 
@@ -184,10 +190,6 @@ public class Dungeon3DGenerator : MonoBehaviour
     [SerializeField] private int visibleChunkCount = 3;
     private Dictionary<int, ChunkData> chunkRegistry = new Dictionary<int, ChunkData>();
     [SerializeField] private bool debugVinePositions = true;  // 是否可视化调试
-    void Awake()
-    {
-        instance = this;
-    }
 
     void Start()
     {

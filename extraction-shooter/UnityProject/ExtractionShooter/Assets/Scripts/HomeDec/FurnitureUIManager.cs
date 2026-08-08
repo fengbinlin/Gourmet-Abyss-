@@ -1,13 +1,18 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
 /// 家具背包 UI 管理器（仿照 ItemBagManager，但去掉送礼相关逻辑）
 /// </summary>
-public class FurnitureUIManager : MonoBehaviour
+public class FurnitureUIManager : MonoSingleton<FurnitureUIManager>
 {
-    public static FurnitureUIManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static FurnitureUIManager instance => Instance;
 
     [Header("家具背包 UI 配置")]
     public UIAnimatedPanelController panelAnimatedController;
@@ -36,9 +41,8 @@ public class FurnitureUIManager : MonoBehaviour
     private bool useKindFilter = false;
     private ResourceKind filteredKind;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        instance = this;
         // 默认只显示家具类型
         useKindFilter = true;
         filteredKind = ResourceKind.Furniture;

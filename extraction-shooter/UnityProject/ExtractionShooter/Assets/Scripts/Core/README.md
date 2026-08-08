@@ -250,4 +250,6 @@ public class FooHud : MonoBehaviour, ISceneLifecycleListener
 
 输出目录由工具反射当前程序集自动判定（`pre-migration/` 或 `post-migration/`），**使用者无法指定**——菜单只负责跑流程，代码版本切换要靠 git，两者分开才不会把版本标错。运行前的确认框会显示检测到的代码状态。
 
-做 A/B 对比：跑一次 → git 切到另一版本 → **等 Unity 编译完成** → 再跑一次 → diff 两个目录。重点比对每个单例指向哪个对象、DontDestroyOnLoad 根物体清单、`_run.log` 的 Error 条数。
+每次运行会先把上一轮同名目录挪到 `<目录>.prev`，所以**改一轮代码跑一次，就能直接 diff `post-migration/` 与 `post-migration.prev/`**，不需要动 git。
+
+重点比对：每个单例指向哪个对象、DontDestroyOnLoad 根物体清单、`_run.log` 的 Error 条数。只关心「既有条目的指向有没有变」，新增条目（例如迁移后多出的 `Instance` 属性）属于预期差异。

@@ -1,13 +1,15 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
 /// 挂在餐厅「进入点」触发器上：进入范围后按 E 进入餐厅视角；通过 LeaveRestaurant()（如 UI 按钮）离开。
 /// </summary>
 [RequireComponent(typeof(Collider))]
-public class RestaurantEntryPoint : MonoBehaviour
+public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 {
-    public static RestaurantEntryPoint Instance { get; private set; }
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
 
     [Header("餐厅锚点（相机对焦位置；为空则使用本物体 Transform）")]
     [SerializeField] private Transform restaurantAnchor;
@@ -40,10 +42,8 @@ public class RestaurantEntryPoint : MonoBehaviour
 
     public bool IsEntered => _isEntered;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        Instance = this;
-
         Collider col = GetComponent<Collider>();
         if (col != null && !col.isTrigger)
             col.isTrigger = true;
@@ -53,11 +53,7 @@ public class RestaurantEntryPoint : MonoBehaviour
         SetRestaurantContentActive(false);
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
+    // 原 OnDestroy 只做「清空 Instance」，该职责已由 MonoSingleton 基类接管。
 
     private void Update()
     {

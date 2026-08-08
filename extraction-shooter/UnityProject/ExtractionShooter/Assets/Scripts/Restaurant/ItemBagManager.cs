@@ -1,10 +1,16 @@
+using Game.Core;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-public class ItemBagManager : MonoBehaviour
+public class ItemBagManager : MonoSingleton<ItemBagManager>
 {
-    public static ItemBagManager instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static ItemBagManager instance => Instance;
+
     public UIAnimatedPanelController bagAnimatedController;
     [Header("食材背包UI配置")]
     public GameObject ItemPrefabs;
@@ -20,10 +26,6 @@ public class ItemBagManager : MonoBehaviour
     private bool useKindFilter = false;
     private ResourceKind filteredKind;
 
-    void Awake()
-    {
-        instance=this;
-    }
     void Start()
     {
         GenerateItems();

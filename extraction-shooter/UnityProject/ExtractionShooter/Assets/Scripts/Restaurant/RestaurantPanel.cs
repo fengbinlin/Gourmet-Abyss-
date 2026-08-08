@@ -1,10 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
-public class RestaurantPanel : MonoBehaviour
+public class RestaurantPanel : MonoSingleton<RestaurantPanel>
 {
-    public static RestaurantPanel instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
+    public static RestaurantPanel instance => Instance;
 
     [Header("食材背包UI配置")]
     public GameObject foodItemPrefabs;
@@ -139,10 +144,8 @@ public class RestaurantPanel : MonoBehaviour
             plateSellProgressImage.gameObject.SetActive(false);
     }
 
-    void Awake()
+    protected override void OnAwake()
     {
-        instance = this;
-
         if (allPots.Count == 0 && potsList.Count > 0)
         {
             allPots.AddRange(potsList);

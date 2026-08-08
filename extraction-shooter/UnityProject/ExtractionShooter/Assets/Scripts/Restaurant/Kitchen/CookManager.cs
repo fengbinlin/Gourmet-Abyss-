@@ -1,19 +1,20 @@
+using Game.Core;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [DefaultExecutionOrder(-20)] // 早一点初始化，方便其它系统引用
-public class CookManager : MonoBehaviour
+public class CookManager : MonoSingleton<CookManager>
 {
-    public static CookManager cookManager;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的别名，等价于 <see cref="Instance"/>。</summary>
+    public static CookManager cookManager => Instance;
     public List<CustomerNPC> curCookList = new List<CustomerNPC>();
     public Transform kitchenLeftPoint;
     public Transform kitchenRightPoint;
 
-    private void Awake()
-    {
-        cookManager = this;
-    }
 
     /// <summary>获取 <see cref="RestaurantPanel.potsList"/> 中第一个空闲锅。</summary>
     public Pot GetAvailableCookingPot()
