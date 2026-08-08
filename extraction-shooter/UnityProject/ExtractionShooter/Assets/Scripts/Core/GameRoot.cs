@@ -37,11 +37,14 @@ namespace Game.Core
     }
 
     /// <summary>
-    /// 全局对象的唯一宿主与启动入口。用法与启用步骤见 Core/README.md。
+    /// 全局对象的宿主与清场入口。用法见 Core/README.md。
     /// </summary>
     /// <remarks>
-    /// <b>当前未激活</b>：<see cref="AutoBootstrap"/> 找不到 <c>Resources/GameRoot</c> 预制体时静默返回，
-    /// 因此对运行时零影响；创建该预制体即自动生效，无需改代码。
+    /// <b>清场部分（静态方法）已生效</b>，是全项目唯一实现，不依赖本组件实例。<br/>
+    /// <b>预制体自举与阶段化初始化已搁置</b>：<see cref="AutoBootstrap"/> 找不到
+    /// <c>Resources/GameRoot</c> 预制体时静默返回。不要创建该预制体——GameManager 上的管理器
+    /// 引用的是 UpGround 里的场景物体，Resources 预制体引用不到，自举生效反而会让引用全空的
+    /// 副本抢到单例。详见 README「预制体自举 —— 已搁置」。
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class GameRoot : MonoBehaviour
@@ -188,23 +191,77 @@ namespace Game.Core
 
         #endregion
 
+        #region 全局清场
+
         /// <summary>
-        /// 销毁全部全局对象并加载目标场景，用于重开 / 退回主菜单。
+        /// 取 DontDestroyOnLoad 场景里的根物体。
         /// </summary>
         /// <remarks>
-        /// 用 <c>Destroy</c> 而非 <c>DestroyImmediate</c>：销毁与 <c>LoadScene(Single)</c>
-        /// 都在本帧末生效，不会互相踩到。
+        /// Unity 没有公开的方式直接拿到该场景句柄，只能新建一个临时物体把自己送进去再读。
         /// </remarks>
-        public static void ResetAllAndLoad(string sceneName)
+        public static GameObject[] GetPersistentRootObjects()
         {
-            if (_instance != null)
+            var probe = new GameObject("~GameRootProbe");
+            DontDestroyOnLoad(probe);
+            Scene ddol = probe.scene;
+
+            GameObject[] roots = ddol.IsValid()
+                ? System.Array.FindAll(ddol.GetRootGameObjects(), go => go != probe)
+                : new GameObject[0];
+
+            DestroyImmediate(probe);
+            return roots;
+        }
+
+        /// <summary>
+        /// 销毁 DontDestroyOnLoad 里的全部根物体。
+        /// </summary>
+        /// <remarks>
+        /// 这是全项目唯一的清场实现。原先有三份：PlayerStateManager 里两份
+        /// （其中一份用 FindObjectsOfType 全场扫描后逐个 DestroyImmediate）、
+        /// SmoothCameraMovement 里一份。按根物体销毁比全场扫描更准也更快——
+        /// 全场扫描会把子物体也列进来，销毁父物体后列表里的子物体就全成了空引用。
+        /// </remarks>
+        public static void DestroyPersistentObjects(ICollection<GameObject> keep = null)
+        {
+            foreach (GameObject root in GetPersistentRootObjects())
             {
-                _instance.AdoptStrayPersistentObjects();
-                Destroy(_instance.gameObject);
-                _instance = null;
+                if (root == null) continue;
+                if (keep != null && keep.Contains(root)) continue;
+
+                DestroyImmediate(root);
             }
 
-            SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
+            _instance = null;
         }
+
+        /// <summary>销毁已加载场景中的根物体。<c>LoadScene(Single)</c> 之前的显式清理。</summary>
+        public static void DestroySceneObjects()
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (GameObject root in scene.GetRootGameObjects())
+                {
+                    if (root != null) DestroyImmediate(root);
+                }
+            }
+        }
+
+        /// <summary>销毁全部全局对象与场景对象，然后加载目标场景。用于重开 / 退回主菜单。</summary>
+        public static void ResetAllAndLoad(string sceneName)
+        {
+            DestroyPersistentObjects();
+            DestroySceneObjects();
+
+            SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
+
+            System.GC.Collect();
+            Resources.UnloadUnusedAssets();
+        }
+
+        #endregion
     }
 }

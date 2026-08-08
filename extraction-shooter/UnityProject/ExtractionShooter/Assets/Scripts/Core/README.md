@@ -155,40 +155,33 @@ protected override bool DetachBeforePersist => true;   // 先脱离父节点再 
 
 ## 四、GameRoot
 
-### 启用条件
-
-`GameRoot` 在首个场景加载前尝试 `Resources.Load<GameObject>("GameRoot")`。**该预制体不存在时静默跳过**，所以当前对运行时零影响。
-
-创建 `Assets/Resources/GameRoot.prefab`（根物体挂 `GameRoot`）的那一刻自动生效，不需要改代码。
-
-### 阶段化初始化
-
-用来替代手排 `[DefaultExecutionOrder]` 数字。管理器实现 `IGameSystem`：
+### 全局清场（已生效，全项目唯一实现）
 
 ```csharp
-public class FooManager : PersistentMonoSingleton<FooManager>, IGameSystem
-{
-    public BootPhase Phase => BootPhase.Systems;
-
-    public void InitializeSystem()
-    {
-        // 此时 Boot / Config / Data 阶段的系统都已初始化完毕
-        var cfg = ExcelConfigReader.Instance;
-    }
-}
+GameRoot.ResetAllAndLoad("UpGround");     // 清全局对象 + 清场景对象 + 加载目标场景
+GameRoot.DestroyPersistentObjects();      // 只清 DontDestroyOnLoad
+GameRoot.GetPersistentRootObjects();      // 查看 DontDestroyOnLoad 里有什么
 ```
 
-阶段顺序：`Boot → Config → Data → Systems → Ui → Gameplay`。挂在 `GameRoot` 子节点下的会被自动收集；运行时创建的用 `GameRoot.Instance.RegisterSystem(this)`。
+全是静态方法，**不依赖 GameRoot 实例**。原先有三份实现（`PlayerStateManager` 两份、`SmoothCameraMovement` 一份），现已全部转调到这里；那几个方法的签名保持不变，Inspector 绑定不受影响。
 
-**迁移期不要删除现有的 `[DefaultExecutionOrder]`**，两套并存，等依赖关系全部改为阶段声明后再删。
+按根物体销毁，不要退回全场 `FindObjectsOfType` 扫描——后者会把子物体也列进来，销毁父物体后列表里的子物体全成空引用。
 
-### 全局重置
+### 预制体自举 —— 已搁置，不要照着做
 
-```csharp
-GameRoot.ResetAllAndLoad("UpGround");
-```
+`AutoBootstrap` 会在首个场景加载前尝试 `Resources.Load<GameObject>("GameRoot")`，预制体不存在就静默跳过。**当前没有这个预制体，也不建议创建。**
 
-替代现有的三套实现（`PlayerStateManager.DestroyAllDontDestroyOnLoadObjects` / `ClearAllLoadedScenes` / `SmoothCameraMovement.ClearDontDestroyOnLoadObjects`）。用 `Destroy` 而非 `DestroyImmediate`，销毁与 `LoadScene(Single)` 都在本帧末生效，不会互相踩。
+原因：`GameManager.prefab` 上的管理器（`LevelManager` 的 `mainUI` / `TitleText` / `homeSceneObject`，`InterationManager` 的 `mainSceneObject` / `skillTreeObject` 等）引用的是 **UpGround 里的场景物体**。`Resources/` 下的预制体引用不到场景物体，Unity 会置空。一旦自举生效：
+
+1. 场景加载前实例化的副本，这些引用全是 null，但它先 `Awake` 抢到 `Instance`
+2. UpGround 里配置完好的那份随后 `Awake`，按 `DestroyNewcomer` 策略自杀
+3. 结果是一个引用全空的 `LevelManager`，一进关卡就崩
+
+要真正支持「从任意场景直接 Play」，得先让这些管理器不再持有场景引用、改成运行时查找——那是独立的一轮重构，且会丢掉 Inspector 里可视化配置的好处。
+
+### 阶段化初始化 —— 未启用
+
+`BootPhase` / `IGameSystem` 依赖上面的自举，因此同样未启用。现有的 13 处 `[DefaultExecutionOrder]` 保持不动：它们是工作的，替换的收益不足以抵消风险。
 
 ---
 

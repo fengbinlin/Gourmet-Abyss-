@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
@@ -187,40 +188,16 @@ public class SmoothCameraMovement : MonoBehaviour
         UnityEngine.SceneManagement.SceneManager.LoadScene("UpGround");
     }
 
-    /// <summary>
-    /// 清除所有标记为DontDestroyOnLoad的物体
-    /// </summary>
+    /// <summary>清除所有标记为 DontDestroyOnLoad 的物体。</summary>
     /// <param name="excludeObjects">要排除的物体列表（不销毁）</param>
     public static void ClearDontDestroyOnLoadObjects(List<GameObject> excludeObjects = null)
     {
-        // 方法1：获取DontDestroyOnLoad场景中的物体
-        GameObject[] ddolObjects = GetDontDestroyOnLoadObjects();
-
-        foreach (GameObject obj in ddolObjects)
-        {
-            if (excludeObjects != null && excludeObjects.Contains(obj))
-                continue;
-
-            DestroyImmediate(obj);
-        }
+        GameRoot.DestroyPersistentObjects(excludeObjects);
     }
 
-    /// <summary>
-    /// 获取DontDestroyOnLoad场景中的所有物体
-    /// </summary>
+    /// <summary>获取 DontDestroyOnLoad 场景中的所有根物体。</summary>
     public static GameObject[] GetDontDestroyOnLoadObjects()
     {
-        // 创建一个临时物体来获取DontDestroyOnLoad场景
-        GameObject temp = new GameObject("Temp");
-        DontDestroyOnLoad(temp);
-
-        // 获取临时物体所在的场景
-        Scene ddolScene = temp.scene;
-
-        // 销毁临时物体
-        DestroyImmediate(temp);
-
-        // 返回该场景中的所有根物体
-        return ddolScene.GetRootGameObjects();
+        return GameRoot.GetPersistentRootObjects();
     }
 }
