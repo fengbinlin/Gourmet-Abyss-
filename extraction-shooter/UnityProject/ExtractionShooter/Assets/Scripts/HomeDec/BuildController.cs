@@ -100,7 +100,6 @@ public class BuildController : MonoBehaviour
 
     private void Start()
     {
-        AllGameManager.OnDeploymentPhaseCompleted += cancelBox;
         EnsureCoreInitialized();
         if (gm == null)
         {
@@ -120,10 +119,6 @@ public class BuildController : MonoBehaviour
             gm.SetGameViewGridVisible(false);
     }
 
-    void cancelBox()
-    {
-        GetComponent<BoxCollider2D>().enabled = false;
-    }
     private void Update()
     {
         HandleMouseInput();
@@ -725,12 +720,6 @@ public class BuildController : MonoBehaviour
                 FurnitureUIManager.instance.OnFurniturePlaced(unit);
                 charmCountedInTotal = true;
             }
-
-            // 通知PlaceManager该玩家已完成摆放
-            if (!string.IsNullOrEmpty(controllingPlayerID) && PlaceManager.Instance != null)
-            {
-                PlaceManager.Instance.PlayerPlacedUnit(controllingPlayerID, unit);
-            }
         }
         else
         {
@@ -866,7 +855,10 @@ public class BuildController : MonoBehaviour
         }
     }
 
-    /// <summary>启用键盘控制模式（供PlaceManager调用）</summary>
+    /// <summary>
+    /// 启用键盘控制模式。原调用方 PlaceManager（双人摆放玩法）已删除，目前无调用点，
+    /// 键盘控制相关字段与分支一并保留，待确认家园装修是否还需要这条路径。
+    /// </summary>
     public void EnableKeyboardMode(string playerID, Vector2Int startGrid)
     {
         controllingPlayerID = playerID;

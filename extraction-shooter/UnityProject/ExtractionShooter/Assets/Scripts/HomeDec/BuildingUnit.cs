@@ -116,14 +116,6 @@ public class BuildingUnit : MonoBehaviour
         // 获取所有子对象的SpriteRenderer
         spriteRenderers = GetComponentsInChildren<SpriteRenderer>();
 
-        // // 确保有Collider2D
-        // Collider2D col = GetComponent<Collider2D>();
-        // if (col != null)
-        // {
-        //     // 初始时根据当前游戏阶段设置Trigger
-        //     UpdateColliderTriggerState();
-        // }
-
         // 计算并记录在Grid中的基础位置
         GridManager gm = GetGridManager();
         if (gm != null)
@@ -132,33 +124,6 @@ public class BuildingUnit : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        // 每帧检查并更新Trigger状态
-        //UpdateColliderTriggerState();
-    }
-
-    /// <summary>根据游戏阶段更新Collider的Trigger状态</summary>
-    private void UpdateColliderTriggerState()
-    {
-        Collider2D col = GetComponent<Collider2D>();
-        if (col == null) return;
-
-        // 只在选择阶段启用Trigger
-        if (AllGameManager.Instance != null)
-        {
-            bool shouldBeTrigger = (AllGameManager.Instance.currentPhase == AllGameManager.GamePhase.Selection);
-            if (col.isTrigger != shouldBeTrigger)
-            {
-                col.isTrigger = shouldBeTrigger;
-            }
-        }
-        else
-        {
-            // 如果没有AllGameManager，默认不是Trigger
-            col.isTrigger = false;
-        }
-    }
 
     public void OnValidate()
     {
