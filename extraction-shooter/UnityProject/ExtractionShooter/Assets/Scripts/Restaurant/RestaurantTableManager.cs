@@ -1,28 +1,20 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
 /// 根据 WeaponStatsManager.restaurantTableCount 同步场景中餐桌的显示数量。
 /// </summary>
 [DefaultExecutionOrder(-15)]
-public class RestaurantTableManager : MonoBehaviour
+public class RestaurantTableManager : MonoSingleton<RestaurantTableManager>
 {
-    public static RestaurantTableManager Instance { get; private set; }
-
     [Header("餐桌列表（按场景顺序；为空则自动查找场景中所有 Table）")]
     [SerializeField] private List<Table> allTables = new List<Table>();
 
     private bool _subscribed;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
         EnsureAllTablesPopulated();
     }
 
@@ -55,11 +47,7 @@ public class RestaurantTableManager : MonoBehaviour
         SyncTablesFromStats();
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
+    // 原 OnDestroy 只做「清空 Instance」，该职责已由 MonoSingleton 基类接管。
 
     private void TrySubscribeStats()
     {

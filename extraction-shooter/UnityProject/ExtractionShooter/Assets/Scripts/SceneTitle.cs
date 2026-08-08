@@ -1,25 +1,71 @@
-using System.Collections;
-using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
-public class SceneTitle : MonoBehaviour
+/// <summary>
+/// 场景标题与氧气消耗倍率。每个场景各挂一份，后加载的接管静态引用。
+/// </summary>
+public class SceneTitle : MonoSingleton<SceneTitle>
 {
-    public static SceneTitle instance;
-    public float SceneOxygenCostSpeedMultiplier=1;
-    public string SceneName;
-    void Awake()
+    /// <summary>每个场景各有一份，后加载的关卡接管——这是既有语义，保持不变。</summary>
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    private static SceneTitle _fallback;
+
+    /// <summary>
+    /// 当前生效的标题组件。关卡卸载后 <see cref="Instance"/> 为空（地面那份不会重新 Awake），
+    /// 此时回落到活动场景里的那份，避免在地面上取到 null。
+    /// </summary>
+    public static SceneTitle Current
     {
-        instance=this;
-    }
-    // Start is called before the first frame update
-    void Start()
-    {
-        
+        get
+        {
+            if (Instance != null) return Instance;
+
+            // 命中回落时才扫场景；有主时短路，不会造成每帧开销。
+            if (_fallback == null)
+                _fallback = Resolve(SceneManager.GetActiveScene().name);
+
+            return _fallback;
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    /// <summary>兼容旧调用点的小写别名。</summary>
+    public static SceneTitle instance => Current;
+
+    public float SceneOxygenCostSpeedMultiplier = 1;
+    public string SceneName;
+
+    /// <summary>
+    /// 取指定场景的标题组件。静态引用有效且就在目标场景里就用它，否则到该场景根物体里找。
+    /// </summary>
+    public static SceneTitle Resolve(string sceneName)
     {
-        
+        SceneTitle current = Instance;
+
+        if (string.IsNullOrEmpty(sceneName))
+            return current;
+
+        if (current != null && current.gameObject.scene.name == sceneName)
+            return current;
+
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (scene.IsValid() && scene.isLoaded)
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                SceneTitle found = root.GetComponentInChildren<SceneTitle>(true);
+                if (found != null) return found;
+            }
+        }
+
+        return current;
+    }
+
+    /// <summary>取指定场景的标题文本；解析不到时返回 null，由调用方决定是否保留原文本。</summary>
+    public static string ResolveName(string sceneName)
+    {
+        SceneTitle title = Resolve(sceneName);
+        return title != null ? title.SceneName : null;
     }
 }

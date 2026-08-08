@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -11,15 +12,13 @@ using TMPro;
 /// - 停留一段时间后淡出并离开
 /// - 高并发调用时自动排队显示（同一时间只播一条）
 /// </summary>
-public class GlobalMessageUI : MonoBehaviour
+public class GlobalMessageUI : PersistentMonoSingleton<GlobalMessageUI>
 {
     private enum MessageKind
     {
         NormalText,
         ResourceGain
     }
-
-    public static GlobalMessageUI Instance { get; private set; }
 
     [Header("基础配置")]
     [Tooltip("消息面板预制体（Prefab 内需要有 Text 或 TMP 文本；此脚本默认找 Text）")]
@@ -77,17 +76,6 @@ public class GlobalMessageUI : MonoBehaviour
             this.icon = icon;
             this.amount = amount;
         }
-    }
-
-    private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
     }
 
     private void OnDisable()

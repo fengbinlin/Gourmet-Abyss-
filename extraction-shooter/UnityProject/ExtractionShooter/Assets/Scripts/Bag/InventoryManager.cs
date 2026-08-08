@@ -113,8 +113,11 @@ public class InventoryManager : MonoBehaviour
 
     private void Start()
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // 调试浮层，正式包不创建（它会常驻 DontDestroyOnLoad 且 sortingOrder 极高）。
         if (showRunIngredientDebugUI)
             RunIngredientDebugUI.EnsureExists(this);
+#endif
 
         // 订阅背包数值变化事件
         WeaponStatsManager.Instance.OnInventoryStatsChanged += OnInventoryStatsUpdated;

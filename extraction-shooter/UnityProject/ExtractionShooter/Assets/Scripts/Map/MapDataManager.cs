@@ -1,12 +1,11 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using System;
 using System.Text;
 
-public class MapDataManager : MonoBehaviour
+public class MapDataManager : PersistentMonoSingleton<MapDataManager>
 {
-    public static MapDataManager Instance { get; private set; }
-
     [Header("地图数据")]
     [SerializeField] private List<MapData> allMaps = new List<MapData>();
 
@@ -17,18 +16,22 @@ public class MapDataManager : MonoBehaviour
     [Header("解锁管理")]
     [SerializeField] private UnlockStatusManager unlockStatusManager;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        InitializeMapData();
+    }
 
+    /// <remarks>
+    /// [现状复刻] 原 Awake 的 <c>else Destroy(gameObject);</c> 后面没有 return，
+    /// 因此重复实例同样会执行这段初始化。这里显式保留该行为。
+    /// </remarks>
+    protected override void OnLostSingletonRace()
+    {
+        InitializeMapData();
+    }
+
+    private void InitializeMapData()
+    {
         InitializeTestData();
 
         // 初始化解锁状态管理器

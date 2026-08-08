@@ -1,11 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using System;
-public class BattleValManager : MonoBehaviour
+public class BattleValManager : PersistentMonoSingleton<BattleValManager>
 {
     public Animator mainUIAnimator;
-    public static BattleValManager Instance { get; private set; }
     public GameObject subweaponUI;
     [Header("氧气设置")]
     [SerializeField] private float oxygenMax = 100f;          // 氧气总量
@@ -94,20 +94,8 @@ public class BattleValManager : MonoBehaviour
 
 
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        // 单例初始化
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-            return;
-        }
-
         // 初始化数值
         ResetValues();
     }

@@ -629,7 +629,8 @@ public class TopDownController : MonoBehaviour
     }
     public void TOHome()
     {
-        levelCaveCar.instance.ToHome();
+        // 关卡卸载后该单例为空（已在地面），此时不应再触发返回。
+        levelCaveCar.instance?.ToHome();
     }
 
     // 初始化足迹粒子效果

@@ -1,11 +1,13 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.Events;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 
+// 挂在子物体上，原来的 DontDestroyOnLoad 对非根物体无效、从未生效，故如实声明为场景内单例。
 [DefaultExecutionOrder(-40)] // 早于大部分游戏逻辑，但晚于核心管理器
-public class ShopManager : MonoBehaviour
+public class ShopManager : MonoSingleton<ShopManager>
 {
     [Header("商店显示和隐藏")]
     [Header("商店设置")]
@@ -47,8 +49,6 @@ public class ShopManager : MonoBehaviour
     private Coroutine autoUpdateCoroutine;
     private AudioSource audioSource;
 
-    // 单例模式
-    public static ShopManager Instance { get; private set; }
     // 添加：记录原始值的变量
     private int originalShopSlotCount = 4;
     private int originalSlotCapacity = 4;
@@ -56,18 +56,19 @@ public class ShopManager : MonoBehaviour
     private Dictionary<ResourceType, int> originalPrices = new Dictionary<ResourceType, int>();
     #region 初始化
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        DontDestroyOnLoad(gameObject);
-        // 单例设置
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        InitializeShopManager();
+    }
+
+    // 原 Awake 的 else 分支没有 return，重复实例同样会执行初始化，这里保留该行为。
+    protected override void OnLostSingletonRace()
+    {
+        InitializeShopManager();
+    }
+
+    private void InitializeShopManager()
+    {
         // 记录原始值
         originalShopSlotCount = shopSlotCount;
         originalSlotCapacity = slotCapacity;
@@ -872,8 +873,11 @@ public class ShopManager : MonoBehaviour
 
     #region 清理
 
-    private void OnDestroy()
+    // 基类负责清空 Instance；下面的清理对所有实例都要执行，因此放在 OnDestroy 而非 OnSingletonDestroyed。
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (autoUpdateCoroutine != null)
         {
             StopCoroutine(autoUpdateCoroutine);

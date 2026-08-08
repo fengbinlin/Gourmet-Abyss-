@@ -1,15 +1,18 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 [DefaultExecutionOrder(-60)] // 在 Audio/UI/GameVal 之后，大部分游戏逻辑之前
-public class LevelManager : MonoBehaviour
+public class LevelManager : PersistentMonoSingleton<LevelManager>
 {
     public GameObject mainUI;
     public Text TitleText;
-    public static LevelManager instance;
+
+    /// <summary>兼容旧调用点的小写别名，等价于 <see cref="Instance"/>。</summary>
+    public static LevelManager instance => Instance;
 
     [Header("场景对象")]
     public GameObject homeSceneObject;
@@ -35,21 +38,9 @@ public class LevelManager : MonoBehaviour
     private bool hasCachedRestaurantInitialPosition = false;
     private bool movedForSkillTree = false;
 
-    private void Awake()
-    {
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
-
     private void Start()
     {
-        TitleText.text = SceneTitle.instance.SceneName;
+        ApplySceneTitle(SceneManager.GetActiveScene().name);
         // 默认启动一般在“家/地上”，先隐藏战斗UI，进入关卡再打开
         UIManager.instance?.SetBattleUIActive(false);
         // TransitionUIAnimator启用时自动播放第一个动画
@@ -168,8 +159,8 @@ public class LevelManager : MonoBehaviour
         {
             yield return null;
         }
-        UITapBounce.Instance.ResetPosition();
-        TitleText.text = SceneTitle.instance.SceneName;
+        ResetTapBounce();
+        ApplySceneTitle(levelName);
         mainUI.SetActive(false);
         mainUI.SetActive(true);
         // 6. 隐藏主场景物体
@@ -182,7 +173,7 @@ public class LevelManager : MonoBehaviour
             postProcessObject.SetActive(false);
         }
         MoveRestaurantForBattle();
-        KeepMainCamera.instance.tKeepMainCamera();
+        RefreshMainCamera();
 
         // 7. 新场景车辆从白色过渡到原色
         // 注意：这里需要等待一帧确保新场景完全加载
@@ -264,14 +255,14 @@ public class LevelManager : MonoBehaviour
         // 5. 卸载关卡场景
         AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(levelName);
         asyncUnload.allowSceneActivation = true;
-        UITapBounce.Instance.ResetPosition();
+        ResetTapBounce();
         mainUI.SetActive(false);
         mainUI.SetActive(true);
         while (!asyncUnload.isDone)
         {
             yield return null;
         }
-        TitleText.text = SceneTitle.instance.SceneName;
+        ApplySceneTitle(SceneManager.GetActiveScene().name);
         // 6. 显示主场景物体
         if (homeSceneObject != null)
         {
@@ -363,7 +354,7 @@ public class LevelManager : MonoBehaviour
             postProcessObject.SetActive(true);
         }
         RestoreRestaurantToHomePosition();
-        KeepMainCamera.instance.tKeepMainCamera();
+        RefreshMainCamera();
         // 7. 主场景车辆从白色过渡到原色
         VehicleColorTransition homeVehicle = FindVehicleInScene("HomeScene");
         if (homeVehicle != null)
@@ -372,12 +363,14 @@ public class LevelManager : MonoBehaviour
             homeVehicle.SetToWhiteImmediate();
             homeVehicle.TransitionToOriginal(transitionDuration);
         }
-        UITapBounce.Instance.ResetPosition();
-        TitleText.text = SceneTitle.instance.SceneName;
+        ResetTapBounce();
+        ApplySceneTitle(SceneManager.GetActiveScene().name);
         mainUI.SetActive(false);
         mainUI.SetActive(true);
 
-        GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>().enabled = true;
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        TopDownController playerController = player != null ? player.GetComponent<TopDownController>() : null;
+        if (playerController != null) playerController.enabled = true;
         loadedLevels.Remove(levelName);
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
@@ -442,7 +435,7 @@ public class LevelManager : MonoBehaviour
         {
             yield return null;
         }
-        KeepMainCamera.instance.tKeepMainCamera();
+        RefreshMainCamera();
         // 7. 新关卡车辆从白色过渡到原色
         VehicleColorTransition toVehicle = FindVehicleInScene(toLevel);
         if (toVehicle != null)
@@ -453,8 +446,8 @@ public class LevelManager : MonoBehaviour
             toVehicle.SetToWhiteImmediate();
             toVehicle.TransitionToOriginal(transitionDuration);
         }
-        UITapBounce.Instance.ResetPosition();
-        TitleText.text = SceneTitle.instance.SceneName;
+        ResetTapBounce();
+        ApplySceneTitle(toLevel);
         mainUI.SetActive(false);
         mainUI.SetActive(true);
         // 更新关卡列表
@@ -464,6 +457,26 @@ public class LevelManager : MonoBehaviour
         isTransitioning = false;
         PlayerStateManager.instance.currentState=PlayerState.Battle;
         UIManager.instance?.SetBattleUIActive(true);
+    }
+
+    /// <summary>按目标场景解析标题。解析不到时保留原文本。</summary>
+    private void ApplySceneTitle(string sceneName)
+    {
+        if (TitleText == null) return;
+
+        string title = SceneTitle.ResolveName(sceneName);
+        if (!string.IsNullOrEmpty(title))
+            TitleText.text = title;
+    }
+
+    private static void RefreshMainCamera()
+    {
+        KeepMainCamera.instance?.tKeepMainCamera();
+    }
+
+    private static void ResetTapBounce()
+    {
+        UITapBounce.Instance?.ResetPosition();
     }
 
     /// <summary>

@@ -1,11 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 [DefaultExecutionOrder(-80)] // 先于大多数 UI 逻辑初始化
-public class UIManager : MonoBehaviour
+public class UIManager : PersistentMonoSingleton<UIManager>
 {
-    public static UIManager instance;
+    /// <summary>兼容旧调用点的小写别名，等价于 <see cref="Instance"/>。</summary>
+    public static UIManager instance => Instance;
+
     public List<GameObject> BattleUI;
     
     [Header("战斗UI特殊规则")]
@@ -15,17 +18,6 @@ public class UIManager : MonoBehaviour
     [Header("教程面板")]
     [Tooltip("教程/引导面板根物体，可在按钮 OnClick 中绑定 CloseTutorialPanel")]
     [SerializeField] private GameObject tutorialPanel;
-
-    private void Awake()
-    {
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
 
     private void Start()
     {

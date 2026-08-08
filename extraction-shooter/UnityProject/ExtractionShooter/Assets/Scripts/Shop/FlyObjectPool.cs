@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
-public class FlyObjectPool : MonoBehaviour
+// 同 ShopManager：挂在子物体上，原来的 DontDestroyOnLoad 从未生效。
+public class FlyObjectPool : MonoSingleton<FlyObjectPool>
 {
      [System.Serializable]
     public class Pool
@@ -14,21 +16,6 @@ public class FlyObjectPool : MonoBehaviour
     public Pool projectilePool;
     private Queue<GameObject> availableObjects = new Queue<GameObject>();
     private List<GameObject> allObjects = new List<GameObject>();
-    
-    public static FlyObjectPool Instance { get; private set; }
-    
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
     
     private void Start()
     {

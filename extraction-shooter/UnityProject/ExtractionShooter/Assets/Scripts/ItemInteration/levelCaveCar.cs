@@ -1,10 +1,16 @@
 // levelCaveCar.cs
 using System.Collections;
+using Game.Core;
 using UnityEngine;
 
-public class levelCaveCar : MonoBehaviour
+public class levelCaveCar : MonoSingleton<levelCaveCar>
 {
-    public static levelCaveCar instance;
+    // 每个关卡各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
+    /// <summary>兼容旧调用点的小写别名，等价于 <see cref="Instance"/>。</summary>
+    public static levelCaveCar instance => Instance;
+
     public bool canUse = true;
     public string levelName = "Layer1";
     
@@ -23,11 +29,6 @@ public class levelCaveCar : MonoBehaviour
     [SerializeField] private bool useSpawnPointRotation = false;
     [SerializeField] private Vector3 returnToHomeVfxPositionOffset = Vector3.zero;
     [SerializeField] private Vector3 returnToHomeVfxRotationOffset = Vector3.zero;
-    
-    private void Awake()
-    {
-        instance = this;
-    }
     
     private void Start()
     {

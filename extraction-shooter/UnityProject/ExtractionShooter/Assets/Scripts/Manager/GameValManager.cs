@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -86,10 +87,8 @@ public class ResourceItem
 public class ResourceChangedEvent : UnityEvent<ResourceType, int, int> { }
 
 [DefaultExecutionOrder(-100)] // 确保资源管理器尽早初始化
-public class GameValManager : MonoBehaviour
+public class GameValManager : PersistentMonoSingleton<GameValManager>
 {
-    public static GameValManager Instance { get; private set; }
-    
     [Header("资源配置")]
     [SerializeField] public List<ResourceItem> resources = new List<ResourceItem>();
     
@@ -109,20 +108,11 @@ public class GameValManager : MonoBehaviour
     [SerializeField] private bool debugMode = false;
     
     #region 单例和初始化
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            InitializeResources();
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        InitializeResources();
     }
-    
+
     private void Start()
     {
         //LoadResources();

@@ -1,11 +1,10 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 [DefaultExecutionOrder(-120)] // 比大多数管理器更早初始化
-public class AudioManager : MonoBehaviour
+public class AudioManager : PersistentMonoSingleton<AudioManager>
 {
-    public static AudioManager Instance { get; private set; }
-
     [System.Serializable]
     public class AudioData
     {
@@ -66,16 +65,8 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
         Initialize();
     }
 
@@ -474,11 +465,5 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-        {
-            Instance = null;
-        }
-    }
+    // 原 OnDestroy 只做「清空 Instance」，该职责已由 MonoSingleton 基类接管。
 }

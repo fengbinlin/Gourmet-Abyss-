@@ -1,16 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
 /// 读取 RestaurantFacilityConfig，管理厨房/摆菜台/餐桌/外卖的升级等级与属性应用。
 /// </summary>
 [DefaultExecutionOrder(-20)]
-public class RestaurantFacilityUpgradeManager : MonoBehaviour
+public class RestaurantFacilityUpgradeManager : MonoSingleton<RestaurantFacilityUpgradeManager>
 {
-    public static RestaurantFacilityUpgradeManager Instance { get; private set; }
-
     [Header("配置资产（必填）")]
     [SerializeField] private RestaurantFacilityConfig facilityConfig;
 
@@ -20,15 +19,8 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
 
     public RestaurantFacilityConfig Config => facilityConfig;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
         facilityConfig?.EnsureDefaultEntries();
         ResetLevelsToDefault();
     }
@@ -53,11 +45,7 @@ public class RestaurantFacilityUpgradeManager : MonoBehaviour
         ApplyAllCurrentLevels();
     }
 
-    private void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
-    }
+    // 原 OnDestroy 只做「清空 Instance」，该职责已由 MonoSingleton 基类接管。
 
     public int GetLevel(RestaurantFacilityUpgradeType type)
     {

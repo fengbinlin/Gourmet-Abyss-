@@ -1,13 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 // TMP
 using TMPro;
-public class AllGameManager : MonoBehaviour
+public class AllGameManager : PersistentMonoSingleton<AllGameManager>
 {
-    public static AllGameManager Instance { get; private set; }
-    
     [Header("Game Phase")]
     public GamePhase currentPhase = GamePhase.Selection;
     
@@ -111,24 +110,12 @@ public class AllGameManager : MonoBehaviour
         Playing     // Playing phase
     }
     
-    private void Awake()
+    protected override void OnAwake()
     {
-        // Singleton pattern
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else if (Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        
         // Initialize player status
         playerDead["Player1"] = false;
         playerDead["Player2"] = false;
-        
+
         // Initialize scores (no cache)
         player1Score = 0;
         player2Score = 0;

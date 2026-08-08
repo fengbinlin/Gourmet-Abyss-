@@ -1,9 +1,10 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Text;
 
-public class MoneyChest : MonoBehaviour
+public class MoneyChest : MonoSingleton<MoneyChest>
 {
     [Header("存钱箱设置")]
     [SerializeField] private int currentMoney = 0;
@@ -72,15 +73,24 @@ public class MoneyChest : MonoBehaviour
     public delegate void MoneyChangedHandler(int newAmount, int changeAmount);
     public event MoneyChangedHandler OnMoneyChanged;
 
-    public static MoneyChest Instance { get; private set; }
-
     private static readonly string[] MoneyUnits = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No" };
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        InitializeChestComponents();
+    }
 
+    /// <remarks>
+    /// [现状复刻] 原 Awake 的 <c>else Destroy(gameObject);</c> 后面没有 return，
+    /// 因此重复实例同样会执行这段初始化。这里显式保留该行为。
+    /// </remarks>
+    protected override void OnLostSingletonRace()
+    {
+        InitializeChestComponents();
+    }
+
+    private void InitializeChestComponents()
+    {
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 

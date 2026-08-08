@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 [System.Serializable]
@@ -28,7 +29,7 @@ public class UnlockConfig : ScriptableObject
     public bool autoUnlockByLevelOrder = true;
 }
 
-public class LevelUnlockSystem : MonoBehaviour
+public class LevelUnlockSystem : PersistentMonoSingleton<LevelUnlockSystem>
 {
     [Header("配置")]
     [SerializeField] private UnlockConfig unlockConfig;
@@ -43,21 +44,6 @@ public class LevelUnlockSystem : MonoBehaviour
     private Dictionary<string, bool> mapUnlockedCache = new Dictionary<string, bool>();
     private Dictionary<string, Dictionary<string, bool>> regionUnlockedCache = new Dictionary<string, Dictionary<string, bool>>();
     
-    public static LevelUnlockSystem Instance { get; private set; }
-    
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
-    
     private void Start()
     {
         // 初始化时确保第一个地图的第一个区域已解锁
@@ -70,8 +56,11 @@ public class LevelUnlockSystem : MonoBehaviour
         }
     }
     
-    private void OnDestroy()
+    // 基类负责清空 Instance；退订对所有实例都要执行，因此放在 OnDestroy 而非 OnSingletonDestroyed。
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (PlayerLevelManager.Instance != null)
         {
             PlayerLevelManager.Instance.OnLevelUp -= OnPlayerLevelUp;

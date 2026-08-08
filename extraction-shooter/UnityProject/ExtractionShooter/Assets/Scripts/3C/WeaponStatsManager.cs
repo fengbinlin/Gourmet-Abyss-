@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -55,10 +56,8 @@ public class LevelParamRateItem
     }
 }
 
-public class WeaponStatsManager : MonoBehaviour
+public class WeaponStatsManager : PersistentMonoSingleton<WeaponStatsManager>
 {
-    public static WeaponStatsManager Instance { get; private set; }
-
     [Header("宠物状态（进入战斗时由 PetManager 读取）")]
     public List<PetStateEntry> petStateList = new List<PetStateEntry>();
 
@@ -179,25 +178,15 @@ public class WeaponStatsManager : MonoBehaviour
     public event System.Action OnLevelStatsChanged;
     public event System.Action OnWeaponStatsChanged;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
+        // 初始化字典
+        RebuildDensityDictionary();
 
-            // 初始化字典
-            RebuildDensityDictionary();
-
-            if (levelParamRateItems != null)
-            {
-                for (int i = 0; i < levelParamRateItems.Count; i++)
-                    levelParamRateItems[i]?.EnsureLevelBuffBases();
-            }
-        }
-        else
+        if (levelParamRateItems != null)
         {
-            Destroy(gameObject);
+            for (int i = 0; i < levelParamRateItems.Count; i++)
+                levelParamRateItems[i]?.EnsureLevelBuffBases();
         }
     }
 

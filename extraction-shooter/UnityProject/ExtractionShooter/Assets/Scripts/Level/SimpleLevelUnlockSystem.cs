@@ -1,24 +1,11 @@
+using Game.Core;
 using UnityEngine;
 
-public class SimpleLevelUnlockSystem : MonoBehaviour
+public class SimpleLevelUnlockSystem : MonoSingleton<SimpleLevelUnlockSystem>
 {
     [Header("调试")]
     [SerializeField] private bool debugLog = true;
-    
-    public static SimpleLevelUnlockSystem Instance { get; private set; }
-    
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
-    
+
     private void Start()
     {
         // 监听等级升级事件
@@ -31,8 +18,11 @@ public class SimpleLevelUnlockSystem : MonoBehaviour
         InitializeUnlocksByCurrentLevel();
     }
     
-    private void OnDestroy()
+    // 基类负责清空 Instance；退订对所有实例都要执行，因此放在 OnDestroy 而非 OnSingletonDestroyed。
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (PlayerLevelManager.Instance != null)
         {
             PlayerLevelManager.Instance.OnLevelUp -= OnPlayerLevelUp;

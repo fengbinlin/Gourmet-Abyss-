@@ -1,11 +1,10 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
-public class SelectManager : MonoBehaviour
+public class SelectManager : MonoSingleton<SelectManager>
 {
     private const int EXPECTED_PLAYER_COUNT = 2;
-
-    public static SelectManager Instance { get; private set; }
 
     [Header("道具配置")]
     public List<BuildingUnit> buildingUnitPrefabs = new List<BuildingUnit>();
@@ -29,18 +28,6 @@ public class SelectManager : MonoBehaviour
         public BuildingUnit prefab;
         public BuildingUnit selectionInstance;
         public bool IsSelected => selectionInstance == null || selectionInstance.isSelected;
-    }
-
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else if (Instance != this)
-        {
-            Destroy(gameObject);
-        }
     }
 
     private void Start()

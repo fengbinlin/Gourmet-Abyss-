@@ -1,9 +1,10 @@
 using System;
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class PlayerLevelManager : MonoBehaviour
+public class PlayerLevelManager : MonoSingleton<PlayerLevelManager>
 {
     [Header("UI References")]
     [SerializeField] private Text levelTitleText;
@@ -28,21 +29,7 @@ public class PlayerLevelManager : MonoBehaviour
     private int currentLearnedSkills = 0;
     private Material progressBarMaterial;  // 用于动态改变颜色
 
-    public static PlayerLevelManager Instance { get; private set; }
-
     public event Action<int> OnLevelUp;
-
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
 
     private void Start()
     {

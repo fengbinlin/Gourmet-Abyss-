@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
@@ -5,28 +6,13 @@ using UnityEngine;
 /// 场景中需放置一个实例；若不存在，RestaurantPanel 会回退到 WeaponStatsManager.restaurantPlateCount。
 /// </summary>
 [DefaultExecutionOrder(-38)]
-public class ShopSlotManager : MonoBehaviour
+public class ShopSlotManager : PersistentMonoSingleton<ShopSlotManager>
 {
-    public static ShopSlotManager Instance { get; private set; }
-
     [Header("餐厅餐碟")]
     [Tooltip("与 RestaurantPanel.allPlates 列表下标对应，控制激活的碟子数量")]
     [Min(1)] public int restaurantPlateSlotCount = 3;
 
     public event System.Action OnRestaurantPlateSlotsChanged;
-
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else if (Instance != this)
-        {
-            Destroy(gameObject);
-        }
-    }
 
 #if UNITY_EDITOR
     private void OnValidate()

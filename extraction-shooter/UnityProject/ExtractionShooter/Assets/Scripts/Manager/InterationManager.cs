@@ -34,7 +34,7 @@ public class InterationManager : MonoBehaviour
         skillTreeObject.SetActive(false);
         mainSceneObject.SetActive(true);
         mainUI.SetActive(true);
-        StartCoroutine(UITapBounce.Instance.BounceDown()); 
+        PlayTapBounceDown();
         PlayerStateManager.instance.currentState=PlayerState.UpGround;
     }
 
@@ -47,6 +47,12 @@ public class InterationManager : MonoBehaviour
         mainSceneObject.SetActive(false);
         mainUI.SetActive(false);
         SkillTree.Instance.ReplayRevealAnimation();
-        StartCoroutine(UITapBounce.Instance.BounceDown()); 
+        PlayTapBounceDown();
+    }
+
+    private void PlayTapBounceDown()
+    {
+        UITapBounce bounce = UITapBounce.Instance;
+        if (bounce != null) StartCoroutine(bounce.BounceDown());
     }
 }

@@ -1186,6 +1186,12 @@ public class PrimaryWeapon : MonoBehaviour
         isShooting = false;
     }
 
+    // 子弹池父物体是 DontDestroyOnLoad 的，不随关卡卸载销毁；不在这里回收会每进一次关卡泄漏一个。
+    private void OnDestroy()
+    {
+        ClearBulletPool();
+    }
+
     #endregion
 
     #region --- 子弹池系统 ---

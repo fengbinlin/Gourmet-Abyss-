@@ -1,29 +1,16 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>摆放阶段管理器 - 只负责启用键盘控制和检查完成状态</summary>
-public class PlaceManager : MonoBehaviour
+public class PlaceManager : MonoSingleton<PlaceManager>
 {
-    public static PlaceManager Instance { get; private set; }
-    
     [Header("玩家初始网格位置")]
     public Vector2Int player1StartGrid = new Vector2Int(8, 8);
     public Vector2Int player2StartGrid = new Vector2Int(12, 8);
     
     // 记录每个玩家是否已摆放
     private Dictionary<string, bool> playerPlacements = new Dictionary<string, bool>();
-    
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
     
     void Start()
     {

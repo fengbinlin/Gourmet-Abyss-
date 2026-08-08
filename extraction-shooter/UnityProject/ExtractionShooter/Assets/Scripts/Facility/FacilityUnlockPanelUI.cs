@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,10 +6,8 @@ using UnityEngine.UI;
 /// 设施解锁确认面板（单例）。描述花费、解锁/取消按钮。
 /// 解锁花费优先读取 FacilityUnlockable 关联的 RestaurantFacilityConfig。
 /// </summary>
-public class FacilityUnlockPanelUI : MonoBehaviour
+public class FacilityUnlockPanelUI : MonoSingleton<FacilityUnlockPanelUI>
 {
-    public static FacilityUnlockPanelUI Instance { get; private set; }
-
     [Header("面板")]
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private Text descriptionText;
@@ -17,16 +16,8 @@ public class FacilityUnlockPanelUI : MonoBehaviour
 
     private FacilityUnlockable _currentTarget;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-
         if (unlockButton != null)
             unlockButton.onClick.AddListener(OnUnlockButtonClicked);
         if (cancelButton != null)
@@ -35,10 +26,10 @@ public class FacilityUnlockPanelUI : MonoBehaviour
         Hide();
     }
 
-    private void OnDestroy()
+    // 基类负责清空 Instance；解绑监听对所有实例都要执行，因此放在 OnDestroy 而非 OnSingletonDestroyed。
+    protected override void OnDestroy()
     {
-        if (Instance == this)
-            Instance = null;
+        base.OnDestroy();
 
         if (unlockButton != null)
             unlockButton.onClick.RemoveListener(OnUnlockButtonClicked);

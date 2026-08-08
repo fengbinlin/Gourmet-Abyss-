@@ -1,11 +1,14 @@
+using Game.Core;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(RectTransform))]
-public class UITapBounce : MonoBehaviour, IPointerDownHandler
+public class UITapBounce : MonoSingleton<UITapBounce>, IPointerDownHandler
 {
-    public static UITapBounce Instance;
+    // 每个场景各一份，后加载的接管——沿用原来的裸赋值语义。
+    protected override DuplicatePolicy Duplicate => DuplicatePolicy.OverwriteReference;
+
     public Animator animator;
     [Header("弹起设置")]
 
@@ -28,9 +31,8 @@ public class UITapBounce : MonoBehaviour, IPointerDownHandler
     private bool isBounced = false;
     private Coroutine bounceCoroutine;
     
-    private void Awake()
+    protected override void OnAwake()
     {
-        Instance = this;
         rectTransform = GetComponent<RectTransform>();
         originalPosition = rectTransform.anchoredPosition;
     }

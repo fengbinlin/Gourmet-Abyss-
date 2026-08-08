@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Core;
 using UnityEngine;
 
 /// <summary>
@@ -8,10 +9,8 @@ using UnityEngine;
 /// 3) 生成启用的宠物预制体，并把成长数值写入到“宠物系统”组件（IPetSystem）
 /// </summary>
 [DefaultExecutionOrder(90)]
-public class PetManager : MonoBehaviour
+public class PetManager : PersistentMonoSingleton<PetManager>
 {
-    public static PetManager Instance { get; private set; }
-
     [System.Serializable]
     public class PetConfigEntry
     {
@@ -72,15 +71,8 @@ public class PetManager : MonoBehaviour
     private readonly Dictionary<PetType, GameObject> spawnedPets = new Dictionary<PetType, GameObject>();
     private PlayerState lastState = PlayerState.UpGround;
 
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
         CaptureFlyingCompanionInitialIfNeeded();
     }
 

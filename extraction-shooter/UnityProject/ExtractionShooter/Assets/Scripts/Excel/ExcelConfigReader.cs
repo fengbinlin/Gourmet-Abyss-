@@ -1,3 +1,4 @@
+using Game.Core;
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
@@ -31,7 +32,7 @@ public class SkillConfigData
 }
 
 [DefaultExecutionOrder(100)]
-public class ExcelConfigReader : MonoBehaviour
+public class ExcelConfigReader : PersistentMonoSingleton<ExcelConfigReader>
 {
     [Header("配置文件路径")]
     public TextAsset initialStatsCSV;
@@ -40,20 +41,9 @@ public class ExcelConfigReader : MonoBehaviour
     private List<InitialStatsData> initialStats = new List<InitialStatsData>();
     private List<SkillConfigData> skillConfigs = new List<SkillConfigData>();
 
-    public static ExcelConfigReader Instance { get; private set; }
-
-    private void Awake()
+    protected override void OnAwake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            LoadAllConfigs();
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        LoadAllConfigs();
     }
 
     private void LoadAllConfigs()
