@@ -10,11 +10,27 @@ public class SceneTitle : MonoBehaviour
     void Awake()
     {
         instance=this;
+        ApplyLevelSatietyConsumptionConfig();
     }
     // Start is called before the first frame update
     void Start()
     {
-        
+        ApplyLevelSatietyConsumptionConfig();
+    }
+
+    private void ApplyLevelSatietyConsumptionConfig()
+    {
+        if (ExcelConfigReader.Instance == null) return;
+
+        string sceneName = gameObject.scene.name;
+        if (!ExcelConfigReader.Instance.TryGetLevelSatietyConsumptionConfig(
+                sceneName,
+                out LevelSatietyConsumptionConfigData config))
+            return;
+
+        SceneOxygenCostSpeedMultiplier = config.consumeEnabled
+            ? config.consumeMultiplier
+            : 0f;
     }
 
     // Update is called once per frame
