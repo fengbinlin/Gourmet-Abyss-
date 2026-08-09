@@ -530,6 +530,7 @@ public class TopDownController : MonoBehaviour
     {
         Debug.Log("玩家死亡，执行额外逻辑");
         InventoryManager.instance.ClearBackpackByPercentage(1);
+        InventoryManager.instance.ClearRunIngredients();
         DropItemsOnDeath();
         Invoke("TOHome", 1f);
 

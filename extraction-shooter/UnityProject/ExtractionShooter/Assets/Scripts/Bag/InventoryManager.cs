@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
@@ -36,6 +37,19 @@ public class InventoryManager : MonoBehaviour
 
     // 格子列表（含多出的 1 格锁定预览；真正可用数见 usableSlotCount）
     private List<InventoryItemUI> slots = new List<InventoryItemUI>();
+
+    // Ingredients collected during the current dungeon run. These values do not
+    // consume slot inventory capacity and are only committed on a successful exit.
+    private readonly RunIngredientStore runIngredients = new RunIngredientStore();
+
+    /// <summary>Resource type, previous count, current count.</summary>
+    public event Action<ResourceType, int, int> OnRunIngredientChanged
+    {
+        add => runIngredients.Changed += value;
+        remove => runIngredients.Changed -= value;
+    }
+    [Header("局内食材调试")]
+    [SerializeField] private bool showRunIngredientDebugUI = true;
     /// <summary>与 WeaponStatsManager.inventorySlotCount 一致，不含多出来的预览格。</summary>
     private int usableSlotCount;
     private Coroutine slotEntranceCoroutine;
@@ -99,6 +113,9 @@ public class InventoryManager : MonoBehaviour
 
     private void Start()
     {
+        if (showRunIngredientDebugUI)
+            RunIngredientDebugUI.EnsureExists(this);
+
         // 订阅背包数值变化事件
         WeaponStatsManager.Instance.OnInventoryStatsChanged += OnInventoryStatsUpdated;
         
@@ -575,6 +592,61 @@ public class InventoryManager : MonoBehaviour
             .Select((slot, idx) => (slot, idx))
             .Where(t => t.idx < usableSlotCount && t.slot != null && !t.slot.IsEmpty() && t.slot.GetItemType() == itemType)
             .Sum(t => t.slot.GetCurrentCount());
+    }
+
+    /// <summary>Adds an ingredient to the current run without consuming an inventory slot.</summary>
+    public bool AddRunIngredient(ResourceType itemType, int amount)
+    {
+        if (amount <= 0)
+        {
+            Debug.LogWarning($"AddRunIngredient requires a positive amount: {itemType} {amount}");
+            return false;
+        }
+
+        int oldCount = GetRunIngredientCount(itemType);
+        bool added = runIngredients.Add(itemType, amount);
+        int newCount = GetRunIngredientCount(itemType);
+        Debug.Log($"Run ingredient added: {itemType} +{newCount - oldCount}, total={newCount}");
+        return added;
+    }
+
+    public int GetRunIngredientCount(ResourceType itemType)
+    {
+        return runIngredients.GetCount(itemType);
+    }
+
+    /// <summary>Returns a snapshot so callers cannot mutate the run inventory.</summary>
+    public Dictionary<ResourceType, int> GetAllRunIngredientCounts()
+    {
+        return runIngredients.GetSnapshot();
+    }
+
+    public void ClearRunIngredients()
+    {
+        if (runIngredients.Count == 0) return;
+        runIngredients.Clear();
+        Debug.Log("Run ingredients cleared.");
+    }
+
+    /// <summary>Commits current-run ingredients to permanent storage after a successful exit.</summary>
+    public void TransferRunIngredientsToGameValAndClear()
+    {
+        if (runIngredients.Count == 0) return;
+        if (GameValManager.Instance == null)
+        {
+            Debug.LogWarning("Cannot transfer run ingredients: GameValManager is missing.");
+            return;
+        }
+
+        Dictionary<ResourceType, int> snapshot = GetAllRunIngredientCounts();
+        foreach (KeyValuePair<ResourceType, int> entry in snapshot)
+        {
+            if (entry.Value > 0)
+                GameValManager.Instance.AddResource(entry.Key, entry.Value);
+        }
+
+        ClearRunIngredients();
+        Debug.Log($"Transferred {snapshot.Count} run ingredient types to permanent storage.");
     }
 
     // 获取指定索引的格子

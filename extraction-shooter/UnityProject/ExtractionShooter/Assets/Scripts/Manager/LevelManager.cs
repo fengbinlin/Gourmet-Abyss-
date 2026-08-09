@@ -113,6 +113,8 @@ public class LevelManager : MonoBehaviour
     private IEnumerator EnterLevelProcess(string levelName)
     {
         isTransitioning = true;
+        // A newly entered dungeon always starts with an empty run-only ingredient bag.
+        InventoryManager.instance?.ClearRunIngredients();
         
         // 切场前清理全局消息，避免消息面板残留卡住
         GlobalMessageUI.Clear();
@@ -214,6 +216,7 @@ public class LevelManager : MonoBehaviour
         // 8. 重置游戏状态
 
         BattleValManager.Instance?.StopConsuming();
+        InventoryManager.instance?.TransferRunIngredientsToGameValAndClear();
         isTransitioning = true;
         
         // 切场前清理全局消息，避免消息面板残留卡住
@@ -304,6 +307,8 @@ public class LevelManager : MonoBehaviour
         // 8. 重置游戏状态
 
         BattleValManager.Instance?.StopConsuming();
+        // Death clears the run bag before reaching this path; a normal cave-car exit commits it.
+        InventoryManager.instance?.TransferRunIngredientsToGameValAndClear();
         isTransitioning = true;
         
         // 切场前清理全局消息，避免消息面板残留卡住
