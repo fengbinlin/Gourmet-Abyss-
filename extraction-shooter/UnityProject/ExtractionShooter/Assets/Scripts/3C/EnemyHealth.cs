@@ -54,6 +54,8 @@ public class EnemyHealth : MonoBehaviour
     
     [Header("掉落物设置")]
     [SerializeField] private LootItem[] lootItems; // 可掉落的物品列表
+    private string runtimeLootConfigID;
+    private bool lootConfigApplied;
     
     [System.Serializable]
     public class LootItem
@@ -688,6 +690,7 @@ public class EnemyHealth : MonoBehaviour
     // 生成掉落物
     private void SpawnLootItems()
     {
+        ApplyMonsterLootConfig();
         if (lootItems == null || lootItems.Length == 0) return;
         
         foreach (LootItem lootItem in lootItems)
@@ -741,6 +744,71 @@ public class EnemyHealth : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void SetLootConfigID(string configID)
+    {
+        runtimeLootConfigID = configID;
+        lootConfigApplied = false;
+    }
+
+    private void ApplyMonsterLootConfig()
+    {
+        if (lootConfigApplied || ExcelConfigReader.Instance == null) return;
+
+        string configID = string.IsNullOrWhiteSpace(runtimeLootConfigID)
+            ? NormalizeMonsterConfigID(gameObject.name)
+            : runtimeLootConfigID.Trim();
+
+        if (!ExcelConfigReader.Instance.TryGetMonsterLootConfigs(configID, out List<MonsterLootConfigData> configs))
+        {
+            lootConfigApplied = true;
+            return;
+        }
+
+        var configuredLootItems = new List<LootItem>();
+        foreach (MonsterLootConfigData config in configs)
+        {
+            if (!config.enabled) continue;
+
+            int sourceIndex = config.lootItemIndex - 1;
+            if (lootItems == null || sourceIndex < 0 || sourceIndex >= lootItems.Length || lootItems[sourceIndex] == null)
+            {
+                Debug.LogError($"怪物 {configID} 的掉落项 {config.lootItemIndex} 在预制体中不存在，无法取得掉落物预制体引用");
+                continue;
+            }
+
+            LootItem source = lootItems[sourceIndex];
+            if (source.itemPrefab == null)
+            {
+                Debug.LogError($"怪物 {configID} 的掉落项 {config.lootItemIndex} 未配置掉落物预制体");
+                continue;
+            }
+
+            configuredLootItems.Add(new LootItem
+            {
+                itemPrefab = source.itemPrefab,
+                dropChance = config.dropChance,
+                minAmount = config.minAmount,
+                maxAmount = config.maxAmount,
+                scatterForce = config.scatterForce,
+                resourceType = config.resourceType,
+                resourceMinAmount = config.resourceMinAmount,
+                resourceMaxAmount = config.resourceMaxAmount
+            });
+        }
+
+        lootItems = configuredLootItems.ToArray();
+        lootConfigApplied = true;
+    }
+
+    private static string NormalizeMonsterConfigID(string objectName)
+    {
+        const string cloneSuffix = "(Clone)";
+        string normalized = objectName == null ? string.Empty : objectName.Trim();
+        if (normalized.EndsWith(cloneSuffix, System.StringComparison.Ordinal))
+            normalized = normalized.Substring(0, normalized.Length - cloneSuffix.Length).TrimEnd();
+        return normalized;
     }
     
     // 死亡协程

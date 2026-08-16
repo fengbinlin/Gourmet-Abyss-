@@ -225,6 +225,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   initialStatsCSV: {fileID: 4900000, guid: d97b452ae183f40449cbe8fea0ee095f, type: 3}
   skillConfigCSV: {fileID: 4900000, guid: e6ed5fa17937a364e84f2f4d1553af0e, type: 3}
+  monsterLootConfigCSV: {fileID: 4900000, guid: 5f69ac51a69744d8a564a54c0901c380, type: 3}
+  levelSatietyConsumptionCSV: {fileID: 4900000, guid: 72d480bfa79d44c0a51d4fb61bbdf861, type: 3}
 --- !u!114 &2028060333058582160
 MonoBehaviour:
   m_ObjectHideFlags: 0

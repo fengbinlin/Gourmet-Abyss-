@@ -36,6 +36,33 @@ public class SceneTitle : MonoSingleton<SceneTitle>
     public float SceneOxygenCostSpeedMultiplier = 1;
     public string SceneName;
 
+    protected override void OnAwake()
+    {
+        ApplyLevelSatietyConsumptionConfig();
+    }
+
+    // Awake 时 ExcelConfigReader 可能还没读完表，Start 再补一次。
+    private void Start()
+    {
+        ApplyLevelSatietyConsumptionConfig();
+    }
+
+    /// <summary>按所在场景取关卡饱食度消耗配置，覆盖 Inspector 里填的倍率。</summary>
+    private void ApplyLevelSatietyConsumptionConfig()
+    {
+        if (ExcelConfigReader.Instance == null) return;
+
+        string sceneName = gameObject.scene.name;
+        if (!ExcelConfigReader.Instance.TryGetLevelSatietyConsumptionConfig(
+                sceneName,
+                out LevelSatietyConsumptionConfigData config))
+            return;
+
+        SceneOxygenCostSpeedMultiplier = config.consumeEnabled
+            ? config.consumeMultiplier
+            : 0f;
+    }
+
     /// <summary>
     /// 取指定场景的标题组件。静态引用有效且就在目标场景里就用它，否则到该场景根物体里找。
     /// </summary>

@@ -479,6 +479,10 @@ public class MonsterSpawner : MonoBehaviour
 
         GameObject monster = Instantiate(config.monsterPrefab, spawnPosition, Quaternion.identity, parent);
 
+        EnemyHealth enemyHealth = monster.GetComponentInChildren<EnemyHealth>();
+        if (enemyHealth != null)
+            enemyHealth.SetLootConfigID(config.monsterPrefab.name);
+
         // 设置随机大小（如果启用）
         if (config.randomSize && config.minSizeScale < config.maxSizeScale)
         {
