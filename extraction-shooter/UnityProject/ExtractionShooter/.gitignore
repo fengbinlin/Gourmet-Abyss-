@@ -69,3 +69,9 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# JetBrains Rider 个人配置（每台机器不同，不进版本库）
+/.idea/
+
+# 全局对象审计工具的输出（菜单 Tools/全局对象审计），每次运行自动重新生成
+/AuditSnapshots/
