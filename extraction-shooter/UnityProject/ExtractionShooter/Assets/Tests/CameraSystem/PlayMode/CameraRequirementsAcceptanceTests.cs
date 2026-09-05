@@ -66,6 +66,17 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             yield return WaitRealtime(1.4f);
             CameraPose facingLeftPose = director.CurrentPose;
 
+            float facingRightPlanarOffset = PlanarDistance(
+                facingRightPose.Position - target.position,
+                plane);
+            float facingLeftPlanarOffset = PlanarDistance(
+                facingLeftPose.Position - target.position,
+                plane);
+            Assert.That(facingRightPlanarOffset, Is.LessThanOrEqualTo(1.8f),
+                "小镇基础镜头保留了场景初始平面偏移，玩家没有处于朝向前瞻允许的构图范围内。");
+            Assert.That(facingLeftPlanarOffset, Is.LessThanOrEqualTo(1.8f),
+                "小镇反向前瞻后玩家仍超出允许的构图范围。");
+
             float lookAheadTravel = Mathf.Abs(Vector3.Dot(
                 facingRightPose.Position - facingLeftPose.Position,
                 plane.Right));
@@ -159,6 +170,27 @@ namespace GourmetAbyss.CameraSystem.Acceptance
                 director.CurrentPose.Position - cameraBeforeTargetMove,
                 plane.Right);
             Assert.That(settledTravel, Is.EqualTo(4f).Within(0.35f), "地牢镜头平滑后没有稳定跟随玩家位移。");
+
+            CameraPose movingCenteredPose = director.CurrentPose;
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = Vector2.right });
+            yield return WaitRealtime(1.1f);
+            CameraPose stationaryEdgePose = director.CurrentPose;
+            float stationaryEdgeOffset = PlanarDistance(
+                stationaryEdgePose.Position - movingCenteredPose.Position,
+                plane);
+            Assert.That(stationaryEdgeOffset, Is.InRange(2.8f, 3.15f),
+                "玩家静止时鼠标边缘偏移不在 3 米上限范围内。");
+
+            target.position += plane.Right * 4f;
+            yield return null;
+            yield return WaitRealtime(1.5f);
+            CameraPose movingEdgePose = director.CurrentPose;
+            Vector3 expectedCenteredAfterMove = movingCenteredPose.Position + plane.Right * 4f;
+            float movingEdgeOffset = PlanarDistance(
+                movingEdgePose.Position - expectedCenteredAfterMove,
+                plane);
+            Assert.That(movingEdgeOffset, Is.InRange(2.8f, 3.15f),
+                "玩家移动并完成跟随后，鼠标偏移没有保持相同的 3 米上限。");
             AssertNoCameraErrors();
         }
 
@@ -264,8 +296,14 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(Quaternion.Angle(player.rotation, originalPlayerRotation), Is.LessThan(1f),
                 "离开餐厅后玩家朝向没有恢复。");
             Assert.That(director.RequestCount, Is.EqualTo(baseRequestCount), "离开餐厅后镜头请求残留。");
-            Assert.That(Vector3.Distance(director.CurrentPose.Position, basePose.Position), Is.LessThan(1.5f),
-                "离开餐厅后镜头没有回到进入前的跟随构图。");
+            CameraPlane restoredTownPlane = CameraPlane.FromRotation(
+                director.CurrentPose.Rotation,
+                player.position);
+            float restoredPlanarOffset = PlanarDistance(
+                director.CurrentPose.Position - player.position,
+                restoredTownPlane);
+            Assert.That(restoredPlanarOffset, Is.LessThanOrEqualTo(1.8f),
+                "离开餐厅后镜头没有恢复到 Town 朝向前瞻允许的构图范围。");
             AssertNoCameraErrors();
         }
 
@@ -372,6 +410,13 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(secondTown.GetInstanceID(), Is.EqualTo(firstTownId), "返回小镇时不应重建地面基础镜头。");
             Assert.That(secondTown.GetDebugSummary(), Does.Contain("Town"));
             Assert.That(secondTown.RequestCount, Is.EqualTo(1), "返回小镇后存在跨场景镜头请求泄漏。");
+            yield return WaitRealtime(1.5f);
+            CameraPlane townPlane = CameraPlane.FromRotation(secondTown.CurrentPose.Rotation, townPlayer.position);
+            float returnPlanarOffset = PlanarDistance(
+                secondTown.CurrentPose.Position - townPlayer.position,
+                townPlane);
+            Assert.That(returnPlanarOffset, Is.LessThanOrEqualTo(1.8f),
+                "返回小镇后玩家超出 Town 朝向前瞻允许的构图范围。");
             Assert.That(Vector3.Distance(townPlayer.position, townReturnPosition), Is.LessThan(0.05f),
                 "从地牢返回后玩家没有回到进入地牢前的传送点附近。");
             MonoBehaviour townController = FindBehaviourOnTarget(townPlayer, "TopDownController");

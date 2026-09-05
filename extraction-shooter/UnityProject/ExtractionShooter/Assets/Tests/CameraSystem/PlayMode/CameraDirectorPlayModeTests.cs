@@ -186,6 +186,52 @@ namespace GourmetAbyss.CameraSystem.Tests
         }
 
         [UnityTest]
+        public IEnumerator DungeonPointerOffsetUsesSameCapWhileTargetMoves()
+        {
+            GameObject owner = new GameObject("Owner");
+            GameObject target = new GameObject("MovingTarget");
+            CameraInputRouter router = _director.InputRouter;
+            Quaternion rotation = Quaternion.Euler(45f, 0f, 0f);
+            Vector3 baseOffset = new Vector3(0f, 10f, -10f);
+            DungeonAimCameraSource source = new DungeonAimCameraSource(
+                target.transform,
+                baseOffset,
+                rotation,
+                5f,
+                0.1f,
+                3f,
+                1f,
+                0f,
+                new CameraDamping(0f, 0f, 0f));
+            _director.AcquireShot(owner, source, new CameraShotOptions(100, 0f, 0f, "DungeonMoving"));
+
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = Vector2.right });
+            yield return null;
+            CameraPlane plane = CameraPlane.FromRotation(rotation, target.transform.position);
+            float stationaryOffset = PlanarOffsetFromTarget(target.transform, baseOffset, plane);
+
+            target.transform.position += plane.Right * 6f;
+            yield return null;
+            float movingOffset = PlanarOffsetFromTarget(target.transform, baseOffset, plane);
+
+            Assert.That(stationaryOffset, Is.EqualTo(3f).Within(0.001f));
+            Assert.That(movingOffset, Is.EqualTo(3f).Within(0.001f),
+                "目标移动后鼠标偏移上限发生变化或累计漂移。");
+
+            router.ClearDebugOverride();
+            Object.Destroy(owner);
+            Object.Destroy(target);
+        }
+
+        private float PlanarOffsetFromTarget(Transform target, Vector3 baseOffset, CameraPlane plane)
+        {
+            Vector3 delta = _director.CurrentPose.Position - (target.position + baseOffset);
+            return new Vector2(
+                Vector3.Dot(delta, plane.Right),
+                Vector3.Dot(delta, plane.Up)).magnitude;
+        }
+
+        [UnityTest]
         public IEnumerator RestaurantPanMovesWhenContentExceedsViewport_AndRemainsBounded()
         {
             GameObject owner = new GameObject("Owner");

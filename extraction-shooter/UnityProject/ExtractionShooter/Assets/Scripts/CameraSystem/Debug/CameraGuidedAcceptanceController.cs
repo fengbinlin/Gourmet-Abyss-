@@ -447,7 +447,7 @@ namespace GourmetAbyss.CameraSystem
                 case Stage.Portal:
                     return "按 E 打开地图，确认区域选择 UI 正常，再点击已解锁的 Layer1。进入地牢后按 N/F9。";
                 case Stage.Dungeon:
-                    return "鼠标依次放中心、半程、边缘；再把鼠标移到 UI 上。最后使用 WASD 移动，并观察角色、怪物等非地面画面是否仍正对镜头。";
+                    return "先静止，鼠标依次放中心、半程、边缘；再把鼠标移到 UI 上。随后把鼠标保持在边缘并使用 WASD 移动，观察偏移不会继续累计；同时检查非地面画面仍正对镜头。";
                 case Stage.DungeonExit:
                     return "按 E 走正式地牢返回流程。返回后确认镜头、玩家和控制都恢复，再按 N/F9。";
                 default:
@@ -468,7 +468,7 @@ namespace GourmetAbyss.CameraSystem
                 case Stage.Portal:
                     return "E 能打开地图；可选择已解锁区域；进入 Layer1 时画面平滑切换且没有残留双相机。";
                 case Stage.Dungeon:
-                    return "中心附近无偏移；越靠近边缘偏移越大但有上限；指针在 UI 上时回中；跟随玩家仍然平滑；非地面视觉不应躺倒或改变物理根节点。";
+                    return "中心附近无偏移；越靠近边缘偏移越大但最多 3 米；静止和移动时使用同一上限且不累计漂移；指针在 UI 上时回中；非地面视觉不应躺倒或改变物理根节点。";
                 case Stage.DungeonExit:
                     return "E 返回 UpGround；恢复 Town 镜头；地面玩家仍在进入前传送点附近且可以移动。";
                 default:

@@ -146,8 +146,8 @@ public class CameraFollow : MonoBehaviour
         if (cam == null)
             return;
 
-        _baseOffset = autoOffset ? transform.position - DefaultTarget.position : offset;
         Quaternion rotation = transform.rotation;
+        _baseOffset = ResolveBaseOffset(rotation);
         float currentSize = cam.orthographicSize;
         LegacyDefaultSource selected = ResolveDefaultSource(rotation);
 
@@ -198,6 +198,19 @@ public class CameraFollow : MonoBehaviour
             this,
             _baseSource,
             CameraShotOptions.Gameplay(selected.ToString()));
+    }
+
+    private Vector3 ResolveBaseOffset(Quaternion rotation)
+    {
+        if (!autoOffset)
+            return offset;
+
+        // Preserve the authored viewing depth, but remove any accidental screen-plane
+        // displacement from the scene's initial camera placement. Gameplay framing is
+        // then controlled only by the active source (Town look-ahead / Dungeon pointer).
+        Vector3 authoredOffset = transform.position - DefaultTarget.position;
+        Vector3 cameraForward = rotation * Vector3.forward;
+        return cameraForward * Vector3.Dot(authoredOffset, cameraForward);
     }
 
     private LegacyDefaultSource ResolveDefaultSource(Quaternion rotation)
