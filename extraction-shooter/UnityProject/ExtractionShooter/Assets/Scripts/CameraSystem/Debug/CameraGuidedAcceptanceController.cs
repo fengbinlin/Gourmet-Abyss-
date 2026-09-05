@@ -29,7 +29,7 @@ namespace GourmetAbyss.CameraSystem
 
         private Stage _stage;
         private bool _showOverlay = true;
-        private string _notice = "按 F9 开始第一项。";
+        private string _notice = "按 N 或 F9 开始第一项，也可以点击面板底部按钮。";
 
         private Transform _player;
         private Vector3 _townPlayerStart;
@@ -80,7 +80,7 @@ namespace GourmetAbyss.CameraSystem
         {
             if (Input.GetKeyDown(KeyCode.F8))
                 _showOverlay = !_showOverlay;
-            if (Input.GetKeyDown(KeyCode.F9))
+            if (Input.GetKeyDown(KeyCode.F9) || Input.GetKeyDown(KeyCode.N))
                 Advance();
             if (Input.GetKeyDown(KeyCode.F10))
                 RestartGuide();
@@ -104,7 +104,7 @@ namespace GourmetAbyss.CameraSystem
                 case Stage.Portal:
                     if (!IsSceneLoaded(DungeonScene))
                     {
-                        _notice = "先在传送点按 E 打开地图，并点击已解锁的 Layer1；进入后再按 F9。";
+                    _notice = "先在传送点按 E 打开地图，并点击已解锁的 Layer1；进入后再按 N/F9。";
                         return;
                     }
                     BeginDungeon();
@@ -115,7 +115,7 @@ namespace GourmetAbyss.CameraSystem
                 case Stage.DungeonExit:
                     if (IsSceneLoaded(DungeonScene))
                     {
-                        _notice = "先在地牢出口按 E 返回小镇；返回完成后再按 F9。";
+                        _notice = "先在地牢出口按 E 返回小镇；返回完成后再按 N/F9。";
                         return;
                     }
                     _stage = Stage.Complete;
@@ -131,8 +131,8 @@ namespace GourmetAbyss.CameraSystem
         {
             _stage = Stage.Welcome;
             _notice = IsSceneLoaded(TownScene)
-                ? "已重置。按 F9 开始第一项。"
-                : "请先返回 UpGround，再按 F9 开始。";
+                ? "已重置。按 N/F9 开始第一项。"
+                : "请先返回 UpGround，再按 N/F9 开始。";
             _townPlayerMoved = false;
             _townCameraMoved = false;
             _townOppositeFacingObserved = false;
@@ -197,7 +197,7 @@ namespace GourmetAbyss.CameraSystem
                 return;
             }
 
-            _notice = "已到地面传送点：按 E 打开地图，确认出现区域选择，再点击已解锁的 Layer1。进入后按 F9。";
+            _notice = "已到地面传送点：按 E 打开地图，确认出现区域选择，再点击已解锁的 Layer1。进入后按 N/F9。";
         }
 
         private void BeginDungeon()
@@ -219,7 +219,7 @@ namespace GourmetAbyss.CameraSystem
                 return;
             }
 
-            _notice = "已到地牢出口：按 E 返回小镇。确认镜头恢复为 Town、玩家仍在原地面传送点附近，再按 F9。";
+            _notice = "已到地牢出口：按 E 返回小镇。确认镜头恢复为 Town、玩家仍在原地面传送点附近，再按 N/F9。";
         }
 
         private void ObserveCurrentStage()
@@ -334,7 +334,7 @@ namespace GourmetAbyss.CameraSystem
             if (scene.name == DungeonScene)
             {
                 _dungeonLoaded = true;
-                _notice = "Layer1 已加载。按 F9 进入地牢镜头体验步骤。";
+                _notice = "Layer1 已加载。按 N/F9 进入地牢镜头体验步骤。";
             }
             CaptureActivePlayer();
         }
@@ -344,7 +344,7 @@ namespace GourmetAbyss.CameraSystem
             if (scene.name == DungeonScene)
             {
                 _dungeonReturned = true;
-                _notice = "已返回 UpGround。确认画面和控制恢复后按 F9 完成。";
+                _notice = "已返回 UpGround。确认画面和控制恢复后按 N/F9 完成。";
             }
         }
 
@@ -388,7 +388,7 @@ namespace GourmetAbyss.CameraSystem
             float width = Mathf.Min(680f, Mathf.Max(440f, Screen.width - 32f));
             GUILayout.BeginArea(new Rect(16f, 16f, width, Mathf.Min(590f, Screen.height - 32f)), GUI.skin.box);
             GUILayout.Label($"料理地牢镜头逐步验收  {GetStageProgress()}", _titleStyle);
-            GUILayout.Label("F9 下一步/定位    F8 隐藏面板    F10 从头开始", _headingStyle);
+            GUILayout.Label("N / F9 下一步定位    F8 隐藏面板    F10 从头开始", _headingStyle);
             GUILayout.Space(6f);
             GUILayout.Label(GetStageTitle(), _headingStyle);
             GUILayout.Label(GetStageInstructions(), _bodyStyle);
@@ -401,7 +401,7 @@ namespace GourmetAbyss.CameraSystem
             GUILayout.Space(6f);
             GUILayout.Label("提示：" + _notice, _bodyStyle);
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button(_stage == Stage.Complete ? "重新开始（F10）" : "下一步（F9）", GUILayout.Height(34f)))
+            if (GUILayout.Button(_stage == Stage.Complete ? "重新开始（F10）" : "下一步（点击这里或按 N/F9）", GUILayout.Height(34f)))
                 Advance();
             GUILayout.EndArea();
         }
@@ -439,17 +439,17 @@ namespace GourmetAbyss.CameraSystem
             switch (_stage)
             {
                 case Stage.Welcome:
-                    return "此模式使用正式 UpGround、Layer1、餐厅和转场逻辑。先确认玩家从小镇指定建筑旁出生；按 F9 后，每一步会自动把玩家送到对应入口。";
+                    return "此模式使用正式 UpGround、Layer1、餐厅和转场逻辑。先确认玩家从小镇指定建筑旁出生；按 N/F9 或点击底部按钮后，每一步会自动把玩家送到对应入口。";
                 case Stage.Town:
                     return "用 WASD 朝一个方向移动 2 秒并停下，再朝相反方向移动。注意镜头开始、追赶、停稳以及画面前方留白。";
                 case Stage.Restaurant:
                     return "按 E 进入餐厅；尝试 WASD；观察角色座位、中心构图；按住鼠标中键拖动；按 Esc 离开。";
                 case Stage.Portal:
-                    return "按 E 打开地图，确认区域选择 UI 正常，再点击已解锁的 Layer1。进入地牢后按 F9。";
+                    return "按 E 打开地图，确认区域选择 UI 正常，再点击已解锁的 Layer1。进入地牢后按 N/F9。";
                 case Stage.Dungeon:
                     return "鼠标依次放中心、半程、边缘；再把鼠标移到 UI 上。最后使用 WASD 移动，并观察角色、怪物等非地面画面是否仍正对镜头。";
                 case Stage.DungeonExit:
-                    return "按 E 走正式地牢返回流程。返回后确认镜头、玩家和控制都恢复，再按 F9。";
+                    return "按 E 走正式地牢返回流程。返回后确认镜头、玩家和控制都恢复，再按 N/F9。";
                 default:
                     return "所有引导步骤已走完。下面的自动观测只辅助判断，最终以你的画面手感为准。";
             }

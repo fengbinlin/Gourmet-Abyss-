@@ -52,4 +52,4 @@ if ($response.status -ne "success" -or -not $response.result.success) {
 
 Write-Host "Guided camera acceptance started in $instanceId." -ForegroundColor Green
 Write-Host "Switch to the Unity Game window." -ForegroundColor Cyan
-Write-Host "F9 = next step/location, F8 = hide/show panel, F10 = restart guide." -ForegroundColor Yellow
+Write-Host "N/F9 or panel button = next step/location, F8 = hide/show panel, F10 = restart guide." -ForegroundColor Yellow

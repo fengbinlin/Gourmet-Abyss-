@@ -14,6 +14,7 @@ public static class CameraFrameworkDebugInstaller
     static CameraFrameworkDebugInstaller()
     {
         EditorApplication.update += TryInstallPending;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
     }
 
     [MenuItem("Tools/料理地牢/镜头系统/一键启动运行时调试 &F7")]
@@ -105,8 +106,8 @@ public static class CameraFrameworkDebugInstaller
                 guideObject.AddComponent<CameraGuidedAcceptanceController>();
             }
 
-            SessionState.EraseBool(GuidedPendingKey);
-            Debug.Log("[CameraAcceptance] 逐步体验已启动：F9 下一步，F8 隐藏面板，F10 重置。");
+            if (existing == null)
+                Debug.Log("[CameraAcceptance] 逐步体验已启动：N/F9 下一步，F8 隐藏面板，F10 重置。");
         }
 
         if (!SessionState.GetBool(PendingKey, false))
@@ -135,6 +136,12 @@ public static class CameraFrameworkDebugInstaller
         }
 
         return null;
+    }
+
+    private static void OnPlayModeStateChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.ExitingPlayMode)
+            SessionState.EraseBool(GuidedPendingKey);
     }
 
     private static void RemoveGuidedControllers(bool immediate)

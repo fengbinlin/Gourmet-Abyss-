@@ -8,5 +8,5 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Switch to Unity Game view. Press F9 for each next step.
+echo Switch to Unity Game view. Press N/F9 or click the panel button for each next step.
 pause
