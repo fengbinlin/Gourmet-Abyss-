@@ -231,5 +231,23 @@ namespace GourmetAbyss.CameraSystem.Tests
             Object.Destroy(owner);
             Object.Destroy(anchor);
         }
+
+        [UnityTest]
+        public IEnumerator CameraFacingVisual_AlignsVisualPlaneToTiltedCamera()
+        {
+            _cameraObject.transform.rotation = Quaternion.Euler(45f, 25f, 0f);
+            GameObject visual = new GameObject("BillboardVisual");
+            CameraFacingVisual facingVisual = visual.AddComponent<CameraFacingVisual>();
+
+            facingVisual.AlignToCamera();
+            yield return null;
+
+            Assert.That(
+                Quaternion.Angle(visual.transform.rotation, _cameraObject.transform.rotation),
+                Is.LessThan(0.01f),
+                "纯视觉子节点没有保持垂直于倾斜镜头方向。");
+
+            Object.Destroy(visual);
+        }
     }
 }

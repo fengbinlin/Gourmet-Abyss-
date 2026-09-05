@@ -80,7 +80,7 @@ $nameMap = @{
     "TownScene_ActuallyFollowsFacingDirectionWithSmoothLookAhead" = "Town: production player facing look-ahead and smooth follow"
     "DungeonScene_ActuallyUsesDeadZoneUiBlockingAndCappedMouseOffset" = "Dungeon: pointer dead-zone, UI blocking, and capped offset"
     "RestaurantInTown_ActuallyLocksCentersPansBoundsAndRestores" = "Restaurant: lock, center, bounded pan, and restore"
-    "ProductionSceneTransition_ActuallyRebindsTownDungeonTownWithoutLeaks" = "Transition: Town to Dungeon to Town rebinds without leaks"
+    "ProductionLevelManagerPipeline_ActuallyRebindsTownDungeonTownWithoutLeaks" = "Transition: map UI and LevelManager run Town -> Dungeon -> Town without leaks"
 }
 
 $report = New-Object System.Collections.Generic.List[string]
@@ -107,8 +107,9 @@ $report.Add("## Acceptance criteria")
 $report.Add("")
 $report.Add("- The Town camera follows the production player smoothly and applies bounded facing look-ahead.")
 $report.Add("- The Layer1 Dungeon camera is angled and orthographic; pointer offset has a dead-zone, UI blocking, and a 3-meter cap.")
-$report.Add("- The production Restaurant entry locks the player, centers the shot, bounds middle-button panning, and restores state on exit.")
-$report.Add("- UpGround -> Layer1 -> UpGround rebinds CameraService to each new scene camera without leaking requests.")
+$report.Add("- The production Restaurant E entry moves the player to a locked seat, centers the shot, bounds middle-button panning, and restores the door pose on exit.")
+$report.Add("- The production map UI and LevelManager pipeline loads Layer1 additively; the dungeon exit returns to the original UpGround player and camera without leaking requests.")
+$report.Add("- Tilted-camera geometry and CameraFacingVisual are covered by framework tests. UpGround keeps its legacy flat layered-art presentation because forcing a physical tilt deforms the current authored assets; final town tilt remains an art-content migration and visual-signoff item.")
 $report | Set-Content -LiteralPath $reportPath -Encoding UTF8
 
 $failed = [int]$acceptance.'test-run'.failed

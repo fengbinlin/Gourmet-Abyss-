@@ -187,6 +187,41 @@ foreach ($result in $results) {
 
 $report.Add("")
 $report.Add("Result: $(if ($allPassed) { 'PASS' } else { 'FAIL' })")
+$report.Add("")
+$report.Add("## Individual checks")
+$report.Add("")
+$report.Add("| Suite | Check | Result | Duration (seconds) |")
+$report.Add("|---|---|---:|---:|")
+$testNameMap = @{
+    "GameplayCameraLensHasSingleWriter" = "Single gameplay camera writer"
+    "NoGameplayCodeUsesLegacyStaticFocusRequests" = "No legacy static focus requests"
+    "GameplayBuildScenesContainCameraFollowBootstrap" = "Every gameplay build scene has a camera bootstrap"
+    "CameraPlane_FrontCameraUsesXYPlane" = "Legacy flat XY plane compatibility"
+    "CameraPlane_TiltedCameraUsesXZGround" = "Tilted ground-plane geometry"
+    "BoundsConstraint_ClampsFrontOrthographicCamera" = "Orthographic bounds clamping"
+    "BoundsConstraint_CentersWhenViewIsLargerThanBounds" = "Small content remains centered"
+    "CameraFacingVisual_AlignsVisualPlaneToTiltedCamera" = "2D visual faces a tilted camera"
+    "DungeonPointerOffsetIsCapped" = "Dungeon pointer cap"
+    "RestaurantPanMovesWhenContentExceedsViewport_AndRemainsBounded" = "Oversized restaurant can pan but stays bounded"
+    "TownScene_ActuallyFollowsFacingDirectionWithSmoothLookAhead" = "Production Town smooth follow and facing look-ahead"
+    "DungeonScene_ActuallyUsesDeadZoneUiBlockingAndCappedMouseOffset" = "Production Dungeon dead-zone, UI block, response, cap, and smooth follow"
+    "RestaurantInTown_ActuallyLocksCentersPansBoundsAndRestores" = "Production Restaurant E entry, seat lock, center, pan, and door restore"
+    "ProductionLevelManagerPipeline_ActuallyRebindsTownDungeonTownWithoutLeaks" = "Production map UI and LevelManager Town -> Dungeon -> Town pipeline"
+}
+foreach ($suiteResult in $results) {
+    $checks = @($suiteResult.data.result.results)
+    foreach ($check in $checks) {
+        $checkName = [string]$check.name
+        $displayName = if ($testNameMap.ContainsKey($checkName)) { $testNameMap[$checkName] } else { $checkName }
+        $duration = [math]::Round([double]$check.durationSeconds, 2)
+        $report.Add("| $($suiteResult.label) | $displayName | $($check.state) | $duration |")
+    }
+}
+$report.Add("")
+$report.Add("## Visual sign-off scope")
+$report.Add("")
+$report.Add("- Layer1 uses the production orthographic tilted camera, and the framework verifies that 2D visual roots can face any tilted camera without rotating physics roots.")
+$report.Add("- UpGround keeps its existing flat layered-art presentation. A forced physical tilt visibly deforms that legacy composition, so a non-zero Town tilt requires art-content reauthoring and visual sign-off; it is intentionally not reported as an automated pass.")
 $report | Set-Content -LiteralPath $reportPath -Encoding UTF8
 
 Write-Host "Raw results: $rawPath"

@@ -18,6 +18,12 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     [Header("进入餐厅后激活的对象（离开时休眠）")]
     [SerializeField] private GameObject restaurantActiveContent;
 
+    [Header("玩家座位")]
+    [Tooltip("进入餐厅后玩家固定到该位置；为空时使用餐厅锚点。")]
+    [SerializeField] private Transform playerSeatAnchor;
+    [Tooltip("离开餐厅时恢复到进入前的门口位置与朝向。")]
+    [SerializeField] private bool restorePlayerPoseOnExit = true;
+
     [Header("相机对焦")]
     [SerializeField] private float cameraOrthoSize = 5.5f;
     [Tooltip("在锚点 Y 上的额外偏移（正值 = 相机看向更低的位置）")]
@@ -32,6 +38,7 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
     [Header("交互")]
     [SerializeField] private KeyCode interactKey = KeyCode.E;
+    [SerializeField] private KeyCode exitKey = KeyCode.Escape;
     [SerializeField] private string playerTag = "Player";
 
     private readonly HashSet<int> _playerColliderIdsInTrigger = new HashSet<int>();
@@ -41,8 +48,13 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     private bool _playerInRange;
     private bool _isEntered;
     private bool _hasSavedCameraState;
+    private bool _hasSavedPlayerPose;
     private float _savedOrthoSize;
     private Vector3 _savedCameraPosition;
+    private Vector3 _savedPlayerPosition;
+    private Quaternion _savedPlayerRotation;
+    private Rigidbody _lockedPlayerBody;
+    private bool _wasPlayerBodyKinematic;
     private string _cameraRequestKey;
     private InteractiveFeedback _feedback;
     private CameraShotLease _restaurantCameraLease;
@@ -67,8 +79,15 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
     private void Update()
     {
-        if (!_playerInRange || _isEntered || !Input.GetKeyDown(interactKey)) return;
-        EnterEntryState();
+        if (_isEntered)
+        {
+            if (Input.GetKeyDown(exitKey))
+                LeaveRestaurant();
+            return;
+        }
+
+        if (_playerInRange && Input.GetKeyDown(interactKey))
+            EnterEntryState();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -96,9 +115,8 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
         if (_playerColliderIdsInTrigger.Count > 0) return;
 
         _playerInRange = false;
-        _cachedPlayer = null;
-        if (_isEntered)
-            LeaveRestaurant();
+        if (!_isEntered)
+            _cachedPlayer = null;
 
         _feedback?.StopFeedbackSmoothly();
     }
@@ -126,7 +144,10 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
         _lockedPlayer = player;
         _wasPlayerMoveEnabled = player.canPlayerMove;
+        SavePlayerPose(player);
         player.SetPlayerMovementEnabled(false);
+        LockPlayerPhysics(player);
+        SnapPlayerToSeat(player);
         _isEntered = true;
         SetRestaurantContentActive(true);
         RefreshRestaurantMenuOnEnter();
@@ -215,8 +236,87 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
         if (_lockedPlayer == null)
             return;
 
+        RestorePlayerPose(_lockedPlayer);
+        RestorePlayerPhysics();
         _lockedPlayer.SetPlayerMovementEnabled(_wasPlayerMoveEnabled);
         _lockedPlayer = null;
+        _hasSavedPlayerPose = false;
+    }
+
+    private void SavePlayerPose(TopDownController player)
+    {
+        _savedPlayerPosition = player.transform.position;
+        _savedPlayerRotation = player.transform.rotation;
+        _hasSavedPlayerPose = true;
+    }
+
+    private void SnapPlayerToSeat(TopDownController player)
+    {
+        Transform seat = ResolvePlayerSeatAnchor();
+        if (seat == null)
+            return;
+
+        Rigidbody body = player.GetComponent<Rigidbody>();
+        if (body != null)
+        {
+            body.velocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.position = seat.position;
+            body.rotation = seat.rotation;
+            return;
+        }
+
+        player.transform.SetPositionAndRotation(seat.position, seat.rotation);
+    }
+
+    private void LockPlayerPhysics(TopDownController player)
+    {
+        _lockedPlayerBody = player.GetComponent<Rigidbody>();
+        if (_lockedPlayerBody == null)
+            return;
+
+        _wasPlayerBodyKinematic = _lockedPlayerBody.isKinematic;
+        _lockedPlayerBody.velocity = Vector3.zero;
+        _lockedPlayerBody.angularVelocity = Vector3.zero;
+        _lockedPlayerBody.isKinematic = true;
+    }
+
+    private void RestorePlayerPhysics()
+    {
+        if (_lockedPlayerBody == null)
+            return;
+
+        _lockedPlayerBody.velocity = Vector3.zero;
+        _lockedPlayerBody.angularVelocity = Vector3.zero;
+        _lockedPlayerBody.isKinematic = _wasPlayerBodyKinematic;
+        _lockedPlayerBody = null;
+    }
+
+    private void RestorePlayerPose(TopDownController player)
+    {
+        if (!_hasSavedPlayerPose || !restorePlayerPoseOnExit)
+            return;
+
+        Rigidbody body = player.GetComponent<Rigidbody>();
+        if (body != null)
+        {
+            body.velocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.position = _savedPlayerPosition;
+            body.rotation = _savedPlayerRotation;
+            return;
+        }
+
+        player.transform.SetPositionAndRotation(_savedPlayerPosition, _savedPlayerRotation);
+    }
+
+    private Transform ResolvePlayerSeatAnchor()
+    {
+        if (playerSeatAnchor != null)
+            return playerSeatAnchor;
+        if (restaurantAnchor != null)
+            return restaurantAnchor;
+        return transform;
     }
 
     private void SetRestaurantContentActive(bool active)

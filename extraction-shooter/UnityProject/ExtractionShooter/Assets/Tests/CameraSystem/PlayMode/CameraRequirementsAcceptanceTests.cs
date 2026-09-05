@@ -24,7 +24,7 @@ namespace GourmetAbyss.CameraSystem.Acceptance
         public IEnumerator SetUp()
         {
             Time.timeScale = 1f;
-            LogAssert.ignoreFailingMessages = true;
+            LogAssert.ignoreFailingMessages = false;
             Application.logMessageReceived += CaptureCameraError;
             yield return null;
         }
@@ -73,6 +73,21 @@ namespace GourmetAbyss.CameraSystem.Acceptance
                 "改变玩家朝向后，小镇镜头没有产生足够的朝向前瞻位移。");
             Assert.That(lookAheadTravel, Is.LessThan(3.6f),
                 "小镇镜头朝向前瞻超过配置上限。");
+
+            Vector3 cameraBeforeTargetMove = director.CurrentPose.Position;
+            target.position += plane.Right * 4f;
+            yield return null;
+            float firstFrameTravel = Vector3.Dot(
+                director.CurrentPose.Position - cameraBeforeTargetMove,
+                plane.Right);
+            Assert.That(firstFrameTravel, Is.GreaterThan(0.001f), "玩家移动后小镇镜头没有开始跟随。");
+            Assert.That(firstFrameTravel, Is.LessThan(3.9f), "小镇镜头在首帧瞬移到了玩家位置，未执行平滑跟随。");
+
+            yield return WaitRealtime(1.4f);
+            float settledTravel = Vector3.Dot(
+                director.CurrentPose.Position - cameraBeforeTargetMove,
+                plane.Right);
+            Assert.That(settledTravel, Is.EqualTo(4f).Within(0.35f), "小镇镜头平滑后没有稳定跟随玩家位移。");
             AssertNoCameraErrors();
         }
 
@@ -95,15 +110,26 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             yield return WaitRealtime(1.3f);
             CameraPose centeredPose = director.CurrentPose;
 
-            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = new Vector2(8f, 0f) });
-            yield return WaitRealtime(1.5f);
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = new Vector2(0.35f, 0f) });
+            yield return WaitRealtime(0.9f);
+            CameraPose nearPose = director.CurrentPose;
+
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = new Vector2(0.65f, 0f) });
+            yield return WaitRealtime(0.9f);
+            CameraPose middlePose = director.CurrentPose;
+
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = Vector2.right });
+            yield return WaitRealtime(1.1f);
             CameraPose edgePose = director.CurrentPose;
 
             CameraPlane plane = CameraPlane.FromRotation(edgePose.Rotation, target.position);
+            float nearOffset = PlanarDistance(nearPose.Position - centeredPose.Position, plane);
+            float middleOffset = PlanarDistance(middlePose.Position - centeredPose.Position, plane);
             Vector3 edgeDelta = edgePose.Position - centeredPose.Position;
-            float edgeOffset = new Vector2(
-                Vector3.Dot(edgeDelta, plane.Right),
-                Vector3.Dot(edgeDelta, plane.Up)).magnitude;
+            float edgeOffset = PlanarDistance(edgeDelta, plane);
+            Assert.That(nearOffset, Is.GreaterThan(0.05f), "鼠标离开中心死区后镜头没有产生偏移。");
+            Assert.That(middleOffset, Is.GreaterThan(nearOffset + 0.2f), "鼠标距离增加后镜头偏移没有增加。");
+            Assert.That(edgeOffset, Is.GreaterThan(middleOffset + 0.2f), "鼠标到达屏幕边缘后镜头偏移没有继续增加。");
             Assert.That(edgeOffset, Is.GreaterThan(2f), "鼠标移至屏幕边缘后地牢镜头偏移不足。");
             Assert.That(edgeOffset, Is.LessThanOrEqualTo(3.15f), "地牢镜头偏移超过 3 米配置上限。");
 
@@ -117,6 +143,22 @@ namespace GourmetAbyss.CameraSystem.Acceptance
                 director.CurrentPose.Position - centeredPose.Position,
                 plane.Normal).magnitude;
             Assert.That(blockedOffset, Is.LessThan(0.35f), "鼠标位于 UI 上时地牢镜头仍在跟随鼠标。");
+
+            router.SetDebugOverride(new CameraInputFrame { PointerNormalized = Vector2.zero });
+            yield return WaitRealtime(1.1f);
+            Vector3 cameraBeforeTargetMove = director.CurrentPose.Position;
+            target.position += plane.Right * 4f;
+            yield return null;
+            float firstFrameTravel = Vector3.Dot(
+                director.CurrentPose.Position - cameraBeforeTargetMove,
+                plane.Right);
+            Assert.That(firstFrameTravel, Is.GreaterThan(0.001f), "玩家移动后地牢镜头没有开始跟随。");
+            Assert.That(firstFrameTravel, Is.LessThan(3.9f), "地牢镜头在首帧瞬移到了玩家位置，未执行平滑跟随。");
+            yield return WaitRealtime(1.4f);
+            float settledTravel = Vector3.Dot(
+                director.CurrentPose.Position - cameraBeforeTargetMove,
+                plane.Right);
+            Assert.That(settledTravel, Is.EqualTo(4f).Within(0.35f), "地牢镜头平滑后没有稳定跟随玩家位移。");
             AssertNoCameraErrors();
         }
 
@@ -130,10 +172,19 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             MonoBehaviour controller = FindBehaviourOnTarget(player, "TopDownController");
             MonoBehaviour restaurant = RequireBehaviour("RestaurantEntryPoint");
             Assert.That(controller, Is.Not.Null, "餐厅验收找不到正式玩家控制器。");
+            Assert.That((KeyCode)GetField(restaurant, "interactKey"), Is.EqualTo(KeyCode.E),
+                "正式餐厅入口没有使用策划要求的 E 键。");
+            Collider restaurantTrigger = restaurant.GetComponent<Collider>();
+            Assert.That(restaurantTrigger, Is.Not.Null, "正式餐厅入口缺少 Collider。");
+            Assert.That(restaurantTrigger.isTrigger, Is.True, "正式餐厅入口 Collider 不是触发器。");
 
             bool originalCanMove = (bool)GetField(controller, "canPlayerMove");
             int baseRequestCount = director.RequestCount;
             CameraPose basePose = director.CurrentPose;
+            Vector3 originalPlayerPosition = player.position;
+            Quaternion originalPlayerRotation = player.rotation;
+            Transform seatAnchor = (Transform)InvokePrivate(restaurant, "ResolvePlayerSeatAnchor");
+            Assert.That(seatAnchor, Is.Not.Null, "正式餐厅没有可用的玩家座位锚点。");
 
             SetPrivateField(restaurant, "_cachedPlayer", controller);
             InvokePrivate(restaurant, "EnterEntryState");
@@ -141,6 +192,10 @@ namespace GourmetAbyss.CameraSystem.Acceptance
 
             Assert.That((bool)GetProperty(restaurant, "IsEntered"), Is.True, "正式餐厅入口未进入餐厅状态。");
             Assert.That((bool)GetField(controller, "canPlayerMove"), Is.False, "进入餐厅后玩家仍可移动。");
+            Assert.That(Vector3.Distance(player.position, seatAnchor.position), Is.LessThan(0.05f),
+                "进入餐厅后玩家没有固定到座位锚点。");
+            Assert.That(Quaternion.Angle(player.rotation, seatAnchor.rotation), Is.LessThan(1f),
+                "进入餐厅后玩家朝向没有对齐座位锚点。");
             Assert.That(director.RequestCount, Is.EqualTo(baseRequestCount + 1), "餐厅镜头请求没有正确入栈。");
             Assert.That(director.GetDebugSummary(), Does.Contain("Restaurant"), "餐厅镜头未取得控制权。");
 
@@ -153,6 +208,15 @@ namespace GourmetAbyss.CameraSystem.Acceptance
                 runtimeCameraAnchor.transform.position);
             CameraPlanarBounds bounds = (CameraPlanarBounds)InvokePrivate(restaurant, "ResolveRestaurantBounds", plane);
             Assert.That(bounds.IsValid, Is.True, "正式餐厅没有可用的相机边界。");
+
+            Vector3 centeredPosition = CalculateCenteredCameraPosition(basePose, runtimeCameraAnchor.transform.position);
+            CameraPose expectedCenteredPose = CameraBoundsUtility.ConstrainOrthographicPose(
+                new CameraPose(centeredPosition, beforeDrag.Rotation, beforeDrag.OrthographicSize),
+                director.Camera.aspect,
+                plane,
+                bounds);
+            Assert.That(Vector3.Distance(beforeDrag.Position, expectedCenteredPose.Position), Is.LessThan(0.2f),
+                "餐厅镜头没有稳定在餐厅中心构图。");
 
             Vector2 dragInput = FindDragInputForLargestAvailablePan(
                 beforeDrag,
@@ -195,6 +259,10 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That((bool)GetProperty(restaurant, "IsEntered"), Is.False, "离开餐厅后状态未恢复。");
             Assert.That((bool)GetField(controller, "canPlayerMove"), Is.EqualTo(originalCanMove),
                 "离开餐厅后玩家移动状态没有恢复。");
+            Assert.That(Vector3.Distance(player.position, originalPlayerPosition), Is.LessThan(0.05f),
+                "离开餐厅后玩家没有回到进入前的门口位置。");
+            Assert.That(Quaternion.Angle(player.rotation, originalPlayerRotation), Is.LessThan(1f),
+                "离开餐厅后玩家朝向没有恢复。");
             Assert.That(director.RequestCount, Is.EqualTo(baseRequestCount), "离开餐厅后镜头请求残留。");
             Assert.That(Vector3.Distance(director.CurrentPose.Position, basePose.Position), Is.LessThan(1.5f),
                 "离开餐厅后镜头没有回到进入前的跟随构图。");
@@ -245,27 +313,106 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             return -bestDirection * 320f;
         }
 
+        private static float PlanarDistance(Vector3 delta, CameraPlane plane)
+        {
+            return new Vector2(
+                Vector3.Dot(delta, plane.Right),
+                Vector3.Dot(delta, plane.Up)).magnitude;
+        }
+
+        private static Vector3 CalculateCenteredCameraPosition(CameraPose referencePose, Vector3 target)
+        {
+            CameraPlane plane = CameraPlane.FromRotation(referencePose.Rotation, target);
+            Vector3 forward = referencePose.Rotation * Vector3.forward;
+            float denominator = Vector3.Dot(forward, plane.Normal);
+            if (Mathf.Abs(denominator) < 0.0001f)
+                return target + (referencePose.Position - plane.Origin);
+
+            float distance = Vector3.Dot(target - referencePose.Position, plane.Normal) / denominator;
+            if (distance <= 0.01f)
+                distance = Mathf.Max(1f, Vector3.Distance(referencePose.Position, target));
+            return target - forward * distance;
+        }
+
         [UnityTest]
-        public IEnumerator ProductionSceneTransition_ActuallyRebindsTownDungeonTownWithoutLeaks()
+        public IEnumerator ProductionLevelManagerPipeline_ActuallyRebindsTownDungeonTownWithoutLeaks()
         {
             yield return LoadProductionScene(TownScene);
             CameraDirector firstTown = RequireActiveDirector(TownScene);
             int firstTownId = firstTown.GetInstanceID();
             Assert.That(firstTown.GetDebugSummary(), Does.Contain("Town"));
+            MonoBehaviour levelManager = RequireBehaviour("LevelManager");
+            MonoBehaviour townFollow = RequireBehaviour("CameraFollow");
+            Transform townPlayer = RequireDefaultTarget(townFollow);
+            Vector3 townReturnPosition = townPlayer.position;
 
-            yield return LoadProductionScene(DungeonScene);
+            MonoBehaviour homePortal = RequireBehaviour("HomeCavecar");
+            MonoBehaviour mapUi = RequireBehaviour("MapUIManager");
+            InvokePublic(homePortal, "OpenMapUI");
+            yield return WaitRealtime(0.8f);
+            Assert.That((bool)InvokePublic(homePortal, "IsMapUIActive"), Is.True,
+                "地面传送点没有打开地图选择 UI。");
+
+            object unlockedDungeonRegion = CreateUnlockedRegion(DungeonScene);
+            InvokePublic(mapUi, "EnterRegion", unlockedDungeonRegion);
+            yield return WaitForLevelTransition(levelManager, DungeonScene, true);
+            Assert.That(SceneManager.GetSceneByName(TownScene).isLoaded, Is.True,
+                "正式进入地牢应保留 Additive 加载的地面主场景。");
             CameraDirector dungeon = RequireActiveDirector(DungeonScene);
             Assert.That(dungeon.GetInstanceID(), Is.Not.EqualTo(firstTownId), "切到地牢后仍引用已卸载的小镇相机。");
             Assert.That(dungeon.GetDebugSummary(), Does.Contain("Dungeon"));
             Assert.That(dungeon.RequestCount, Is.EqualTo(1), "地牢场景基础镜头请求数量异常。");
 
             int dungeonId = dungeon.GetInstanceID();
-            yield return LoadProductionScene(TownScene);
+            MonoBehaviour dungeonExit = RequireBehaviour("levelCaveCar");
+            InvokePublic(dungeonExit, "ToHome");
+            yield return WaitForLevelTransition(levelManager, DungeonScene, false);
             CameraDirector secondTown = RequireActiveDirector(TownScene);
             Assert.That(secondTown.GetInstanceID(), Is.Not.EqualTo(dungeonId), "返回小镇后仍引用已卸载的地牢相机。");
+            Assert.That(secondTown.GetInstanceID(), Is.EqualTo(firstTownId), "返回小镇时不应重建地面基础镜头。");
             Assert.That(secondTown.GetDebugSummary(), Does.Contain("Town"));
             Assert.That(secondTown.RequestCount, Is.EqualTo(1), "返回小镇后存在跨场景镜头请求泄漏。");
+            Assert.That(Vector3.Distance(townPlayer.position, townReturnPosition), Is.LessThan(0.05f),
+                "从地牢返回后玩家没有回到进入地牢前的传送点附近。");
+            MonoBehaviour townController = FindBehaviourOnTarget(townPlayer, "TopDownController");
+            Assert.That(townController, Is.Not.Null, "从地牢返回后找不到地面玩家控制器。");
+            Assert.That(townController.enabled, Is.True, "从地牢返回后地面玩家控制器没有恢复。");
             AssertNoCameraErrors();
+        }
+
+        private static object CreateUnlockedRegion(string sceneName)
+        {
+            Type regionType = Type.GetType("RegionData, Assembly-CSharp");
+            Assert.That(regionType, Is.Not.Null, "运行时找不到地图区域数据类型 RegionData。");
+            return Activator.CreateInstance(
+                regionType,
+                "camera_acceptance",
+                "Camera Acceptance",
+                true,
+                sceneName);
+        }
+
+        private static IEnumerator WaitForLevelTransition(
+            MonoBehaviour levelManager,
+            string levelSceneName,
+            bool expectedLoaded)
+        {
+            float timeoutAt = Time.realtimeSinceStartup + 20f;
+            while (Time.realtimeSinceStartup < timeoutAt)
+            {
+                bool transitioning = (bool)InvokePublic(levelManager, "IsTransitioning");
+                Scene levelScene = SceneManager.GetSceneByName(levelSceneName);
+                bool isLoaded = levelScene.IsValid() && levelScene.isLoaded;
+                if (!transitioning && isLoaded == expectedLoaded)
+                {
+                    yield return WaitRealtime(0.5f);
+                    yield break;
+                }
+
+                yield return null;
+            }
+
+            Assert.Fail($"正式转场超时：{levelSceneName} 期望加载状态为 {expectedLoaded}。");
         }
 
         private IEnumerator LoadProductionScene(string sceneName)
