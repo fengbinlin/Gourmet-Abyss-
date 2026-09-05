@@ -1,0 +1,21 @@
+{
+  "name": "GourmetAbyss.CameraSystem.EditModeTests",
+  "rootNamespace": "GourmetAbyss.CameraSystem.Tests",
+  "references": [
+    "GourmetAbyss.CameraSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

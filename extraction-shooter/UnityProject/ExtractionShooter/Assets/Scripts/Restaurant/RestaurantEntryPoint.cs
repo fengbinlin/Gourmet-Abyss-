@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Game.Core;
+using GourmetAbyss.CameraSystem;
 using UnityEngine;
 
 /// <summary>
@@ -23,6 +24,11 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     [SerializeField] private float cameraYFocusOffset = 0.35f;
     [Tooltip("<= 0 时不改 orthographicSize，仅平移视角")]
     [SerializeField] private bool adjustOrthoSize = true;
+    [SerializeField] private RestaurantCameraProfile cameraProfile;
+    [Tooltip("可选。指定后直接使用 Collider 边界；为空时按 cameraBoundsRoot、锚点父物体、活动内容依次回退。")]
+    [SerializeField] private Collider cameraBounds;
+    [Tooltip("可选。未指定 cameraBounds 时，从该对象的 Renderer 计算边界；为空时优先使用餐厅锚点的父物体。")]
+    [SerializeField] private GameObject cameraBoundsRoot;
 
     [Header("交互")]
     [SerializeField] private KeyCode interactKey = KeyCode.E;
@@ -39,6 +45,10 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     private Vector3 _savedCameraPosition;
     private string _cameraRequestKey;
     private InteractiveFeedback _feedback;
+    private CameraShotLease _restaurantCameraLease;
+    private CameraPlanarBounds _cachedCameraBounds;
+    private bool _hasCachedCameraBounds;
+    private GameObject _runtimeCameraAnchor;
 
     public bool IsEntered => _isEntered;
 
@@ -112,12 +122,7 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
         if (player == null) return;
 
         SaveCameraStateBeforeEnter();
-
-        Vector3 anchorPos = GetAnchorPosition();
-        CameraFollow.PushXFocusRequest(_cameraRequestKey, anchorPos.x);
-        CameraFollow.PushYFocusRequest(_cameraRequestKey, anchorPos.y - cameraYFocusOffset);
-        if (adjustOrthoSize && cameraOrthoSize > 0f)
-            CameraFollow.PushOrthoSizeRequest(_cameraRequestKey, cameraOrthoSize);
+        AcquireRestaurantCamera();
 
         _lockedPlayer = player;
         _wasPlayerMoveEnabled = player.canPlayerMove;
@@ -178,17 +183,25 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
     private void RestoreRestaurantCamera()
     {
-        CameraFollow.PopOrthoSizeRequest(_cameraRequestKey);
-        CameraFollow.PopXFocusRequest(_cameraRequestKey);
-        CameraFollow.PopYFocusRequest(_cameraRequestKey);
-
-        CameraFollow cameraFollow = FindObjectOfType<CameraFollow>();
-        if (cameraFollow != null)
+        _restaurantCameraLease?.Dispose();
+        _restaurantCameraLease = null;
+        if (_runtimeCameraAnchor != null)
         {
-            if (_hasSavedCameraState)
-                cameraFollow.SnapBackToDefaultFollow(_savedOrthoSize, _savedCameraPosition);
-            else
-                cameraFollow.SnapBackToDefaultFollow();
+            Destroy(_runtimeCameraAnchor);
+            _runtimeCameraAnchor = null;
+        }
+
+        // 新框架会自动混合回请求栈的下一层；只有框架未初始化时才走旧恢复兜底。
+        if (CameraService.Active == null)
+        {
+            CameraFollow cameraFollow = FindObjectOfType<CameraFollow>();
+            if (cameraFollow != null)
+            {
+                if (_hasSavedCameraState)
+                    cameraFollow.SnapBackToDefaultFollow(_savedOrthoSize, _savedCameraPosition);
+                else
+                    cameraFollow.SnapBackToDefaultFollow();
+            }
         }
 
         _hasSavedCameraState = false;
@@ -216,6 +229,93 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     private Vector3 GetAnchorPosition()
     {
         return restaurantAnchor != null ? restaurantAnchor.position : transform.position;
+    }
+
+    private void AcquireRestaurantCamera()
+    {
+        CameraDirector director = CameraService.Active;
+        Transform anchor = restaurantAnchor != null ? restaurantAnchor : transform;
+        if (director == null || anchor == null)
+            return;
+
+        _restaurantCameraLease?.Dispose();
+        _hasCachedCameraBounds = false;
+
+        float requestedSize = adjustOrthoSize && cameraOrthoSize > 0f
+            ? cameraOrthoSize
+            : director.CurrentPose.OrthographicSize;
+        if (cameraProfile != null && cameraProfile.orthographicSize > 0f)
+            requestedSize = cameraProfile.orthographicSize;
+
+        CameraDamping damping = cameraProfile != null
+            ? cameraProfile.damping
+            : new CameraDamping(0.15f, 0.15f, 0.18f);
+        float dragSensitivity = cameraProfile != null ? cameraProfile.dragSensitivity : 1f;
+        bool blockDragOverUi = cameraProfile == null || cameraProfile.blockDragWhenPointerOverUi;
+
+        // 兼容旧配置中的 Y 对焦偏移：沿当前镜头平面的屏幕 Up 方向移动锚点。
+        CameraPlane plane = CameraPlane.FromRotation(director.CurrentPose.Rotation, anchor.position);
+        if (_runtimeCameraAnchor != null)
+            Destroy(_runtimeCameraAnchor);
+        _runtimeCameraAnchor = new GameObject("~RestaurantCameraAnchor");
+        _runtimeCameraAnchor.hideFlags = HideFlags.HideAndDontSave;
+        _runtimeCameraAnchor.transform.SetParent(anchor, false);
+        _runtimeCameraAnchor.transform.position = anchor.position - plane.Up * cameraYFocusOffset;
+        Transform effectiveAnchor = _runtimeCameraAnchor.transform;
+
+        RestaurantPanCameraSource source = new RestaurantPanCameraSource(
+            effectiveAnchor,
+            director.CurrentPose,
+            requestedSize,
+            dragSensitivity,
+            blockDragOverUi,
+            damping,
+            ResolveRestaurantBounds);
+
+        float blendIn = cameraProfile != null ? cameraProfile.blendIn : 0.3f;
+        float blendOut = cameraProfile != null ? cameraProfile.blendOut : 0.25f;
+        _restaurantCameraLease = director.AcquireShot(
+            this,
+            source,
+            new CameraShotOptions(50, blendIn, blendOut, "Restaurant"));
+    }
+
+    private CameraPlanarBounds ResolveRestaurantBounds(CameraPlane plane)
+    {
+        if (_hasCachedCameraBounds)
+            return _cachedCameraBounds;
+
+        Bounds worldBounds;
+        bool found = false;
+        if (cameraBounds != null)
+        {
+            worldBounds = cameraBounds.bounds;
+            found = true;
+        }
+        else
+        {
+            GameObject boundsRoot = ResolveCameraBoundsRoot();
+            found = CameraBoundsUtility.TryCollectRendererBounds(boundsRoot, out worldBounds);
+            if (!found && boundsRoot != restaurantActiveContent)
+                found = CameraBoundsUtility.TryCollectRendererBounds(restaurantActiveContent, out worldBounds);
+        }
+
+        _cachedCameraBounds = found
+            ? CameraPlanarBounds.FromWorldBounds(worldBounds, plane)
+            : default;
+        _hasCachedCameraBounds = true;
+        return _cachedCameraBounds;
+    }
+
+    private GameObject ResolveCameraBoundsRoot()
+    {
+        if (cameraBoundsRoot != null)
+            return cameraBoundsRoot;
+
+        if (restaurantAnchor != null && restaurantAnchor.parent != null)
+            return restaurantAnchor.parent.gameObject;
+
+        return restaurantActiveContent;
     }
 
     private void OnDrawGizmosSelected()

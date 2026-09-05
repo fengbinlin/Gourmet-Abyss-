@@ -1,0 +1,12 @@
+@echo off
+setlocal
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Run-CameraAcceptance-Live.ps1"
+if errorlevel 1 (
+  echo.
+  echo CAMERA LIVE ACCEPTANCE FAILED.
+  pause
+  exit /b 1
+)
+echo.
+echo CAMERA LIVE ACCEPTANCE PASSED.
+pause

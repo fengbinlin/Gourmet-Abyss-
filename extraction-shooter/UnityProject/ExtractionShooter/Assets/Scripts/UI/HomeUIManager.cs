@@ -135,14 +135,16 @@ public class HomeUIManager : MonoBehaviour
     private void Update()
     {
         TrySubscribeResourceEvents();
-        if (GameValManager.Instance == null) return;
+        GameValManager manager = GameValManager.Instance;
+        if (manager == null) return;
 
         UpdateMoneyDisplay();
 
-        textF1.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPumkin).ToString();
-        textF2.text = GameValManager.Instance.GetResourceCount(ResourceType.LootOnion).ToString();
-        textF3.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPear).ToString();
-        STextPKVal.text = GameValManager.Instance.GetResourceCount(ResourceType.LootPumkin).ToString();
+        string pumpkin = manager.GetResourceCount(ResourceType.LootPumkin).ToString();
+        if (textF1 != null) textF1.text = pumpkin;
+        if (textF2 != null) textF2.text = manager.GetResourceCount(ResourceType.LootOnion).ToString();
+        if (textF3 != null) textF3.text = manager.GetResourceCount(ResourceType.LootPear).ToString();
+        if (STextPKVal != null) STextPKVal.text = pumpkin;
     }
 
     private void UpdateMoneyDisplay()

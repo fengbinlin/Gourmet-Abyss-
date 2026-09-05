@@ -1,4 +1,5 @@
 using UnityEngine;
+using GourmetAbyss.CameraSystem;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -173,17 +174,25 @@ public class SecondaryWeapon : MonoBehaviour
     {
         // 从 WeaponStatsManager 获取数值
         maxChainCount = 1;
-        secondaryFireRate = WeaponStatsManager.Instance.secondaryFireRate;
-        secondaryReloadDuration = WeaponStatsManager.Instance.secondaryReloadDuration;
-        damageTickInterval = WeaponStatsManager.Instance.secondaryFireRate;
-        damageValue = WeaponStatsManager.Instance.secondaryDamageValue;
-        laserLength = WeaponStatsManager.Instance.secondaryLaserLength;
-        laserCount = WeaponStatsManager.Instance.secondaryLaserCount;
-        laserWidth = WeaponStatsManager.Instance.secondaryLaserWidth;
-        critChance = WeaponStatsManager.Instance.secondaryCritChance;
-        critMultiplier = WeaponStatsManager.Instance.secondaryCritMultiplier;
-        maxChainsPerEnemy = WeaponStatsManager.Instance.secondaryMaxChainCount;
-        chainSearchRadius = WeaponStatsManager.Instance.secondaryChainSearchRadius;
+        WeaponStatsManager stats = WeaponStatsManager.Instance;
+        if (stats == null)
+        {
+            // Layer scenes can be opened directly for debugging and automated acceptance,
+            // before the persistent gameplay managers have been created.
+            return;
+        }
+
+        secondaryFireRate = stats.secondaryFireRate;
+        secondaryReloadDuration = stats.secondaryReloadDuration;
+        damageTickInterval = stats.secondaryFireRate;
+        damageValue = stats.secondaryDamageValue;
+        laserLength = stats.secondaryLaserLength;
+        laserCount = stats.secondaryLaserCount;
+        laserWidth = stats.secondaryLaserWidth;
+        critChance = stats.secondaryCritChance;
+        critMultiplier = stats.secondaryCritMultiplier;
+        maxChainsPerEnemy = stats.secondaryMaxChainCount;
+        chainSearchRadius = stats.secondaryChainSearchRadius;
     }
 
     private void OnEnable()
@@ -727,10 +736,7 @@ public class SecondaryWeapon : MonoBehaviour
 
         PlayShootingEffects();
 
-        if (cameraScript != null)
-        {
-            cameraScript.Shake(secondaryScreenShakeDuration, secondaryScreenShakeIntensity);
-        }
+        CameraService.PlayImpulse(secondaryScreenShakeDuration, secondaryScreenShakeIntensity);
 
         if (secondaryWeaponModel != null)
         {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using GourmetAbyss.CameraSystem;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using System.Collections;
@@ -234,6 +235,7 @@ public class TopDownController : MonoBehaviour
     // 内部变量
     private Rigidbody rb;
     private Vector3 moveInput;
+    private Vector3 cameraFacingDirection = Vector3.right;
     private Vector3 currentAimPoint;
     private Coroutine hitFlashCoroutine;
 
@@ -251,6 +253,11 @@ public class TopDownController : MonoBehaviour
     private float mouseInactiveTimer = 0f;
     public bool isDead = false;
     public bool canPlayerMove = true;
+    /// <summary>
+    /// 提供给小镇镜头的稳定朝向。它只在出现有效移动输入时更新，
+    /// 不受战斗瞄准时模型旋转影响。
+    /// </summary>
+    public Vector3 CameraFacingDirection => cameraFacingDirection;
     [SerializeField] private float mouseInactiveThreshold = 0.1f; // 鼠标静止多久后算不活动
 
     void Awake()
@@ -474,13 +481,7 @@ public class TopDownController : MonoBehaviour
         if (isDead) return;
         if (hungerDamageShakeDuration <= 0f || hungerDamageShakeMagnitude <= 0f) return;
 
-        CameraFollow cf = hungerDamageCameraFollow;
-        if (cf == null && mainCamera != null)
-            cf = mainCamera.GetComponent<CameraFollow>();
-        if (cf == null && mainCamera != null)
-            cf = mainCamera.GetComponentInParent<CameraFollow>();
-
-        cf?.Shake(hungerDamageShakeDuration, hungerDamageShakeMagnitude);
+        CameraService.PlayImpulse(hungerDamageShakeDuration, hungerDamageShakeMagnitude);
     }
 
     /// <summary>
@@ -1229,6 +1230,10 @@ public class TopDownController : MonoBehaviour
             camRight.y = 0;
 
             moveInput = (camForward.normalized * v + camRight.normalized * h).normalized;
+            if (moveInput.sqrMagnitude > 0.0001f)
+            {
+                cameraFacingDirection = moveInput;
+            }
         }
         else
         {

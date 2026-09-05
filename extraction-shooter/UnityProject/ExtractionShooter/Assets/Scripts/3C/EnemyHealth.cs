@@ -1,4 +1,5 @@
 using UnityEngine;
+using GourmetAbyss.CameraSystem;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
@@ -590,10 +591,7 @@ public class EnemyHealth : MonoBehaviour
     
     private void TriggerScreenShake()
     {
-        if (cameraFollow != null)
-        {
-            cameraFollow.Shake(shakeDuration, shakeMagnitude);
-        }
+        CameraService.PlayImpulse(shakeDuration, shakeMagnitude);
     }
     
     private IEnumerator DeathKnockbackCoroutine()

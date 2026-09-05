@@ -1,118 +1,238 @@
-using UnityEngine;
 using System;
 using System.Collections.Generic;
+using GourmetAbyss.CameraSystem;
+using UnityEngine;
 
+/// <summary>
+/// 旧场景和业务脚本的兼容入口。实际镜头计算、仲裁和输出由 CameraDirector 完成；
+/// 新功能应直接提交 ICameraShotSource，不应继续扩展本类。
+/// </summary>
+[DisallowMultipleComponent]
 public class CameraFollow : MonoBehaviour
 {
-    private static readonly Dictionary<string, float> orthoSizeRequests = new Dictionary<string, float>();
-    private static readonly Dictionary<string, float> xFocusRequests = new Dictionary<string, float>();
-    private static readonly Dictionary<string, float> yFocusRequests = new Dictionary<string, float>();
-    private static float originalOrthoSize = -1f;
+    private enum LegacyDefaultSource
+    {
+        Auto,
+        Town,
+        Dungeon
+    }
+
+    private sealed class LegacyFocusState
+    {
+        public CameraDirector Director;
+        public CameraShotLease Lease;
+        public MutableLegacyFocusSource Source;
+    }
+
+    private sealed class MutableLegacyFocusSource : ICameraShotSource
+    {
+        public CameraPose ReferencePose;
+        public bool OverrideX;
+        public bool OverrideY;
+        public bool OverrideSize;
+        public float X;
+        public float Y;
+        public float Size;
+
+        public bool TryEvaluate(in CameraEvaluationContext context, out CameraShotResult result)
+        {
+            CameraPose pose = ReferencePose;
+            if (OverrideX) pose.Position.x = X;
+            if (OverrideY) pose.Position.y = Y;
+            if (OverrideSize) pose.OrthographicSize = Mathf.Max(0.01f, Size);
+            CameraPlane plane = CameraPlane.FromRotation(pose.Rotation, pose.Position);
+            result = new CameraShotResult(
+                pose,
+                new CameraDamping(0.12f, 0.15f, 0.18f),
+                plane,
+                CameraShotPolicy.AllowShake | CameraShotPolicy.UseUnscaledTime);
+            return true;
+        }
+    }
+
+    private static readonly Dictionary<string, LegacyFocusState> LegacyFocusRequests =
+        new Dictionary<string, LegacyFocusState>();
 
     [Header("目标设置")]
-    [SerializeField] private Transform target; 
+    [SerializeField] private Transform target;
     [SerializeField] private TopDownController playerController;
 
-    [Header("跟随参数")]
-    [SerializeField] private float smoothTime = 0.3f; 
-    [SerializeField] private Vector3 offset; 
-    [SerializeField] private bool autoOffset = true; 
-    [Header("正交缩放参数")]
+    [Header("兼容场景默认镜头")]
+    [SerializeField] private LegacyDefaultSource defaultSource = LegacyDefaultSource.Auto;
+    [SerializeField] private TownCameraProfile townProfile;
+    [SerializeField] private DungeonCameraProfile dungeonProfile;
+
+    [Header("跟随参数（无 Profile 时作为默认值）")]
+    [SerializeField] private float smoothTime = 0.3f;
+    [SerializeField] private Vector3 offset;
+    [SerializeField] private bool autoOffset = true;
+    [SerializeField] private float townLookAheadDistance = 1.5f;
+    [SerializeField] private float townLookAheadSmoothTime = 0.2f;
+    [SerializeField] private float dungeonPointerMaxOffset = 3f;
+    [SerializeField, Range(0f, 0.95f)] private float dungeonPointerDeadZone = 0.1f;
+    [SerializeField, Range(0.25f, 4f)] private float dungeonPointerResponseExponent = 1.4f;
+    [SerializeField] private float dungeonPointerSmoothTime = 0.14f;
+
+    // 旧序列化字段保留，避免现有场景丢字段；新框架不再按轴平均多个请求。
+    [Header("旧字段（仅兼容序列化）")]
     [SerializeField] private float orthoSizeSmoothTime = 0.18f;
-    [Header("交互横向 / 纵向对焦")]
     [SerializeField] private float xFocusSmoothTime = 0.08f;
     [SerializeField] private float yFocusSmoothTime = 0.08f;
 
-    private Vector3 velocity = Vector3.zero; 
-    private float orthoSizeVelocity = 0f;
-    private float xFocusVelocity = 0f;
-    private float yFocusVelocity = 0f;
-    private Transform defaultTarget;
-    private Transform overrideTarget;
+    private CameraDirector _director;
+    private CameraSceneContext _sceneContext;
+    private CameraShotLease _baseLease;
+    private CameraShotLease _overrideLease;
+    private ICameraTargetSource _baseSource;
+    private Transform _defaultTarget;
+    private Transform _overrideTarget;
+    private Vector3 _baseOffset;
+
     public event Action OnOverrideClearedByPlayerMove;
+    public CameraDirector Director => _director;
+    public Transform DefaultTarget => _defaultTarget != null ? _defaultTarget : target;
 
-    // --- 新增：震动参数 ---
-    private float shakeTimer = 0f;
-    private float shakeMagnitude = 0f;
-
-    void Start()
+    private void Awake()
     {
-        if (target == null) return;
-        defaultTarget = target;
-        if (autoOffset) offset = transform.position - target.position;
+        _director = GetComponent<CameraDirector>();
+        if (_director == null)
+            _director = gameObject.AddComponent<CameraDirector>();
+        _sceneContext = GetComponent<CameraSceneContext>();
+        if (_sceneContext == null)
+            _sceneContext = gameObject.AddComponent<CameraSceneContext>();
+    }
+
+    private void Start()
+    {
+        _defaultTarget = target;
+        _sceneContext?.BindDefaultTarget(_defaultTarget);
         AutoBindPlayerControllerIfNeeded();
+        RegisterBaseSource();
+    }
+
+    private void OnEnable()
+    {
+        if (_director != null && _baseLease == null && _defaultTarget != null)
+            RegisterBaseSource();
+    }
+
+    private void Update()
+    {
+        if (_overrideTarget != null && playerController != null && playerController.IsMoving())
+            ClearOverrideTarget(true);
+    }
+
+    private void OnDisable()
+    {
+        _overrideLease?.Dispose();
+        _overrideLease = null;
+        _baseLease?.Dispose();
+        _baseLease = null;
     }
 
     private void AutoBindPlayerControllerIfNeeded()
     {
-        if (playerController != null) return;
-        if (defaultTarget == null) return;
-        playerController = defaultTarget.GetComponent<TopDownController>();
+        if (playerController != null || DefaultTarget == null)
+            return;
+        playerController = DefaultTarget.GetComponent<TopDownController>();
     }
 
-    void LateUpdate()
+    private void RegisterBaseSource()
     {
-        UpdateOrthoSizeSmooth();
+        if (_director == null || DefaultTarget == null)
+            return;
 
-        // 如果玩家开始移动，强制回到默认跟随
-        if (overrideTarget != null && playerController != null && playerController.IsMoving())
+        Camera cam = _director.Camera;
+        if (cam == null)
+            return;
+
+        _baseOffset = autoOffset ? transform.position - DefaultTarget.position : offset;
+        Quaternion rotation = transform.rotation;
+        float currentSize = cam.orthographicSize;
+        LegacyDefaultSource selected = ResolveDefaultSource(rotation);
+
+        if (selected == LegacyDefaultSource.Town)
         {
-            ClearOverrideTarget(true);
+            float size = townProfile != null && townProfile.orthographicSize > 0f
+                ? townProfile.orthographicSize
+                : currentSize;
+            CameraDamping damping = townProfile != null
+                ? townProfile.damping
+                : new CameraDamping(smoothTime, 0.15f, orthoSizeSmoothTime);
+            float lookAhead = townProfile != null ? townProfile.lookAheadDistance : townLookAheadDistance;
+            float lookAheadSmooth = townProfile != null ? townProfile.lookAheadSmoothTime : townLookAheadSmoothTime;
+
+            _baseSource = new TownFollowCameraSource(
+                DefaultTarget,
+                ResolvePlayerFacing,
+                _baseOffset,
+                rotation,
+                size,
+                lookAhead,
+                lookAheadSmooth,
+                damping);
+        }
+        else
+        {
+            float size = dungeonProfile != null && dungeonProfile.orthographicSize > 0f
+                ? dungeonProfile.orthographicSize
+                : currentSize;
+            CameraDamping damping = dungeonProfile != null
+                ? dungeonProfile.damping
+                : new CameraDamping(smoothTime, 0.15f, orthoSizeSmoothTime);
+
+            _baseSource = new DungeonAimCameraSource(
+                DefaultTarget,
+                _baseOffset,
+                rotation,
+                size,
+                dungeonProfile != null ? dungeonProfile.centerDeadZone : dungeonPointerDeadZone,
+                dungeonProfile != null ? dungeonProfile.maxPointerOffset : dungeonPointerMaxOffset,
+                dungeonProfile != null ? dungeonProfile.responseExponent : dungeonPointerResponseExponent,
+                dungeonProfile != null ? dungeonProfile.pointerSmoothTime : dungeonPointerSmoothTime,
+                damping);
         }
 
-        Transform currentTarget = overrideTarget != null ? overrideTarget : target;
-        if (currentTarget == null) return;
-
-        // 1. 计算基础的跟随位置 (平滑处理)
-        Vector3 targetPosition = currentTarget.position + offset;
-        Vector3 smoothedPosition = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
-        if (TryGetFocusedX(out float focusX))
-        {
-            smoothedPosition.x = Mathf.SmoothDamp(
-                transform.position.x,
-                focusX,
-                ref xFocusVelocity,
-                Mathf.Max(0.01f, xFocusSmoothTime)
-            );
-        }
-
-        if (TryGetFocusedY(out float focusY))
-        {
-            smoothedPosition.y = Mathf.SmoothDamp(
-                transform.position.y,
-                focusY,
-                ref yFocusVelocity,
-                Mathf.Max(0.01f, yFocusSmoothTime)
-            );
-        }
-
-        // 2. 叠加震动效果 (如果有震动时间剩余)
-        if (shakeTimer > 0)
-        {
-            // 在球体内随机取一个点作为偏移
-            Vector3 shakeOffset = UnityEngine.Random.insideUnitSphere * shakeMagnitude;
-            smoothedPosition += shakeOffset;
-
-            shakeTimer -= Time.deltaTime;
-        }
-
-        // 3. 应用最终位置
-        transform.position = smoothedPosition;
+        _baseLease?.Dispose();
+        _baseLease = _director.AcquireShot(
+            this,
+            _baseSource,
+            CameraShotOptions.Gameplay(selected.ToString()));
     }
 
-    /// <summary>
-    /// 临时切换相机跟随目标（例如 UI 选中某个点位）。
-    /// 注意：offset 不会改变，保持当前相机相对位移。
-    /// </summary>
+    private LegacyDefaultSource ResolveDefaultSource(Quaternion rotation)
+    {
+        if (defaultSource != LegacyDefaultSource.Auto)
+            return defaultSource;
+
+        Vector3 forward = rotation * Vector3.forward;
+        return Mathf.Abs(forward.y) > 0.1f
+            ? LegacyDefaultSource.Dungeon
+            : LegacyDefaultSource.Town;
+    }
+
+    private Vector3 ResolvePlayerFacing()
+    {
+        if (playerController != null && playerController.CameraFacingDirection.sqrMagnitude > 0.0001f)
+            return playerController.CameraFacingDirection;
+        return DefaultTarget != null ? DefaultTarget.forward : Vector3.right;
+    }
+
     public void SetOverrideTarget(Transform newTarget)
     {
-        if (newTarget == null) return;
-        overrideTarget = newTarget;
+        if (newTarget == null || _director == null)
+            return;
+
+        _overrideLease?.Dispose();
+        _overrideTarget = newTarget;
+        TransformFocusCameraSource source = new TransformFocusCameraSource(
+            newTarget,
+            _director.CurrentPose,
+            _director.CurrentPose.OrthographicSize,
+            new CameraDamping(0.2f, 0.15f, 0.18f));
+        _overrideLease = _director.AcquireShot(this, source, CameraShotOptions.Ui("Legacy UI Focus"));
     }
 
-    /// <summary>
-    /// 清除临时跟随目标，回到默认 target（通常是 Player）。
-    /// </summary>
     public void ClearOverrideTarget()
     {
         ClearOverrideTarget(false);
@@ -120,215 +240,154 @@ public class CameraFollow : MonoBehaviour
 
     private void ClearOverrideTarget(bool clearedByPlayerMove)
     {
-        if (overrideTarget == null) return;
-        overrideTarget = null;
-        if (clearedByPlayerMove)
-        {
-            OnOverrideClearedByPlayerMove?.Invoke();
-        }
-    }
-
-    /// <summary>
-    /// 允许外部在运行时重设默认目标（如换人/重生）。
-    /// </summary>
-    public void SetDefaultTarget(Transform newDefault)
-    {
-        if (newDefault == null) return;
-        defaultTarget = newDefault;
-        target = newDefault;
-        AutoBindPlayerControllerIfNeeded();
-        if (autoOffset) offset = transform.position - newDefault.position;
-    }
-
-    /// <summary>
-    /// 公开方法：触发屏幕震动
-    /// </summary>
-    /// <param name="duration">震动持续时间 (秒)</param>
-    /// <param name="magnitude">震动强度 (位移距离)</param>
-    public void Shake(float duration, float magnitude)
-    {
-        shakeTimer = duration;
-        shakeMagnitude = magnitude;
-    }
-
-    public static void PushOrthoSizeRequest(string requestKey, float targetSize)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        Camera cam = FindActiveMainCamera();
-        if (cam == null || !cam.orthographic) return;
-
-        if (originalOrthoSize < 0f)
-        {
-            originalOrthoSize = cam.orthographicSize;
-        }
-
-        orthoSizeRequests[requestKey] = Mathf.Max(0.01f, targetSize);
-    }
-
-    public static void PopOrthoSizeRequest(string requestKey)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        if (!orthoSizeRequests.Remove(requestKey)) return;
-
-        Camera cam = FindActiveMainCamera();
-        if (cam == null || !cam.orthographic) return;
-    }
-
-    public static void PushXFocusRequest(string requestKey, float worldX)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        xFocusRequests[requestKey] = worldX;
-    }
-
-    public static void PopXFocusRequest(string requestKey)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        xFocusRequests.Remove(requestKey);
-    }
-
-    public static void PushYFocusRequest(string requestKey, float worldY)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        yFocusRequests[requestKey] = worldY;
-    }
-
-    public static void PopYFocusRequest(string requestKey)
-    {
-        if (string.IsNullOrEmpty(requestKey)) return;
-        yFocusRequests.Remove(requestKey);
-    }
-
-    /// <summary>离开餐厅等场景时立即回到默认跟随，避免 SmoothDamp 残留导致视角不归位。</summary>
-    public void SnapBackToDefaultFollow(float? orthoSize = null, Vector3? worldPosition = null)
-    {
-        ClearOverrideTarget();
-
-        velocity = Vector3.zero;
-        xFocusVelocity = 0f;
-        yFocusVelocity = 0f;
-        orthoSizeVelocity = 0f;
-
-        Transform followTarget = target != null ? target : defaultTarget;
-        if (worldPosition.HasValue)
-            transform.position = worldPosition.Value;
-        else if (followTarget != null)
-            transform.position = followTarget.position + offset;
-
-        Camera cam = GetComponent<Camera>();
-        if (cam == null)
-            cam = FindActiveMainCamera();
-        if (cam == null || !cam.orthographic)
+        if (_overrideTarget == null && _overrideLease == null)
             return;
 
-        if (orthoSize.HasValue)
-        {
-            cam.orthographicSize = Mathf.Max(0.01f, orthoSize.Value);
-            if (orthoSizeRequests.Count == 0)
-                originalOrthoSize = -1f;
-        }
-        else if (orthoSizeRequests.Count == 0 && originalOrthoSize > 0f)
-        {
-            cam.orthographicSize = originalOrthoSize;
-            originalOrthoSize = -1f;
-        }
+        _overrideTarget = null;
+        _overrideLease?.Dispose();
+        _overrideLease = null;
+        if (clearedByPlayerMove)
+            OnOverrideClearedByPlayerMove?.Invoke();
     }
 
-    private void UpdateOrthoSizeSmooth()
+    public void SetDefaultTarget(Transform newDefault)
     {
-        Camera cam = FindActiveMainCamera();
-        if (cam == null || !cam.orthographic) return;
+        if (newDefault == null)
+            return;
 
-        float desiredSize = cam.orthographicSize;
-        if (orthoSizeRequests.Count > 0)
-        {
-            if (originalOrthoSize < 0f)
-            {
-                originalOrthoSize = cam.orthographicSize;
-            }
-
-            float minSize = float.MaxValue;
-            foreach (var kv in orthoSizeRequests)
-            {
-                if (kv.Value < minSize) minSize = kv.Value;
-            }
-
-            if (minSize < float.MaxValue)
-            {
-                desiredSize = minSize;
-            }
-        }
-        else if (originalOrthoSize > 0f)
-        {
-            desiredSize = originalOrthoSize;
-        }
-
-        cam.orthographicSize = Mathf.SmoothDamp(
-            cam.orthographicSize,
-            desiredSize,
-            ref orthoSizeVelocity,
-            Mathf.Max(0.01f, orthoSizeSmoothTime)
-        );
-
-        if (orthoSizeRequests.Count == 0 && originalOrthoSize > 0f && Mathf.Abs(cam.orthographicSize - originalOrthoSize) < 0.001f)
-        {
-            originalOrthoSize = -1f;
-        }
+        _defaultTarget = newDefault;
+        target = newDefault;
+        playerController = newDefault.GetComponent<TopDownController>();
+        _sceneContext?.BindDefaultTarget(newDefault);
+        if (_baseSource != null)
+            _baseSource.Target = newDefault;
     }
 
-    private static Camera FindActiveMainCamera()
+    public void Shake(float duration, float magnitude)
     {
-        if (Camera.main != null && Camera.main.isActiveAndEnabled && Camera.main.gameObject.activeInHierarchy)
-        {
-            return Camera.main;
-        }
-
-        Camera[] allCameras = GameObject.FindObjectsOfType<Camera>(true);
-        for (int i = 0; i < allCameras.Length; i++)
-        {
-            Camera c = allCameras[i];
-            if (c == null) continue;
-            if (!c.CompareTag("MainCamera")) continue;
-            if (!c.gameObject.activeInHierarchy || !c.isActiveAndEnabled) continue;
-            return c;
-        }
-
-        return null;
+        if (_director != null)
+            _director.PlayImpulse(duration, magnitude);
+        else
+            CameraService.PlayImpulse(duration, magnitude);
     }
 
-    private bool TryGetFocusedX(out float focusedX)
+    public CameraShotLease AcquireFocusShot(
+        UnityEngine.Object owner,
+        Transform focusTarget,
+        float orthographicSize,
+        CameraShotOptions options,
+        CameraDamping? damping = null)
     {
-        focusedX = 0f;
-        if (xFocusRequests.Count == 0) return false;
+        if (_director == null || focusTarget == null)
+            return null;
 
-        // 多请求时取平均，避免跳变；当前场景通常只有一个请求
-        float sum = 0f;
-        int count = 0;
-        foreach (var kv in xFocusRequests)
-        {
-            sum += kv.Value;
-            count++;
-        }
-        if (count <= 0) return false;
-
-        focusedX = sum / count;
-        return true;
+        TransformFocusCameraSource source = new TransformFocusCameraSource(
+            focusTarget,
+            _director.CurrentPose,
+            orthographicSize,
+            damping ?? new CameraDamping(0.2f, 0.15f, 0.18f));
+        return _director.AcquireShot(owner, source, options);
     }
 
-    private bool TryGetFocusedY(out float focusedY)
+    public void SnapBackToDefaultFollow(float? orthographicSize = null, Vector3? worldPosition = null)
     {
-        focusedY = 0f;
-        if (yFocusRequests.Count == 0) return false;
+        ClearOverrideTarget();
+        if (_director == null)
+            return;
 
-        float sum = 0f;
-        int count = 0;
-        foreach (var kv in yFocusRequests)
-        {
-            sum += kv.Value;
-            count++;
-        }
-        if (count <= 0) return false;
-
-        focusedY = sum / count;
-        return true;
+        Vector3 position = worldPosition ??
+                           (DefaultTarget != null ? DefaultTarget.position + _baseOffset : _director.CurrentPose.Position);
+        float size = orthographicSize ?? _director.CurrentPose.OrthographicSize;
+        _director.SnapTo(new CameraPose(position, transform.rotation, size));
     }
+
+    #region Legacy static request API
+
+    [Obsolete("Use CameraService.AcquireShot and CameraShotLease instead.")]
+    public static void PushOrthoSizeRequest(string requestKey, float targetSize)
+    {
+        LegacyFocusState state = GetLegacyState(requestKey);
+        if (state == null) return;
+        state.Source.OverrideSize = true;
+        state.Source.Size = targetSize;
+    }
+
+    [Obsolete("Use CameraShotLease.Dispose instead.")]
+    public static void PopOrthoSizeRequest(string requestKey)
+    {
+        ReleaseLegacyState(requestKey);
+    }
+
+    [Obsolete("Use CameraService.AcquireShot and CameraShotLease instead.")]
+    public static void PushXFocusRequest(string requestKey, float worldX)
+    {
+        LegacyFocusState state = GetLegacyState(requestKey);
+        if (state == null) return;
+        state.Source.OverrideX = true;
+        state.Source.X = worldX;
+    }
+
+    [Obsolete("Use CameraShotLease.Dispose instead.")]
+    public static void PopXFocusRequest(string requestKey)
+    {
+        ReleaseLegacyState(requestKey);
+    }
+
+    [Obsolete("Use CameraService.AcquireShot and CameraShotLease instead.")]
+    public static void PushYFocusRequest(string requestKey, float worldY)
+    {
+        LegacyFocusState state = GetLegacyState(requestKey);
+        if (state == null) return;
+        state.Source.OverrideY = true;
+        state.Source.Y = worldY;
+    }
+
+    [Obsolete("Use CameraShotLease.Dispose instead.")]
+    public static void PopYFocusRequest(string requestKey)
+    {
+        ReleaseLegacyState(requestKey);
+    }
+
+    private static LegacyFocusState GetLegacyState(string requestKey)
+    {
+        if (string.IsNullOrEmpty(requestKey) || CameraService.Active == null)
+            return null;
+
+        if (LegacyFocusRequests.TryGetValue(requestKey, out LegacyFocusState existing))
+        {
+            if (existing.Director == CameraService.Active && existing.Lease != null && existing.Lease.IsValid)
+                return existing;
+            existing.Lease?.Dispose();
+            LegacyFocusRequests.Remove(requestKey);
+        }
+
+        CameraDirector director = CameraService.Active;
+        MutableLegacyFocusSource source = new MutableLegacyFocusSource
+        {
+            ReferencePose = director.CurrentPose
+        };
+        LegacyFocusState state = new LegacyFocusState
+        {
+            Director = director,
+            Source = source,
+            Lease = director.AcquireShot(
+                director,
+                source,
+                new CameraShotOptions(100, 0.2f, 0.2f, $"Legacy:{requestKey}"))
+        };
+        LegacyFocusRequests[requestKey] = state;
+        return state;
+    }
+
+    private static void ReleaseLegacyState(string requestKey)
+    {
+        if (string.IsNullOrEmpty(requestKey))
+            return;
+        if (!LegacyFocusRequests.TryGetValue(requestKey, out LegacyFocusState state))
+            return;
+        state.Lease?.Dispose();
+        LegacyFocusRequests.Remove(requestKey);
+    }
+
+    #endregion
 }

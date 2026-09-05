@@ -1,0 +1,19 @@
+{
+  "name": "GourmetAbyss.CameraSystem.PlayModeTests",
+  "rootNamespace": "GourmetAbyss.CameraSystem.Tests",
+  "references": [
+    "GourmetAbyss.CameraSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using JetBrains.Annotations;
+using GourmetAbyss.CameraSystem;
 
 public enum PointType
 {
@@ -160,10 +161,8 @@ public class CustomerNPC : MonoBehaviour
     [Header("交互镜头缩放")]
     [SerializeField] private float interactionOrthoSize = 5.5f;
     [SerializeField] private float homeGuestOrthoSize = 5.0f;
-    private string interactionCameraRequestKey;
-    private string homeGuestCameraRequestKey;
-    private string interactionCameraXFocusRequestKey;
-    private string homeGuestCameraXFocusRequestKey;
+    private CameraShotLease interactionCameraLease;
+    private CameraShotLease homeGuestCameraLease;
 
     [Header("点击交互反馈")]
     [SerializeField] private float clickPulseDuration = 0.2f;
@@ -183,11 +182,6 @@ public class CustomerNPC : MonoBehaviour
     public void Init()
     {
         manager = CustomerManager.instance;
-        interactionCameraRequestKey = $"customer_interaction_{GetInstanceID()}";
-        homeGuestCameraRequestKey = $"customer_home_guest_{GetInstanceID()}";
-        interactionCameraXFocusRequestKey = $"customer_interaction_x_{GetInstanceID()}";
-        homeGuestCameraXFocusRequestKey = $"customer_home_guest_x_{GetInstanceID()}";
-
         EnsureExpressionMaterialInstance();
         SetExpression(CustomerExpression.Serious);
         defaultVisualScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
@@ -213,6 +207,34 @@ public class CustomerNPC : MonoBehaviour
 
         UpdateAffectionUI(); // 初始化好感度UI
         StartBubbleRoutine();
+    }
+
+    private void AcquireCameraShot(
+        ref CameraShotLease lease,
+        float orthographicSize,
+        int priority,
+        string debugName)
+    {
+        ReleaseCameraShot(ref lease);
+        CameraDirector director = CameraService.Active;
+        if (director == null)
+            return;
+
+        TransformFocusCameraSource source = new TransformFocusCameraSource(
+            transform,
+            director.CurrentPose,
+            orthographicSize,
+            new CameraDamping(0.18f, 0.15f, 0.18f));
+        lease = director.AcquireShot(
+            this,
+            source,
+            new CameraShotOptions(priority, 0.22f, 0.22f, debugName));
+    }
+
+    private static void ReleaseCameraShot(ref CameraShotLease lease)
+    {
+        lease?.Dispose();
+        lease = null;
     }
 
     private void InitCustomerInfoView()
@@ -486,15 +508,13 @@ public class CustomerNPC : MonoBehaviour
             CustomerManager.instance.currentInteractingNPC = null;
         ItemBagManager.instance.giftResourceType = ResourceType.None;
         ItemBagManager.instance.customerGiftImage = null;
-        CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
-        CameraFollow.PopXFocusRequest(interactionCameraXFocusRequestKey);
+        ReleaseCameraShot(ref interactionCameraLease);
     }
     private IEnumerator InteractWithPlayerCoroutine()
     {
         isInteractingWithPlayer = true;
         CustomerManager.instance.currentInteractingNPC = this; // ✅ 记录为当前交互 NPC
-        CameraFollow.PushOrthoSizeRequest(interactionCameraRequestKey, interactionOrthoSize);
-        CameraFollow.PushXFocusRequest(interactionCameraXFocusRequestKey, transform.position.x);
+        AcquireCameraShot(ref interactionCameraLease, interactionOrthoSize, 120, "Customer Interaction");
 
         SetInteractionPanelVisible(true);
         // 每次开始与玩家交互时，重置交互相关 UI 的初始状态
@@ -1142,10 +1162,8 @@ public class CustomerNPC : MonoBehaviour
         ReleaseCurrentSeat();
         manager?.RemoveCustomer(this);
         ClearFavouriteDishIcons();
-        CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
-        CameraFollow.PopOrthoSizeRequest(homeGuestCameraRequestKey);
-        CameraFollow.PopXFocusRequest(interactionCameraXFocusRequestKey);
-        CameraFollow.PopXFocusRequest(homeGuestCameraXFocusRequestKey);
+        ReleaseCameraShot(ref interactionCameraLease);
+        ReleaseCameraShot(ref homeGuestCameraLease);
 
         if (bubbleRoutineCoroutine != null)
             StopCoroutine(bubbleRoutineCoroutine);
@@ -1271,14 +1289,12 @@ public class CustomerNPC : MonoBehaviour
     {
         isGuesting = true;
         // 做客开始时，先清掉交互阶段镜头请求，避免两套请求叠加造成抖动/偏移
-        CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
-        CameraFollow.PopXFocusRequest(interactionCameraXFocusRequestKey);
+        ReleaseCameraShot(ref interactionCameraLease);
         // 做客期间不显示任何交互UI
         SetInteractionPanelVisible(false);
         SetGiftPanelVisible(false);
         SetBagUIVisible(false);
-        CameraFollow.PushOrthoSizeRequest(homeGuestCameraRequestKey, homeGuestOrthoSize);
-        CameraFollow.PushXFocusRequest(homeGuestCameraXFocusRequestKey, transform.position.x);
+        AcquireCameraShot(ref homeGuestCameraLease, homeGuestOrthoSize, 140, "Home Guest");
         guestOriginPosition = transform.position;
         Vector3 originPlayerPostion = GameObject.FindGameObjectWithTag("Player").transform.position;
         TopDownController player = GameObject.FindGameObjectWithTag("Player").GetComponent<TopDownController>();
@@ -1293,7 +1309,6 @@ public class CustomerNPC : MonoBehaviour
 
 
         transform.position = HomeManager.instance.guestChair.transform.position;
-        CameraFollow.PushXFocusRequest(homeGuestCameraXFocusRequestKey, transform.position.x);
         if (HomeManager.instance != null && HomeManager.instance.table != null)
             FaceToward(HomeManager.instance.table.transform.position);
 
@@ -1323,8 +1338,7 @@ public class CustomerNPC : MonoBehaviour
         transform.position = guestOriginPosition;
         isGuesting = false;
         player.GetComponent<Rigidbody>().isKinematic = false;
-        CameraFollow.PopOrthoSizeRequest(homeGuestCameraRequestKey);
-        CameraFollow.PopXFocusRequest(homeGuestCameraXFocusRequestKey);
+        ReleaseCameraShot(ref homeGuestCameraLease);
         ForceStopInteraction();
 
         // 根据家中总魅力值，对做客结束时的好感提升进行加成
@@ -1344,8 +1358,7 @@ public class CustomerNPC : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            // 做客期间持续同步 X，对应“顾客和玩家发生大幅位移”的场景
-            CameraFollow.PushXFocusRequest(homeGuestCameraXFocusRequestKey, transform.position.x);
+            // 镜头源直接跟随 Transform，不需要逐帧重提请求。
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -1398,10 +1411,8 @@ public class CustomerNPC : MonoBehaviour
         SetBagUIVisible(false);
         if (wantGiftButton != null) wantGiftButton.gameObject.SetActive(false);
         if (hireButton != null) hireButton.gameObject.SetActive(false);
-        CameraFollow.PopOrthoSizeRequest(interactionCameraRequestKey);
-        CameraFollow.PopXFocusRequest(interactionCameraXFocusRequestKey);
-        CameraFollow.PopOrthoSizeRequest(homeGuestCameraRequestKey);
-        CameraFollow.PopXFocusRequest(homeGuestCameraXFocusRequestKey);
+        ReleaseCameraShot(ref interactionCameraLease);
+        ReleaseCameraShot(ref homeGuestCameraLease);
         if (CustomerManager.instance != null && CustomerManager.instance.currentInteractingNPC == this)
         {
             CustomerManager.instance.currentInteractingNPC = null;

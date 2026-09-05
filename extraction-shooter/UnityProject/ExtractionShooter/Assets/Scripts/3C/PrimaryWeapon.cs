@@ -1,4 +1,5 @@
 using UnityEngine;
+using GourmetAbyss.CameraSystem;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -496,10 +497,7 @@ public class PrimaryWeapon : MonoBehaviour
         PlayShootingEffects();
 
         // 触发屏幕震动
-        if (cameraScript != null)
-        {
-            cameraScript.Shake(screenShakeDuration, screenShakeIntensity);
-        }
+        CameraService.PlayImpulse(screenShakeDuration, screenShakeIntensity);
 
         // 武器瞬间膨胀
         if (weaponModel != null)

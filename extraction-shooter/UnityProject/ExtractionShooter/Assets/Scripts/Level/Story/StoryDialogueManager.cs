@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using GourmetAbyss.CameraSystem;
 
 /// <summary>
 /// 剧情对话期间：冻结玩家移动/射击、暂停扣氧气、聚焦相机（orthographicSize）。
@@ -34,19 +35,16 @@ public class StoryDialogueManager : MonoBehaviour
     [Header("调试（相机聚焦）")]
     [SerializeField] private bool debugLogCameraFocus = false;
 
-    private float originalOrthographicSize;
-    private bool originalOrthographicSizeValid;
-
     private bool originalPlayerEnabled;
     private bool originalCanPlayerMove;
     private bool originalCombatState;
     private bool originalOxygenConsuming;
 
     private int lockCount;
-    private Coroutine orthographicRoutine;
+    private readonly Stack<CameraShotLease> storyCameraLeases = new Stack<CameraShotLease>();
+    private bool frameworkCameraUsedForCurrentLock;
 
     private BattleValManager bvm;
-    private bool cameraFollowOverrideApplied;
 
     private void Awake()
     {
@@ -104,6 +102,7 @@ public class StoryDialogueManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        DisposeAllStoryCameraLeases();
         if (Instance == this)
         {
             Instance = null;
@@ -208,23 +207,14 @@ public class StoryDialogueManager : MonoBehaviour
     public void BeginDialogueLock(float focusOrthographicSize, float customFocusDuration, Transform followTarget)
     {
         lockCount++;
+        if (lockCount == 1)
+            frameworkCameraUsedForCurrentLock = false;
         if (lockCount != 1)
         {
             // 嵌套对话：已经冻结过了，只需要更新相机聚焦即可。
             ResolveTargetCamera();
-            ApplyOrthographicSize(focusOrthographicSize, customFocusDuration);
-            
-            // 嵌套对话也允许刷新 CameraFollow 目标，避免“size 变了但目标没跟着切”的边缘情况。
-            if (followTarget != null)
-            {
-                if (cameraFollow == null)
-                    cameraFollow = FindFirstObjectByType<CameraFollow>();
-                if (cameraFollow != null)
-                {
-                    cameraFollow.SetOverrideTarget(followTarget);
-                    cameraFollowOverrideApplied = true;
-                }
-            }
+            if (!TryAcquireStoryCamera(focusOrthographicSize, customFocusDuration, followTarget))
+                Debug.LogWarning("[StoryDialogueManager] CameraDirector 未就绪，跳过嵌套剧情镜头请求。", this);
             return;
         }
 
@@ -261,39 +251,26 @@ public class StoryDialogueManager : MonoBehaviour
             originalOxygenConsuming = false;
         }
 
-        // 聚焦时也让 CameraFollow 锁定到某个目标（比如 Boss/幼崽/姐姐）
-        if (followTarget != null)
-        {
-            if (cameraFollow == null)
-                cameraFollow = FindFirstObjectByType<CameraFollow>();
-
-            if (cameraFollow != null)
-            {
-                cameraFollow.SetOverrideTarget(followTarget);
-                cameraFollowOverrideApplied = true;
-            }
-        }
-
         if (targetCamera == null)
             ResolveTargetCamera();
 
         if (targetCamera != null && targetCamera.orthographic)
         {
-            originalOrthographicSize = targetCamera.orthographicSize;
-            originalOrthographicSizeValid = true;
-
             if (debugLogCameraFocus)
             {
                 Debug.Log(
-                    $"[StoryDialogueManager] Begin lock | cam={targetCamera.name} ortho={targetCamera.orthographic} from={originalOrthographicSize:F3} to={focusOrthographicSize:F3} duration={customFocusDuration:F3}");
+                    $"[StoryDialogueManager] Begin lock | cam={targetCamera.name} ortho={targetCamera.orthographic} from={targetCamera.orthographicSize:F3} to={focusOrthographicSize:F3} duration={customFocusDuration:F3}");
             }
 
-            ApplyOrthographicSize(focusOrthographicSize, customFocusDuration);
+            frameworkCameraUsedForCurrentLock = TryAcquireStoryCamera(
+                focusOrthographicSize,
+                customFocusDuration,
+                followTarget);
+            if (!frameworkCameraUsedForCurrentLock)
+                Debug.LogWarning("[StoryDialogueManager] CameraDirector 未就绪，跳过剧情镜头请求。", this);
         }
         else
         {
-            originalOrthographicSizeValid = false;
-
             if (debugLogCameraFocus)
             {
                 string camName = targetCamera != null ? targetCamera.name : "null";
@@ -339,6 +316,7 @@ public class StoryDialogueManager : MonoBehaviour
     public void EndDialogueLock()
     {
         lockCount = Mathf.Max(0, lockCount - 1);
+        DisposeTopStoryCameraLease();
         if (lockCount != 0)
             return;
 
@@ -358,15 +336,8 @@ public class StoryDialogueManager : MonoBehaviour
             bvm.ResumeConsuming();
 
         // 恢复相机聚焦
-        if (targetCamera != null && targetCamera.orthographic && originalOrthographicSizeValid)
-            ApplyOrthographicSize(originalOrthographicSize, restoreLerpDuration);
-
-        // 恢复 CameraFollow target
-        if (cameraFollowOverrideApplied && cameraFollow != null)
-        {
-            cameraFollow.ClearOverrideTarget();
-            cameraFollowOverrideApplied = false;
-        }
+        DisposeAllStoryCameraLeases();
+        frameworkCameraUsedForCurrentLock = false;
     }
 
     /// <summary>
@@ -392,45 +363,62 @@ public class StoryDialogueManager : MonoBehaviour
             bvm.ResumeConsuming();
 
         // 强制恢复相机缩放
-        if (targetCamera != null && targetCamera.orthographic && originalOrthographicSizeValid)
-            ApplyOrthographicSize(originalOrthographicSize, restoreLerpDuration);
-
-        // 强制清理 CameraFollow 的临时跟随
-        if (cameraFollow == null)
-            cameraFollow = FindFirstObjectByType<CameraFollow>();
-        if (cameraFollow != null)
-        {
-            cameraFollow.ClearOverrideTarget();
-            cameraFollowOverrideApplied = false;
-        }
+        DisposeAllStoryCameraLeases();
+        frameworkCameraUsedForCurrentLock = false;
     }
 
-    private void ApplyOrthographicSize(float toSize, float duration)
+    private bool TryAcquireStoryCamera(
+        float focusOrthographicSize,
+        float blendDuration,
+        Transform followTarget)
     {
-        if (targetCamera == null || !targetCamera.orthographic)
+        CameraDirector director = CameraService.Active;
+        if (director == null)
+        {
+            if (cameraFollow == null)
+                cameraFollow = FindFirstObjectByType<CameraFollow>();
+            director = cameraFollow != null ? cameraFollow.Director : null;
+        }
+
+        Transform effectiveTarget = followTarget;
+        if (effectiveTarget == null && playerController != null)
+            effectiveTarget = playerController.transform;
+        if (effectiveTarget == null && cameraFollow != null)
+            effectiveTarget = cameraFollow.DefaultTarget;
+        if (director == null || effectiveTarget == null)
+            return false;
+
+        TransformFocusCameraSource source = new TransformFocusCameraSource(
+            effectiveTarget,
+            director.CurrentPose,
+            focusOrthographicSize,
+            new CameraDamping(0.18f, 0.15f, 0.18f),
+            CameraShotPolicy.UseUnscaledTime);
+        CameraShotLease lease = director.AcquireShot(
+            this,
+            source,
+            new CameraShotOptions(
+                300,
+                Mathf.Max(0.01f, blendDuration),
+                Mathf.Max(0.01f, restoreLerpDuration),
+                "Story Dialogue"));
+        storyCameraLeases.Push(lease);
+        frameworkCameraUsedForCurrentLock = true;
+        return true;
+    }
+
+    private void DisposeTopStoryCameraLease()
+    {
+        if (storyCameraLeases.Count == 0)
             return;
-
-        if (orthographicRoutine != null)
-            StopCoroutine(orthographicRoutine);
-
-        float fromSize = targetCamera.orthographicSize;
-        orthographicRoutine = StartCoroutine(OrthographicSizeRoutine(fromSize, toSize, Mathf.Max(0.01f, duration)));
+        storyCameraLeases.Pop()?.Dispose();
     }
 
-    private IEnumerator OrthographicSizeRoutine(float from, float to, float duration)
+    private void DisposeAllStoryCameraLeases()
     {
-        if (targetCamera == null)
-            yield break;
-
-        float t = 0f;
-        while (t < 1f)
-        {
-            t += Time.deltaTime / duration;
-            targetCamera.orthographicSize = Mathf.Lerp(from, to, t);
-            yield return null;
-        }
-        targetCamera.orthographicSize = to;
-        orthographicRoutine = null;
+        while (storyCameraLeases.Count > 0)
+            storyCameraLeases.Pop()?.Dispose();
     }
+
 }
 
