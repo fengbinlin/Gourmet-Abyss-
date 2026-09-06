@@ -7,6 +7,7 @@ namespace GourmetAbyss.CameraSystem
     /// 物理根节点、Collider、Rigidbody 和 NavMeshAgent 不应挂本组件。
     /// </summary>
     [DisallowMultipleComponent]
+    [DefaultExecutionOrder(1300)]
     public sealed class CameraFacingVisual : MonoBehaviour
     {
         public enum UpdateMode

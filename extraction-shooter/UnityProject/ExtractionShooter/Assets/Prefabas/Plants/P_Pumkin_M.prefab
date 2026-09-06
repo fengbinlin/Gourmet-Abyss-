@@ -1,5 +1,54 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3013561068584469916
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8627475099662878103}
+  - component: {fileID: 3785417807414768152}
+  m_Layer: 0
+  m_Name: Square_VisualRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8627475099662878103
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3013561068584469916}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.38268343, y: -0, z: -0, w: 0.92387956}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4775196346684118056}
+  m_Father: {fileID: 6649629573566832009}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3785417807414768152
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3013561068584469916}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bd6d369c9df357458de7a959bd303c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 0}
+  updateMode: 1
+  reverseForward: 0
+  additionalEulerAngles: {x: 0, y: 0, z: 0}
 --- !u!1 &4645857536683069197
 GameObject:
   m_ObjectHideFlags: 0
@@ -32,7 +81,7 @@ Transform:
   m_LocalScale: {x: 1.9137, y: 1.9137, z: 1.9137}
   m_ConstrainProportionsScale: 1
   m_Children:
-  - {fileID: 4775196346684118056}
+  - {fileID: 8627475099662878103}
   - {fileID: 4934669080674382347}
   - {fileID: 5080509057632297124}
   - {fileID: 4904684235676760361}
@@ -110,7 +159,6 @@ MonoBehaviour:
   redBar: {fileID: 7044841150195392706}
   healthBarParent: {fileID: 3001424616569880909}
   maxBarWidth: 2367.1
-  healthBarType: 1
   fillDelay: 0.5
   fillDuration: 0.3
   hideDelay: 2
@@ -165,6 +213,9 @@ MonoBehaviour:
     resourceType: 20
     resourceMinAmount: 1
     resourceMaxAmount: 1
+  healthBarType: 1
+  monsterHealthColor: {r: 0.86, g: 0.34, b: 0.34, a: 1}
+  gatherableHealthColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
 --- !u!1 &6171341693733048637
 GameObject:
   m_ObjectHideFlags: 0
@@ -190,12 +241,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6171341693733048637}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: 0, y: 0.7550001, z: 0}
-  m_LocalScale: {x: 0.6676595, y: 0.6676595, z: 0.6676595}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.5338657, z: -0.5338657}
+  m_LocalScale: {x: 0.6676596, y: 0.66765946, z: 0.66765946}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6649629573566832009}
+  m_Father: {fileID: 8627475099662878103}
   m_LocalEulerAnglesHint: {x: 45, y: 0, z: 0}
 --- !u!212 &366383883441818709
 SpriteRenderer:

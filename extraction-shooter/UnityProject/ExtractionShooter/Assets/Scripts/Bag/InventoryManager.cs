@@ -74,6 +74,7 @@ public class InventoryManager : MonoSingleton<InventoryManager>
         public Sprite icon;
         public int slotIndex;
         public Vector3 fromWorldPos;
+        public Transform fromUITransform;
     }
 
     protected override void OnAwake()
@@ -910,6 +911,7 @@ public class InventoryManager : MonoSingleton<InventoryManager>
                         itemType = ing.resourceType,
                         icon = icon,
                         slotIndex = i,
+                        fromUITransform = slot.transform,
                         fromWorldPos = slot.transform.position
                     });
                 }

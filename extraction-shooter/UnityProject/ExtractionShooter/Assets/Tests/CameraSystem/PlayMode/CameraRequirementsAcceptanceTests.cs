@@ -111,7 +111,8 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Transform target = RequireDefaultTarget(cameraFollow);
             FreezePlayer(target);
 
-            Assert.That(director.Camera.orthographic, Is.True, "地牢正式场景必须使用正交相机。");
+            Assert.That(director.Camera.orthographic, Is.False, "地牢正式场景必须使用透视相机。");
+            Assert.That(director.Camera.nearClipPlane, Is.GreaterThan(0f));
             Assert.That(Mathf.Abs((director.CurrentPose.Rotation * Vector3.forward).y), Is.GreaterThan(0.1f),
                 "地牢正式场景相机缺少俯角。");
             Assert.That(director.GetDebugSummary(), Does.Contain("Dungeon"), "Layer1 未启用地牢镜头源。");
@@ -229,10 +230,28 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(Quaternion.Angle(player.rotation, seatAnchor.rotation), Is.LessThan(1f),
                 "进入餐厅后玩家朝向没有对齐座位锚点。");
             Assert.That(director.RequestCount, Is.EqualTo(baseRequestCount + 1), "餐厅镜头请求没有正确入栈。");
-            Assert.That(director.GetDebugSummary(), Does.Contain("Restaurant"), "餐厅镜头未取得控制权。");
+            PlanarPerspectiveView moduleView=GetField(restaurant,"moduleCameraView") as PlanarPerspectiveView;
+            Assert.That(director.GetDebugSummary(), Does.Contain(moduleView!=null?"PlanarPerspective":"Restaurant"), "餐厅镜头未取得控制权。");
 
             CameraInputRouter router = director.InputRouter;
             CameraPose beforeDrag = director.CurrentPose;
+            if(moduleView!=null)
+            {
+                Assert.That(director.Camera.orthographic,Is.False,"模块餐厅应使用透视相机。");
+                Assert.That(director.Camera.nearClipPlane,Is.GreaterThan(0));
+                Assert.That(Vector3.Distance(beforeDrag.Position,moduleView.Pose(Vector2.zero).Position),Is.LessThan(.05f));
+                router.SetDebugOverride(new CameraInputFrame{PanHeld=true,PointerPositionPixels=new Vector2(Screen.width*.5f,Screen.height*.5f),PointerDeltaPixels=new Vector2(100,0)});
+                yield return WaitRealtime(.5f);
+                Assert.That(moduleView.PanOffset.magnitude,Is.GreaterThan(.01f));
+                Assert.That(moduleView.PanOffset.magnitude,Is.LessThanOrEqualTo(moduleView.profile.panLimit+.001f));
+                Vector2 offset=moduleView.PanOffset;
+                router.SetDebugOverride(new CameraInputFrame{PanHeld=true,PointerBlockedByUi=true,PointerDeltaPixels=new Vector2(100,100)});
+                yield return WaitRealtime(.3f);
+                Assert.That(Vector2.Distance(offset,moduleView.PanOffset),Is.LessThan(.001f));
+                router.ClearDebugOverride();
+            }
+            else
+            {
             GameObject runtimeCameraAnchor = GetField(restaurant, "_runtimeCameraAnchor") as GameObject;
             Assert.That(runtimeCameraAnchor, Is.Not.Null, "餐厅镜头没有创建运行时锚点。");
             CameraPlane plane = CameraPlane.FromRotation(
@@ -285,6 +304,7 @@ namespace GourmetAbyss.CameraSystem.Acceptance
                 bounds);
             Assert.That(Vector3.Distance(constrained.Position, afterDrag.Position), Is.LessThan(0.02f),
                 "餐厅拖拽后镜头越过了餐厅边界。");
+            }
 
             InvokePublic(restaurant, "LeaveRestaurant");
             yield return WaitRealtime(1.3f);
@@ -400,6 +420,10 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(dungeon.GetInstanceID(), Is.Not.EqualTo(firstTownId), "切到地牢后仍引用已卸载的小镇相机。");
             Assert.That(dungeon.GetDebugSummary(), Does.Contain("Dungeon"));
             Assert.That(dungeon.RequestCount, Is.EqualTo(1), "地牢场景基础镜头请求数量异常。");
+            Assert.That(dungeon.Camera.orthographic, Is.False);
+            System.IO.Directory.CreateDirectory("Library/CombatAcceptance");
+            ScreenCapture.CaptureScreenshot("Library/CombatAcceptance/Town-to-Dungeon.png");
+            yield return null;
 
             int dungeonId = dungeon.GetInstanceID();
             MonoBehaviour dungeonExit = RequireBehaviour("levelCaveCar");
@@ -409,6 +433,7 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(secondTown.GetInstanceID(), Is.Not.EqualTo(dungeonId), "返回小镇后仍引用已卸载的地牢相机。");
             Assert.That(secondTown.GetInstanceID(), Is.EqualTo(firstTownId), "返回小镇时不应重建地面基础镜头。");
             Assert.That(secondTown.GetDebugSummary(), Does.Contain("Town"));
+            Assert.That(secondTown.Camera.orthographic, Is.True);
             Assert.That(secondTown.RequestCount, Is.EqualTo(1), "返回小镇后存在跨场景镜头请求泄漏。");
             yield return WaitRealtime(1.5f);
             CameraPlane townPlane = CameraPlane.FromRotation(secondTown.CurrentPose.Rotation, townPlayer.position);
@@ -423,6 +448,66 @@ namespace GourmetAbyss.CameraSystem.Acceptance
             Assert.That(townController, Is.Not.Null, "从地牢返回后找不到地面玩家控制器。");
             Assert.That(townController.enabled, Is.True, "从地牢返回后地面玩家控制器没有恢复。");
             AssertNoCameraErrors();
+        }
+
+        [UnityTest]
+        public IEnumerator AllDungeonLayers_UsePerspectiveAimAndSpawnedVisuals()
+        {
+            foreach (var scene in new[] { "Layer1", "Layer2", "Layer3" })
+            {
+                yield return LoadProductionScene(scene);
+                var director = RequireActiveDirector(scene);
+                var follow = RequireBehaviour("CameraFollow");
+                var profile = GetField(follow, "dungeonProfile") as DungeonPerspectiveProfile;
+                Assert.IsNotNull(profile, scene + " missing shared perspective profile");
+                var target = RequireDefaultTarget(follow); FreezePlayer(target);
+                director.InputRouter.SetDebugOverride(default);
+                yield return WaitRealtime(1.5f);
+                var camera = director.Camera;
+                Assert.IsFalse(camera.orthographic); Assert.That(camera.fieldOfView, Is.EqualTo(profile.fieldOfView).Within(.01));
+                Assert.That(camera.nearClipPlane, Is.GreaterThan(0));
+                Vector3 center = camera.WorldToViewportPoint(target.position);
+                Assert.That(center.x, Is.EqualTo(.5f).Within(.02)); Assert.That(center.y, Is.EqualTo(.5f).Within(.02));
+                var near = target.position - Vector3.forward * 5; var far = target.position + Vector3.forward * 5;
+                float nw = (camera.WorldToViewportPoint(near+Vector3.right)-camera.WorldToViewportPoint(near)).magnitude;
+                float fw = (camera.WorldToViewportPoint(far+Vector3.right)-camera.WorldToViewportPoint(far)).magnitude;
+                Assert.Greater(nw, fw * 1.1f, scene + " no real depth scaling");
+                var controller = FindBehaviourOnTarget(target, "TopDownController");
+                int aimMask = ((LayerMask)GetField(controller,"aimLayerMask")).value;
+                int groundMask = ((LayerMask)GetField(controller,"groundLayerMask")).value;
+                float height = (float)GetField(controller,"aimHeightOffset");
+                int floorHits = 0;
+                foreach (var offset in new[] { new Vector3(3,0,0),new Vector3(-3,0,0),new Vector3(0,0,3),new Vector3(0,0,-3) })
+                {
+                    var screen = (Vector2)camera.WorldToScreenPoint(target.position+offset);
+                    Assert.IsTrue(CameraAimUtility.TryResolve(camera,screen,aimMask,groundMask,target.position.y,height,out var aim,out var hit));
+                    if(hit!=null && (groundMask & (1<<hit.gameObject.layer))!=0)
+                    {
+                        floorHits++;
+                        Assert.That(Vector2.Distance(camera.WorldToScreenPoint(aim-Vector3.up*height),screen),Is.LessThan(.5f));
+                    }
+                }
+                Assert.Greater(floorHits,0,scene+" no real floor raycast verified");
+                var faces=UnityEngine.Object.FindObjectsOfType<CameraFacingVisual>();
+                Assert.Greater(faces.Length,0,scene+" missing dynamically spawned standing visuals");
+                foreach(var face in faces)
+                {
+                    Assert.IsNull(face.GetComponent<Collider>()); Assert.IsNull(face.GetComponent<Rigidbody>());
+                    Assert.That(Quaternion.Angle(face.transform.rotation,camera.transform.rotation),Is.LessThan(.1f));
+                }
+                foreach(var childCamera in camera.GetComponentsInChildren<Camera>())
+                    if(childCamera!=camera) { Assert.AreEqual(camera.orthographic,childCamera.orthographic); Assert.AreEqual(camera.fieldOfView,childCamera.fieldOfView); }
+                foreach(var behaviour in camera.GetComponentsInChildren<MonoBehaviour>())
+                    if(behaviour.GetType().Name=="CameraSnapSRP")Assert.IsFalse(behaviour.enabled);
+                var before=director.CurrentPose.Position; director.PlayImpulse(.3f,.15f);
+                yield return null;
+                Assert.That(Vector3.Distance(camera.transform.position,director.CurrentPose.Position),Is.GreaterThan(.00001f));
+                yield return WaitRealtime(.5f);
+                Assert.That(Vector3.Distance(camera.transform.position,before),Is.LessThan(.02f));
+                System.IO.Directory.CreateDirectory("Library/CombatAcceptance");
+                ScreenCapture.CaptureScreenshot("Library/CombatAcceptance/"+scene+"-verified.png"); yield return null;
+                director.InputRouter.ClearDebugOverride(); AssertNoCameraErrors();
+            }
         }
 
         private static object CreateUnlockedRegion(string sceneName)

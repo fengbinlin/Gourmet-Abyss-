@@ -31,6 +31,8 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
     [Tooltip("<= 0 时不改 orthographicSize，仅平移视角")]
     [SerializeField] private bool adjustOrthoSize = true;
     [SerializeField] private RestaurantCameraProfile cameraProfile;
+    [Tooltip("已接入模块展示时使用；为空保留旧餐厅正交镜头。")]
+    [SerializeField] private PlanarPerspectiveView moduleCameraView;
     [Tooltip("可选。指定后直接使用 Collider 边界；为空时按 cameraBoundsRoot、锚点父物体、活动内容依次回退。")]
     [SerializeField] private Collider cameraBounds;
     [Tooltip("可选。未指定 cameraBounds 时，从该对象的 Renderer 计算边界；为空时优先使用餐厅锚点的父物体。")]
@@ -204,6 +206,7 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
     private void RestoreRestaurantCamera()
     {
+        if (moduleCameraView != null) moduleCameraView.Close();
         _restaurantCameraLease?.Dispose();
         _restaurantCameraLease = null;
         if (_runtimeCameraAnchor != null)
@@ -263,6 +266,7 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
             body.angularVelocity = Vector3.zero;
             body.position = seat.position;
             body.rotation = seat.rotation;
+            player.transform.SetPositionAndRotation(seat.position, seat.rotation);
             return;
         }
 
@@ -304,6 +308,8 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
             body.angularVelocity = Vector3.zero;
             body.position = _savedPlayerPosition;
             body.rotation = _savedPlayerRotation;
+            // The camera evaluates in LateUpdate, before the next physics step can publish this teleport.
+            player.transform.SetPositionAndRotation(_savedPlayerPosition, _savedPlayerRotation);
             return;
         }
 
@@ -333,6 +339,7 @@ public class RestaurantEntryPoint : MonoSingleton<RestaurantEntryPoint>
 
     private void AcquireRestaurantCamera()
     {
+        if (moduleCameraView != null) { moduleCameraView.Open(); return; }
         CameraDirector director = CameraService.Active;
         Transform anchor = restaurantAnchor != null ? restaurantAnchor : transform;
         if (director == null || anchor == null)

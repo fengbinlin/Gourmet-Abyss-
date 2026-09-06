@@ -181,7 +181,9 @@ public class CameraFollow : MonoBehaviour
                 ? dungeonProfile.damping
                 : new CameraDamping(smoothTime, 0.15f, orthoSizeSmoothTime);
 
-            _baseSource = new DungeonAimCameraSource(
+            _baseSource = dungeonProfile != null
+                ? dungeonProfile.CreateSource(DefaultTarget, _baseOffset, rotation, size)
+                : new DungeonAimCameraSource(
                 DefaultTarget,
                 _baseOffset,
                 rotation,
@@ -311,7 +313,8 @@ public class CameraFollow : MonoBehaviour
         Vector3 position = worldPosition ??
                            (DefaultTarget != null ? DefaultTarget.position + _baseOffset : _director.CurrentPose.Position);
         float size = orthographicSize ?? _director.CurrentPose.OrthographicSize;
-        _director.SnapTo(new CameraPose(position, transform.rotation, size));
+        _director.SnapTo(new CameraPose(position, transform.rotation, size,
+            _director.CurrentPose.Perspective, _director.CurrentPose.FieldOfView));
     }
 
     #region Legacy static request API

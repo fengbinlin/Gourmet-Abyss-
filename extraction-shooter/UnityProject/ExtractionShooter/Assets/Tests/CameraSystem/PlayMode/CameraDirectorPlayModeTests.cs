@@ -53,6 +53,29 @@ namespace GourmetAbyss.CameraSystem.Tests
         }
 
         [UnityTest]
+        public IEnumerator PerspectiveRequest_RestoresProjectionAndNegativeOrthographicNearPlane()
+        {
+            var camera=_director.Camera;
+            camera.nearClipPlane=-200;
+            using(var baseline=_director.AcquireShot(_cameraObject,
+                new ConstantSource(new CameraPose(new Vector3(0,0,-10),Quaternion.identity,5)),new CameraShotOptions(0,0,0,"baseline")))
+            {
+                var perspective=_director.AcquireShot(_cameraObject,
+                    new ConstantSource(new CameraPose(new Vector3(0,0,-30),Quaternion.identity,5,true,40)),new CameraShotOptions(100,1,1,"perspective"));
+                yield return null;
+                Assert.IsFalse(camera.orthographic);
+                Assert.Greater(camera.nearClipPlane,0);
+                Assert.That(camera.fieldOfView,Is.EqualTo(40).Within(.001));
+                Assert.That(camera.transform.position.z,Is.EqualTo(-30).Within(.001));
+                perspective.Dispose();
+                yield return null;
+                Assert.IsTrue(camera.orthographic);
+                Assert.That(camera.nearClipPlane,Is.EqualTo(-200).Within(.001));
+                Assert.That(camera.transform.position.z,Is.EqualTo(-10).Within(.001));
+            }
+        }
+
+        [UnityTest]
         public IEnumerator HigherPriorityWins_AndDisposeRestoresBase()
         {
             GameObject owner = new GameObject("Owner");

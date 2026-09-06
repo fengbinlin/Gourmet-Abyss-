@@ -281,8 +281,9 @@ namespace GourmetAbyss.CameraSystem
                 _restaurantPlayerLocked |= controller != null &&
                                            !GetBoolField(controller, "canPlayerMove") &&
                                            body != null && body.isKinematic;
-                _restaurantCameraActive |= director.GetDebugSummary()
-                    .IndexOf("Restaurant", StringComparison.OrdinalIgnoreCase) >= 0;
+                string summary = director.GetDebugSummary();
+                _restaurantCameraActive |= summary.IndexOf("Restaurant", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    summary.IndexOf("PlanarPerspective", StringComparison.OrdinalIgnoreCase) >= 0;
             }
             else if (_restaurantEntered)
             {
@@ -464,11 +465,11 @@ namespace GourmetAbyss.CameraSystem
                 case Stage.Town:
                     return "镜头不瞬移、不抖动；玩家改变方向后，镜头平滑把更多空间留在朝向一侧；停下后稳定。";
                 case Stage.Restaurant:
-                    return "E 后玩家固定且不能移动；镜头位于餐厅中心；不足一屏不能乱拖，超出一屏时可拖且不越界；退出回入口。";
+                    return "E 后玩家固定且不能移动；餐厅透视居中，中键拖拽半径最多 1.5；退出回入口并恢复小镇正交镜头。";
                 case Stage.Portal:
                     return "E 能打开地图；可选择已解锁区域；进入 Layer1 时画面平滑切换且没有残留双相机。";
                 case Stage.Dungeon:
-                    return "中心附近无偏移；越靠近边缘偏移越大但最多 3 米；静止和移动时使用同一上限且不累计漂移；指针在 UI 上时回中；非地面视觉不应躺倒或改变物理根节点。";
+                    return "透视近大远小；中心附近无偏移，边缘最多 3 米；静止和移动使用同一上限；UI 上回中；怪物视觉不躺倒，左右翻面正常，物理根节点不倾斜。";
                 case Stage.DungeonExit:
                     return "E 返回 UpGround；恢复 Town 镜头；地面玩家仍在进入前传送点附近且可以移动。";
                 default:

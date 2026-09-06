@@ -34,6 +34,10 @@ namespace GourmetAbyss.CameraSystem
         [SerializeField] private Camera targetCamera;
         [SerializeField] private CameraInputRouter inputRouter;
         [SerializeField] private bool showDebugInfo;
+        private Camera[] _projectionFollowers = Array.Empty<Camera>();
+
+        // Render overlays share this director's final pose/lens; they never submit gameplay shots.
+        public void SetProjectionFollowers(Camera[] followers) { _projectionFollowers = followers ?? Array.Empty<Camera>(); }
 
         private readonly List<ShotEntry> _shots = new List<ShotEntry>();
         private readonly List<ShotEntry> _candidateBuffer = new List<ShotEntry>();
@@ -52,6 +56,7 @@ namespace GourmetAbyss.CameraSystem
 
         private Vector3 _positionVelocity;
         private float _lensVelocity;
+        private float _orthographicNearClip;
 
         public Camera Camera => targetCamera;
         public CameraInputRouter InputRouter => inputRouter;
@@ -70,6 +75,7 @@ namespace GourmetAbyss.CameraSystem
                 inputRouter = gameObject.AddComponent<CameraInputRouter>();
 
             _logicalPose = ReadPoseFromCamera();
+            _orthographicNearClip = targetCamera.nearClipPlane;
         }
 
         private void OnEnable()
@@ -178,7 +184,7 @@ namespace GourmetAbyss.CameraSystem
                 return;
             }
 
-            if ((shot.Policy & CameraShotPolicy.RespectBounds) != 0 && shot.Bounds.IsValid)
+            if (!shot.Pose.Perspective && (shot.Policy & CameraShotPolicy.RespectBounds) != 0 && shot.Bounds.IsValid)
             {
                 shot.Pose = CameraBoundsUtility.ConstrainOrthographicPose(
                     shot.Pose,
@@ -271,6 +277,15 @@ namespace GourmetAbyss.CameraSystem
 
         private void UpdateLogicalPose(CameraShotResult shot, float dt)
         {
+            // Projection types cannot be interpolated by the orthographic lens blend.
+            if (_logicalPose.Perspective != shot.Pose.Perspective)
+            {
+                _logicalPose = shot.Pose;
+                _isBlending = false;
+                _positionVelocity = Vector3.zero;
+                _lensVelocity = 0f;
+                return;
+            }
             if (_isBlending)
             {
                 _blendElapsed += dt;
@@ -283,6 +298,8 @@ namespace GourmetAbyss.CameraSystem
             }
 
             CameraDamping damping = shot.Damping;
+            _logicalPose.Perspective = shot.Pose.Perspective;
+            _logicalPose.FieldOfView = shot.Pose.FieldOfView;
             _logicalPose.Position = damping.PositionSmoothTime <= 0.0001f
                 ? shot.Pose.Position
                 : Vector3.SmoothDamp(
@@ -372,14 +389,34 @@ namespace GourmetAbyss.CameraSystem
             return new CameraPose(
                 transform.position,
                 transform.rotation,
-                targetCamera != null ? targetCamera.orthographicSize : 5f);
+                targetCamera != null ? targetCamera.orthographicSize : 5f,
+                targetCamera != null && !targetCamera.orthographic,
+                targetCamera != null ? targetCamera.fieldOfView : 40f);
         }
 
         private void ApplyPose(CameraPose pose)
         {
             transform.SetPositionAndRotation(pose.Position, pose.Rotation);
-            if (targetCamera != null && targetCamera.orthographic)
+            if (targetCamera != null)
+            {
+                if (targetCamera.orthographic && pose.Perspective)
+                    _orthographicNearClip = targetCamera.nearClipPlane;
+                targetCamera.nearClipPlane = pose.Perspective ? Mathf.Max(0.1f, _orthographicNearClip) : _orthographicNearClip;
+                targetCamera.orthographic = !pose.Perspective;
                 targetCamera.orthographicSize = Mathf.Max(0.01f, pose.OrthographicSize);
+                targetCamera.fieldOfView = Mathf.Clamp(pose.FieldOfView, 10f, 100f);
+                foreach (var follower in _projectionFollowers)
+                {
+                    if (follower == null || follower == targetCamera) continue;
+                    follower.transform.SetPositionAndRotation(pose.Position, pose.Rotation);
+                    follower.orthographic = targetCamera.orthographic;
+                    follower.orthographicSize = targetCamera.orthographicSize;
+                    follower.fieldOfView = targetCamera.fieldOfView;
+                    follower.nearClipPlane = targetCamera.nearClipPlane;
+                    follower.farClipPlane = targetCamera.farClipPlane;
+                    follower.rect = targetCamera.rect;
+                }
+            }
         }
 
         public string GetDebugSummary()
@@ -396,7 +433,8 @@ namespace GourmetAbyss.CameraSystem
                 }
             }
 
-            return $"Active={activeName}, Requests={_shots.Count}, Pose={_logicalPose.Position}, Ortho={_logicalPose.OrthographicSize:F2}";
+            string lens = _logicalPose.Perspective ? $"Perspective FOV={_logicalPose.FieldOfView:F1}" : $"Ortho={_logicalPose.OrthographicSize:F2}";
+            return $"Active={activeName}, Requests={_shots.Count}, Pose={_logicalPose.Position}, {lens}";
         }
     }
 }

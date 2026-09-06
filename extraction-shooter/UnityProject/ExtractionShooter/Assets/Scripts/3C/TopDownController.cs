@@ -1251,39 +1251,19 @@ public class TopDownController : MonoBehaviour
     }
 
     // --- 旋转与瞄准逻辑 (核心 3D 修正) ---
+    public bool TryResolveAimPoint(Vector2 screenPoint, out Vector3 point, out Collider hitCollider)
+    {
+        return GourmetAbyss.CameraSystem.CameraAimUtility.TryResolve(mainCamera, screenPoint,
+            aimLayerMask, groundLayerMask, transform.position.y, aimHeightOffset, out point, out hitCollider);
+    }
+
     private void Turn()
     {
         if (!canPlayerMove)
         {
             return;
         }
-        // 计算鼠标的世界位置
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, 100f, aimLayerMask))
-        {
-            // 检查是否打在地面层
-            if ((groundLayerMask.value & (1 << hit.collider.gameObject.layer)) > 0)
-            {
-                // 如果是地板，目标点抬高
-                currentAimPoint = hit.point + Vector3.up * aimHeightOffset;
-            }
-            else
-            {
-                // 如果是墙壁或敌人，指哪打哪
-                currentAimPoint = hit.point;
-            }
-        }
-        else
-        {
-            // 兜底：如果鼠标指到地图外，用数学平面
-            Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
-            if (groundPlane.Raycast(ray, out float rayLength))
-            {
-                currentAimPoint = ray.GetPoint(rayLength) + Vector3.up * aimHeightOffset;
-            }
-        }
+        if (TryResolveAimPoint(Input.mousePosition, out var aimPoint, out _)) currentAimPoint = aimPoint;
 
         // 角色旋转逻辑
         if (isInCombat)

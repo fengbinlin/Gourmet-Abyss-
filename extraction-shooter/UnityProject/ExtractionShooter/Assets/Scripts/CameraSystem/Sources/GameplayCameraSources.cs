@@ -78,6 +78,8 @@ namespace GourmetAbyss.CameraSystem
 
     public sealed class DungeonAimCameraSource : ICameraTargetSource
     {
+        private readonly bool _perspective;
+        private readonly float _fieldOfView;
         private readonly Vector3 _positionOffset;
         private readonly Quaternion _rotation;
         private readonly float _orthographicSize;
@@ -101,8 +103,12 @@ namespace GourmetAbyss.CameraSystem
             float maxPointerOffset,
             float responseExponent,
             float pointerSmoothTime,
-            CameraDamping damping)
+            CameraDamping damping,
+            bool perspective = false,
+            float fieldOfView = 40f)
         {
+            _perspective = perspective;
+            _fieldOfView = fieldOfView;
             Target = target;
             _positionOffset = positionOffset;
             _rotation = rotation;
@@ -148,7 +154,7 @@ namespace GourmetAbyss.CameraSystem
             CameraPlane plane = CameraPlane.FromRotation(_rotation, Target.position);
             Vector3 position = Target.position + _positionOffset +
                                plane.Right * _pointerOffset.x + plane.Up * _pointerOffset.y;
-            CameraPose pose = new CameraPose(position, _rotation, _orthographicSize);
+            CameraPose pose = new CameraPose(position, _rotation, _orthographicSize, _perspective, _fieldOfView);
             result = new CameraShotResult(pose, _damping, plane, CameraShotPolicy.Default);
             return true;
         }
@@ -236,6 +242,8 @@ namespace GourmetAbyss.CameraSystem
     /// <summary>通用单目标构图，可供剧情、NPC、UI 和未来玩法直接复用。</summary>
     public sealed class TransformFocusCameraSource : ICameraTargetSource
     {
+        private readonly bool _perspective;
+        private readonly float _fieldOfView;
         private readonly Quaternion _rotation;
         private readonly float _rayDistance;
         private readonly float _orthographicSize;
@@ -256,6 +264,8 @@ namespace GourmetAbyss.CameraSystem
             _orthographicSize = orthographicSize > 0f ? orthographicSize : referencePose.OrthographicSize;
             _damping = damping;
             _policy = policy;
+            _perspective = referencePose.Perspective;
+            _fieldOfView = referencePose.FieldOfView;
 
             Vector3 targetPosition = target != null ? target.position : Vector3.zero;
             CameraPlane plane = CameraPlane.FromRotation(referencePose.Rotation, targetPosition);
@@ -282,7 +292,7 @@ namespace GourmetAbyss.CameraSystem
             CameraPose pose = new CameraPose(
                 Target.position - forward * _rayDistance,
                 _rotation,
-                _orthographicSize);
+                _orthographicSize, _perspective, _fieldOfView);
             result = new CameraShotResult(pose, _damping, plane, _policy);
             return true;
         }

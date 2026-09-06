@@ -24,12 +24,23 @@ function Invoke-UnityMcpCommand {
         unity_instance = $Instance
     } | ConvertTo-Json -Depth 12
 
-    $response = Invoke-RestMethod `
-        -Uri "$ServerUrl/api/command" `
-        -Method Post `
-        -ContentType "application/json" `
-        -Body $payload `
-        -TimeoutSec 45
+    $attempts = if ($Type -eq "get_test_job") { 8 } else { 1 }
+    for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+        try {
+            $response = Invoke-RestMethod `
+                -Uri "$ServerUrl/api/command" `
+                -Method Post `
+                -ContentType "application/json" `
+                -Body $payload `
+                -TimeoutSec 45
+            break
+        }
+        catch {
+            if ($attempt -eq $attempts) { throw }
+            # Unity temporarily disconnects while leaving the test Play session.
+            Start-Sleep -Seconds 2
+        }
+    }
 
     if ($response.status -ne "success" -or -not $response.result.success) {
         $detail = if ($response.result.error) { $response.result.error } else { $response | ConvertTo-Json -Depth 8 }
@@ -103,6 +114,9 @@ function Invoke-LiveTestSuite {
     }
     else {
         Write-Host "${Label}: $status (no summary returned)" -ForegroundColor Red
+        foreach ($failure in $poll.data.progress.failures_so_far) {
+            Write-Host "$($failure.full_name): $($failure.message)" -ForegroundColor Red
+        }
     }
 
     return [pscustomobject]@{
@@ -164,7 +178,7 @@ $report.Add("")
 $report.Add("- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
 $report.Add("- Unity: $($selected.unity_version)")
 $report.Add("- Instance: $instanceId")
-$report.Add("- Production scenes: UpGround, Layer1")
+$report.Add("- Production scenes: UpGround, Layer1, Layer2, Layer3")
 $report.Add("")
 $report.Add("| Suite | Mode | Passed | Failed | Skipped | Duration (seconds) |")
 $report.Add("|---|---:|---:|---:|---:|---:|")
@@ -220,7 +234,7 @@ foreach ($suiteResult in $results) {
 $report.Add("")
 $report.Add("## Visual sign-off scope")
 $report.Add("")
-$report.Add("- Layer1 uses the production orthographic tilted camera, and the framework verifies that 2D visual roots can face any tilted camera without rotating physics roots.")
+$report.Add("- Layer1/Layer2/Layer3 use the shared perspective combat profile. Production checks cover floor aim rays, generated visual roots, projection/lens, depth scaling, and camera shake.")
 $report.Add("- UpGround keeps its existing flat layered-art presentation. A forced physical tilt visibly deforms that legacy composition, so a non-zero Town tilt requires art-content reauthoring and visual sign-off; it is intentionally not reported as an automated pass.")
 $report | Set-Content -LiteralPath $reportPath -Encoding UTF8
 

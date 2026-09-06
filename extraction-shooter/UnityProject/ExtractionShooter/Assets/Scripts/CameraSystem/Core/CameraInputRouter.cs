@@ -40,6 +40,7 @@ namespace GourmetAbyss.CameraSystem
 
             _frame = new CameraInputFrame
             {
+                PointerPositionPixels = pointer,
                 PointerNormalized = Vector2.ClampMagnitude(normalized, 1f),
                 PointerDeltaPixels = pointerDelta,
                 PanPressed = Input.GetMouseButtonDown(panMouseButton),

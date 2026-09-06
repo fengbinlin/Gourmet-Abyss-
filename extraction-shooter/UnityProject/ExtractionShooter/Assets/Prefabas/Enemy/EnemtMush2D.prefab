@@ -14727,6 +14727,55 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!1 &1128077940357332887
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 611746843306511631}
+  - component: {fileID: 8445087007231946645}
+  m_Layer: 0
+  m_Name: mush_idle_VisualRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &611746843306511631
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128077940357332887}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.38268343, y: -0, z: -0, w: 0.92387956}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8577460852322666191}
+  m_Father: {fileID: 2810452848005793207}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8445087007231946645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128077940357332887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bd6d369c9df357458de7a959bd303c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 0}
+  updateMode: 1
+  reverseForward: 0
+  additionalEulerAngles: {x: 0, y: 0, z: 0}
 --- !u!1 &1187329782819927177
 GameObject:
   m_ObjectHideFlags: 0
@@ -24562,12 +24611,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4366637013598048142}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: 0.017, y: 1.228, z: -0.255}
-  m_LocalScale: {x: 0.50999993, y: 0.50999993, z: 0.50999993}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.017000198, y: 0.68801504, z: -1.0486393}
+  m_LocalScale: {x: 0.50999993, y: 0.51, z: 0.51}
   m_ConstrainProportionsScale: 1
   m_Children: []
-  m_Father: {fileID: 2810452848005793207}
+  m_Father: {fileID: 611746843306511631}
   m_LocalEulerAnglesHint: {x: 45, y: 0, z: 0}
 --- !u!212 &6819692816698664921
 SpriteRenderer:
@@ -44346,7 +44395,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 8577460852322666191}
+  - {fileID: 611746843306511631}
   - {fileID: 3283071014642288726}
   - {fileID: 6002249354531502425}
   - {fileID: 8618528218221951368}
@@ -44425,6 +44474,9 @@ MonoBehaviour:
     resourceType: 5
     resourceMinAmount: 1
     resourceMaxAmount: 1
+  healthBarType: 0
+  monsterHealthColor: {r: 0.86, g: 0.34, b: 0.34, a: 1}
+  gatherableHealthColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
 --- !u!114 &632669296158162573
 MonoBehaviour:
   m_ObjectHideFlags: 0

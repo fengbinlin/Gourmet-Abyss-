@@ -23,13 +23,19 @@ namespace GourmetAbyss.CameraSystem
     }
 
     [CreateAssetMenu(menuName = "料理地牢/Camera/Dungeon Profile", fileName = "DungeonCameraProfile")]
-    public sealed class DungeonCameraProfile : CameraSourceProfile
+    public class DungeonCameraProfile : CameraSourceProfile
     {
         [Header("鼠标偏移")]
         [Range(0f, 0.95f)] public float centerDeadZone = 0.1f;
         [Min(0f)] public float maxPointerOffset = 3f;
         [Range(0.25f, 4f)] public float responseExponent = 1.4f;
         [Min(0f)] public float pointerSmoothTime = 0.14f;
+
+        public virtual DungeonAimCameraSource CreateSource(Transform target, Vector3 offset, Quaternion rotation, float size)
+        {
+            return new DungeonAimCameraSource(target, offset, rotation, size, centerDeadZone,
+                maxPointerOffset, responseExponent, pointerSmoothTime, damping);
+        }
     }
 
     [CreateAssetMenu(menuName = "料理地牢/Camera/Restaurant Profile", fileName = "RestaurantCameraProfile")]

@@ -11,6 +11,8 @@ public class RestaurantPanel : MonoSingleton<RestaurantPanel>
     /// <summary>兼容旧调用点的别名，等价于 Instance。</summary>
     public static RestaurantPanel instance => Instance;
 
+    public IQueueIngredientPresentation QueueIngredientPresentation { get; set; }
+
     [Header("食材背包UI配置")]
     public GameObject foodItemPrefabs;
     public Transform foodItemParent;
@@ -611,6 +613,14 @@ public class RestaurantPanel : MonoSingleton<RestaurantPanel>
             yield break;
         DishQueueSlot queueSlot = allDishQueueSlots[queueIndex];
         if (queueSlot == null) yield break;
+
+        var presentation = QueueIngredientPresentation;
+        if (presentation != null && presentation.CanPresentQueueIngredients)
+        {
+            yield return presentation.PlayQueueIngredients(flySources, queueSlot,
+                queueIngredientFlyDuration, queueIngredientSpawnInterval, queueIngredientLandingDuration);
+            yield break;
+        }
 
         Vector3 targetWorldPos = queueSlot.GetQueueFlyTargetWorldPosition();
         float spawnInterval = Mathf.Max(0f, queueIngredientSpawnInterval);

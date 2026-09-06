@@ -126,12 +126,16 @@ namespace GourmetAbyss.CameraSystem
         public Vector3 Position;
         public Quaternion Rotation;
         public float OrthographicSize;
+        public bool Perspective;
+        public float FieldOfView;
 
-        public CameraPose(Vector3 position, Quaternion rotation, float orthographicSize)
+        public CameraPose(Vector3 position, Quaternion rotation, float orthographicSize, bool perspective = false, float fieldOfView = 40f)
         {
             Position = position;
             Rotation = rotation;
             OrthographicSize = Mathf.Max(0.01f, orthographicSize);
+            Perspective = perspective;
+            FieldOfView = Mathf.Clamp(fieldOfView, 10f, 100f);
         }
 
         public static CameraPose Lerp(CameraPose from, CameraPose to, float t)
@@ -140,7 +144,9 @@ namespace GourmetAbyss.CameraSystem
             return new CameraPose(
                 Vector3.LerpUnclamped(from.Position, to.Position, t),
                 Quaternion.SlerpUnclamped(from.Rotation, to.Rotation, t),
-                Mathf.LerpUnclamped(from.OrthographicSize, to.OrthographicSize, t));
+                Mathf.LerpUnclamped(from.OrthographicSize, to.OrthographicSize, t),
+                t < 1f ? from.Perspective : to.Perspective,
+                Mathf.Lerp(from.FieldOfView, to.FieldOfView, t));
         }
     }
 
@@ -202,6 +208,7 @@ namespace GourmetAbyss.CameraSystem
 
     public struct CameraInputFrame
     {
+        public Vector2 PointerPositionPixels;
         public Vector2 PointerNormalized;
         public Vector2 PointerDeltaPixels;
         public bool PanPressed;
